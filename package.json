@@ -10,8 +10,8 @@
   "scripts": {
     "server": "bash ../perennial/bin/sage run js/server/launchpad-server.ts",
     "local-server": "bash ../perennial/bin/sage run js/server/launchpad-server.ts --autoUpdate=false",
-    "client-start": "NODE_ENV=development npx esbuild js/client/client.ts index.html --loader:.html=copy --bundle --outdir=dist --serve=8081",
-    "client-build": "NODE_ENV=production npx esbuild js/client/client.ts index.html --loader:.html=copy --bundle --outdir=dist"
+    "start-client": "NODE_ENV=development npx esbuild js/client/client.ts index.html --loader:.html=copy --bundle --outdir=dist --serve=8081",
+    "build-client": "NODE_ENV=production npx esbuild js/client/client.ts index.html --loader:.html=copy --bundle --outdir=dist"
   },
   "dependencies": {
     "fuzzysort": "^3.1.0",
