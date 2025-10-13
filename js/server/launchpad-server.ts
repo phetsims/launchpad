@@ -32,6 +32,7 @@ import getRemoteBranchSHAs from '../../../perennial/js/common/getRemoteBranchSHA
 import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
 import getFileAtBranch from '../../../perennial/js/common/getFileAtBranch.js';
 import npmUpdateDirectory from '../../../perennial/js/common/npmUpdateDirectory.js';
+import basicAuth from 'basic-auth';
 
 const execute = executeImport.default;
 const ReleaseBranch = ReleaseBranchImport.default;
@@ -111,6 +112,18 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
   const ROOT_DIR = options.rootDirectory;
   if ( typeof ROOT_DIR !== 'string' || !fs.existsSync( ROOT_DIR ) || !fs.statSync( ROOT_DIR ).isDirectory() ) {
     throw new Error( `Invalid rootDirectory: ${ROOT_DIR}` );
+  }
+
+  type Config = {
+    basicAuthUser?: string;
+    basicAuthPassword?: string;
+  };
+
+  let config: Config = {};
+  const configFile = path.join( ROOT_DIR, 'launchpad/config.json' );
+
+  if ( fs.existsSync( configFile ) ) {
+    config = JSON.parse( fs.readFileSync( configFile, 'utf8' ) );
   }
 
   const getRepoDirectory = ( repo: Repo, branch: Branch ): string => {
@@ -517,8 +530,20 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
 
   const app = express();
 
-  // Global cache-control
+  // Global cache-control and authentication
   app.use( ( req, res, next ) => {
+
+    if ( config.basicAuthUser && config.basicAuthPassword ) {
+      const credentials = basicAuth( req );
+
+      if ( !credentials || credentials.name !== config.basicAuthUser || credentials.pass !== config.basicAuthPassword ) {
+        res.statusCode = 401;
+        res.setHeader( 'WWW-Authenticate', 'Basic realm="launchpad"' );
+        res.end( 'Access denied' );
+        return;
+      }
+    }
+
     res.setHeader( 'Cache-Control', 'public, max-age=0, must-revalidate' );
 
     if ( INCLUDE_CORS_ALL_ORIGINS ) {
