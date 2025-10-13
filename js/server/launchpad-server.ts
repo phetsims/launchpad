@@ -93,7 +93,7 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
   };
 
   const options = {
-    port: getOptionIfProvided( 'port', '45362' ),
+    port: getOptionIfProvided( 'port', '45372' ),
     rootDirectory: getOptionIfProvided( 'rootDirectory', resolve( __dirname, '../../..' ) ),
     autoUpdate: getOptionIfProvided( 'autoUpdate', true )
   };
