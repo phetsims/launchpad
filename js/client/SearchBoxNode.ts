@@ -1,7 +1,7 @@
 // Copyright 2025, University of Colorado Boulder
 
 /**
- * Search box for phettest
+ * Search box for launchpad
  *
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */

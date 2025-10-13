@@ -1,7 +1,7 @@
 // Copyright 2025, University of Colorado Boulder
 
 /**
- * Type for repo lists in phettest
+ * Type for repo lists in launchpad
  *
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */

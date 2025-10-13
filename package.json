@@ -8,8 +8,8 @@
   },
   "type": "module",
   "scripts": {
-    "server": "bash ../perennial/bin/sage run js/server/server.ts",
-    "local-server": "bash ../perennial/bin/sage run js/server/server.ts --autoUpdate=false",
+    "server": "bash ../perennial/bin/sage run js/server/launchpad-server.ts",
+    "local-server": "bash ../perennial/bin/sage run js/server/launchpad-server.ts --autoUpdate=false",
     "client-start": "NODE_ENV=development npx esbuild js/client/client.ts index.html --loader:.html=copy --bundle --outdir=dist --serve=8081",
     "client-build": "NODE_ENV=production npx esbuild js/client/client.ts index.html --loader:.html=copy --bundle --outdir=dist"
   },
