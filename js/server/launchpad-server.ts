@@ -33,22 +33,23 @@ import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
 import getFileAtBranch from '../../../perennial/js/common/getFileAtBranch.js';
 import npmUpdateDirectory from '../../../perennial/js/common/npmUpdateDirectory.js';
 import basicAuth from 'basic-auth';
+import ChipperVersion from '../../../perennial/js/common/ChipperVersion.js';
+import getBuildArgumentsImport from '../../../perennial/js/common/getBuildArguments.js';
+import gruntCommand from '../../../perennial/js/common/gruntCommand.js';
 
 const execute = executeImport.default;
 const ReleaseBranch = ReleaseBranchImport.default;
+const getBuildArguments = getBuildArgumentsImport.default;
 
 const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
 
 ( async () => {
-  /*
-   * Fix:
-   *   - Disposal order issue
-   */
   // To do list:
   //
   // - Front-end UI off of scenerystack
   //   - Query parameters: do we scan ALL locations (for dependencies) for query parameters? (initialize-globals, and *QueryParameters?)
   //     -- HAVE a search box for query parameters!
+  //     -- BUILD: SHOW whether the sim SHOULD be up-to-date (note that doesn't include babel, so allow builds even if it looks up-to-date)
   //     - Sim-specific query parameters
   //   - Show last commit messages of things?
   //   - TOP-level "most recently updated repos"?
@@ -81,6 +82,16 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
 
   // TODO: don't allow this for production https://github.com/phetsims/phettest/issues/20
   const INCLUDE_CORS_ALL_ORIGINS = true;
+
+  let nextBuildJobID = 0;
+  const buildJobs: Record<number, {
+    repo: Repo;
+    branch: Branch;
+    onOutputCallbacks: ( ( str: string ) => void )[];
+    onCompletedCallbacks: ( ( success: boolean ) => void )[];
+    outputString: string; // Current output so far
+    completionState: boolean | null; // null is in progress, otherwise success (true) or failure (false)
+  }> = {};
 
   const __filename = fileURLToPath( import.meta.url );
   const __dirname = dirname( __filename );
@@ -147,6 +158,12 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
     } );
   };
 
+  const getCurrentChipperVersion = (): ChipperVersion => {
+    return ChipperVersion.getFromPackageJSON(
+      JSON.parse( fs.readFileSync( `${ROOT_DIR}/chipper/package.json`, 'utf8' ) )
+    );
+  };
+
   const isDirectoryClean = async ( directory: string ): Promise<boolean> => {
     return execute( 'git', [ 'status', '--porcelain' ], directory ).then( stdout => Promise.resolve( stdout.length === 0 ) );
   };
@@ -155,6 +172,34 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
   const updateReleaseBranchCheckout = async ( releaseBranch: ReleaseBranch ): Promise<void> => {
     return npmLimit( async () => {
       return releaseBranch.updateCheckout();
+    } );
+  };
+
+  const buildReleaseBranch = async ( releaseBranch: ReleaseBranch, onOutput: ( str: string ) => void ): Promise<void> => {
+    await releaseBranch.build( {
+      lint: false,
+      typeCheck: false,
+      locales: '*',
+      allHTML: true,
+      debugHTML: true
+    }, {
+      onStdout: onOutput,
+      onStderr: onOutput
+    } );
+  };
+
+  const buildMain = async ( branchInfo: ModelBranchInfo, onOutput: ( str: string ) => void ): Promise<void> => {
+    const args = getBuildArguments( getCurrentChipperVersion(), {
+      lint: false,
+      typeCheck: false,
+      locales: '*',
+      allHTML: true,
+      debugHTML: true
+    } );
+
+    await execute( gruntCommand, args, path.join( ROOT_DIR, branchInfo.repo ), {
+      onStdout: onOutput,
+      onStderr: onOutput
     } );
   };
 
@@ -244,7 +289,7 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
             usesPhetioStudio: true,
             usesPhetioStudioIndex: true,
 
-            isBuilding: false,
+            buildJobID: null,
             lastBuiltTime: null,
             npmUpdated: false
           }
@@ -330,7 +375,7 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
           usesPhetioStudio: await releaseBranch.usesPhetioStudio(),
           usesPhetioStudioIndex: await releaseBranch.usesPhetioStudioIndex(),
 
-          isBuilding: false,
+          buildJobID: null,
           lastBuiltTime: null,
           npmUpdated: true // We will handle this manually
         };
@@ -369,6 +414,13 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
   };
 
   const model = fs.existsSync( '.model.json' ) ? JSON.parse( fs.readFileSync( '.model.json', 'utf8' ) ) as Model : getEmptyModel();
+
+  // Reset some state on startup
+  for ( const repo of Object.keys( model.repos ) ) {
+    for ( const branch of Object.keys( model.repos[ repo ].branches ) ) {
+      model.repos[ repo ].branches[ branch ].buildJobID = null; // reset any in-progress builds
+    }
+  }
 
   const saveModel = () => {
     fs.writeFileSync( '.model.json', JSON.stringify( model, null, 2 ), 'utf8' );
@@ -598,6 +650,135 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
       };
 
       res.send( JSON.stringify( result ) );
+    }
+  } );
+
+  // TODO: move the build job logic to another file
+  app.post( '/api/build/:repo/:branch', async ( req, res, next ) => {
+    const repo = req.params.repo;
+    const branch = req.params.branch;
+
+    const branchInfo = model.repos[ repo ]?.branches[ branch ];
+    if ( !branchInfo ) {
+      res.status( 404 ).send( `Unknown repo/branch: ${repo}/${branch}` );
+      return;
+    }
+
+    if ( branchInfo.buildJobID !== null ) {
+      console.log( 'Already building', repo, branch, branchInfo.buildJobID );
+
+      res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
+      res.send( JSON.stringify( {
+        buildJobID: branchInfo.buildJobID
+      } ) );
+    }
+    else {
+      const buildJobID = nextBuildJobID++;
+
+      branchInfo.buildJobID = buildJobID;
+      saveModel();
+
+      buildJobs[ buildJobID ] = {
+        repo: repo,
+        branch: branch,
+        onOutputCallbacks: [],
+        onCompletedCallbacks: [],
+        outputString: '',
+        completionState: null
+      };
+
+      res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
+      res.send( JSON.stringify( {
+        buildJobID: branchInfo.buildJobID
+      } ) );
+
+      const onOutput = ( str: string ) => {
+        console.log( str.split( '\n' ).map( line => `  [build job ${buildJobID}] ${line}` ).join( '\n' ) );
+        buildJobs[ buildJobID ].outputString += str;
+        buildJobs[ buildJobID ].onOutputCallbacks.forEach( callback => callback( str ) );
+      };
+      const onCompleted = ( success: boolean ) => {
+        buildJobs[ buildJobID ].completionState = success;
+        buildJobs[ buildJobID ].onCompletedCallbacks.forEach( callback => callback( success ) );
+      };
+      try {
+        console.log( `Starting build job ${buildJobID} for ${repo}/${branch}` );
+
+        if ( branch === 'main' ) {
+          await buildMain( branchInfo, onOutput );
+        }
+        else {
+          await buildReleaseBranch( new ReleaseBranch( repo, branch, branchInfo.brands, branchInfo.isReleased ), onOutput );
+        }
+
+        console.log( `Build job ${buildJobID} for ${repo}/${branch} completed successfully` );
+
+        onCompleted( true );
+      }
+      catch( e ) {
+        console.log( `Build job ${buildJobID} for ${repo}/${branch} failed: ${e}` );
+
+        onOutput( `Build error: ${e}\n` );
+        onCompleted( false );
+      }
+      finally {
+        buildJobs[ buildJobID ].onOutputCallbacks = [];
+        buildJobs[ buildJobID ].onCompletedCallbacks = [];
+
+        branchInfo.buildJobID = null;
+        branchInfo.lastBuiltTime = Date.now();
+        saveModel();
+      }
+    }
+  } );
+
+  app.get( '/api/build-events/:id', async ( req, res, next ) => {
+    const id = Number.parseInt( req.params.id, 10 );
+
+    const buildJob = buildJobs[ id ];
+    if ( !buildJob ) {
+      res.status( 404 ).send( `Unknown build job: ${id}` );
+      return;
+    }
+
+    req.socket.setTimeout( 0 ); // Keep connection open
+    res.writeHead( 200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no' // for nginx
+    } );
+
+    const outputCallback = ( str: string ) => {
+      res.write( `data: ${JSON.stringify( {
+        type: 'output',
+        text: str
+      } )}\n\n` );
+    };
+    const completedCallback = ( success: boolean ) => {
+      res.write( `data: ${JSON.stringify( {
+        type: 'completed',
+        success: success
+      } )}\n\n` );
+      res.end();
+    };
+
+    buildJob.onOutputCallbacks.push( outputCallback );
+    buildJob.onCompletedCallbacks.push( completedCallback );
+
+    const ping = setInterval( () => res.write( ': ping\n\n' ), 15000 );
+
+    req.on( 'close', () => {
+      clearInterval( ping );
+      buildJob.onOutputCallbacks = buildJob.onOutputCallbacks.filter( callback => callback !== outputCallback );
+      buildJob.onCompletedCallbacks = buildJob.onCompletedCallbacks.filter( callback => callback !== completedCallback );
+    } );
+
+    if ( buildJob.outputString.length > 0 ) {
+      outputCallback( buildJob.outputString );
+    }
+    if ( buildJob.completionState !== null ) {
+      completedCallback( buildJob.completionState );
     }
   } );
 

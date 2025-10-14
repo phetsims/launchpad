@@ -47,7 +47,7 @@ export type ModelBranchInfo = {
   usesPhetioStudio: boolean;
   usesPhetioStudioIndex: boolean;
 
-  isBuilding: boolean;
+  buildJobID: number | null; // if it is a number, it is building currently
   lastBuiltTime: number | null;
   npmUpdated: boolean;
 };

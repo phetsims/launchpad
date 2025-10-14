@@ -7,7 +7,7 @@
  */
 
 import { Property, TinyEmitter, TReadOnlyProperty } from 'scenerystack/axon';
-import { FireListener, HBox, Node, Text, VBox } from 'scenerystack/scenery';
+import { FireListener, HBox, HSeparator, Node, Text, VBox } from 'scenerystack/scenery';
 import { BranchInfo, RepoListEntry } from '../types/common-types.js';
 import moment from 'moment';
 import { copyToClipboard } from './copyToClipboard.js';
@@ -89,6 +89,11 @@ export class BranchNode extends VBox {
     };
 
     const modeListNode = new ModeListNode( availableModes, searchBoxTextProperty, selectedModeNameProperty, viewContext );
+
+
+    children.push( new HSeparator( {
+      stroke: '#888'
+    } ) );
 
     const mainBox = new HBox( {
       align: 'top',

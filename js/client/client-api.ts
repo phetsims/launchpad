@@ -27,3 +27,49 @@ export const apiGetBranchInfo = async ( repo: string, branch: string ): Promise<
 
   return ( await response.json() ) as Promise<BranchInfo>;
 };
+
+// // apiBuild( 'wave-on-a-string', 'main', console.log ).then( success => { console.log( success, 'success' )} )
+
+// Resolves with success
+export const apiBuild = async ( repo: string, branch: string, onOutput: ( str: string ) => void ): Promise<boolean> => {
+  const response = await fetch( `api/build/${repo}/${branch}`, { method: 'POST' } );
+
+  if ( !response.ok ) {
+    throw new Error( `Failed to trigger build: ${repo} ${branch} ${response.status} ${response.statusText}` );
+  }
+
+  const result = ( await response.json() ) as { buildJobID: number };
+
+  const buildJobID = result.buildJobID;
+
+  return apiBuildEvents( buildJobID, onOutput );
+};
+window.apiBuild = apiBuild; // TODO: remove the temporary line
+
+export const apiBuildEvents = async ( buildJobID: number, onOutput: ( str: string ) => void ): Promise<boolean> => {
+  const eventSource = new EventSource( `api/build-events/${buildJobID}` );
+
+  return new Promise( ( resolve, reject ) => {
+    eventSource.addEventListener( 'error', event => {
+      eventSource.close();
+    } );
+
+    eventSource.addEventListener( 'message', event => {
+      const data = JSON.parse( event.data ) as {
+        type: 'output';
+        text: string;
+      } | {
+        type: 'completed';
+        success: boolean;
+      };
+
+      if ( data.type === 'output' ) {
+        onOutput( data.text );
+      }
+      else if ( data.type === 'completed' ) {
+        eventSource.close();
+        resolve( data.success );
+      }
+    } );
+  } );
+};
