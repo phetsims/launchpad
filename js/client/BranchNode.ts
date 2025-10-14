@@ -14,6 +14,7 @@ import { copyToClipboard } from './copyToClipboard.js';
 import { ModeListNode } from './ModeListNode.js';
 import { getModes, CustomizationNode } from './getModes.js';
 import { ViewContext } from './ViewContext.js';
+import { TextPushButton } from 'scenerystack/sun';
 
 const enterEmitter = new TinyEmitter();
 document.body.addEventListener( 'keydown', e => {
@@ -81,13 +82,30 @@ export class BranchNode extends VBox {
       }
     } );
 
+    const launch = () => {
+      if ( customizationNode ) {
+        launchURL( customizationNode.getURL() );
+      }
+    };
+
     const modeListNode = new ModeListNode( availableModes, searchBoxTextProperty, selectedModeNameProperty, viewContext );
 
     const mainBox = new HBox( {
       align: 'top',
+      spacing: 20,
       children: [
         modeListNode,
-        customizationContainerNode
+        new VBox( {
+          spacing: 10,
+          align: 'left',
+          children: [
+            new TextPushButton( 'Launch', {
+              listener: launch,
+              font: '24px sans-serif'
+            } ),
+            customizationContainerNode
+          ]
+        } )
       ]
     } );
     children.push( mainBox );
@@ -98,15 +116,9 @@ export class BranchNode extends VBox {
       children: children
     } );
 
-    const emitterListener = () => {
-      if ( customizationNode ) {
-        launchURL( customizationNode.getURL() );
-      }
-    };
-    enterEmitter.addListener( emitterListener );
+    enterEmitter.addListener( launch );
     this.disposeEmitter.addListener( () => {
-      enterEmitter.removeListener( emitterListener );
-
+      enterEmitter.removeListener( launch );
 
       modeListNode.dispose();
     } );

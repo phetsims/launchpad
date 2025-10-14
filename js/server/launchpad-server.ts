@@ -54,8 +54,6 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
   //   - TOP-level "most recently updated repos"?
   //   - up/down keys for navigating the repo list?
   //   - get dependency list for each sim, so we can show it (and show updated timestamps for every dependency -- order by timestamp?)
-  //   - Access control (e.g. .htaccess) for phet-io
-  //   - Serve built form of launchpad client in launchpad server (at... root?)
   //   - Dark theme
   // - REST API
   //   - build, sync, status, repo-status, perhaps others?
