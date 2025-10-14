@@ -43,6 +43,41 @@ const getBuildArguments = getBuildArgumentsImport.default;
 
 const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
 
+const __filename = fileURLToPath( import.meta.url );
+const __dirname = dirname( __filename );
+
+const noptOptions = nopt( {}, {}, process.argv, 2 );
+
+const getOptionIfProvided = <T>( keyName: string, defaultValue?: T ): T => {
+  return noptOptions[ keyName ] !== undefined ? noptOptions[ keyName ] : defaultValue!;
+};
+
+const options = {
+  port: getOptionIfProvided( 'port', '45372' ),
+  rootDirectory: getOptionIfProvided( 'rootDirectory', resolve( __dirname, '../../..' ) ),
+  autoUpdate: getOptionIfProvided( 'autoUpdate', true )
+};
+
+console.log( 'options:' );
+console.log( ` - port: ${options.port}` );
+console.log( ` - rootDirectory: ${options.rootDirectory}` );
+console.log( ` - autoUpdate: ${options.autoUpdate}` );
+
+const port = parseInt( options.port, 10 );
+if ( typeof port !== 'number' || isNaN( port ) || port < 0 || port > 65535 ) {
+  throw new Error( `Invalid port: ${port}` );
+}
+
+const ROOT_DIR = options.rootDirectory;
+if ( typeof ROOT_DIR !== 'string' || !fs.existsSync( ROOT_DIR ) || !fs.statSync( ROOT_DIR ).isDirectory() ) {
+  throw new Error( `Invalid rootDirectory: ${ROOT_DIR}` );
+}
+
+const autoUpdate = options.autoUpdate;
+if ( typeof autoUpdate !== 'boolean' ) {
+  throw new Error( `Invalid autoUpdate: ${autoUpdate}` );
+}
+
 ( async () => {
   // To do list:
   //
@@ -98,36 +133,6 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
     onCompletedCallbacks: ( ( success: boolean ) => void )[];
     completionState: boolean | null; // null is in progress, otherwise success (true) or failure (false)
   }> = {};
-
-  const __filename = fileURLToPath( import.meta.url );
-  const __dirname = dirname( __filename );
-
-  const noptOptions = nopt( {}, {}, process.argv, 2 );
-
-  const getOptionIfProvided = <T>( keyName: string, defaultValue?: T ): T => {
-    return noptOptions[ keyName ] !== undefined ? noptOptions[ keyName ] : defaultValue!;
-  };
-
-  const options = {
-    port: getOptionIfProvided( 'port', '45372' ),
-    rootDirectory: getOptionIfProvided( 'rootDirectory', resolve( __dirname, '../../..' ) ),
-    autoUpdate: getOptionIfProvided( 'autoUpdate', true )
-  };
-
-  console.log( 'options:' );
-  console.log( ` - port: ${options.port}` );
-  console.log( ` - rootDirectory: ${options.rootDirectory}` );
-  console.log( ` - autoUpdate: ${options.autoUpdate}` );
-
-  const port = parseInt( options.port, 10 );
-  if ( typeof port !== 'number' || isNaN( port ) || port < 0 || port > 65535 ) {
-    throw new Error( `Invalid port: ${port}` );
-  }
-
-  const ROOT_DIR = options.rootDirectory;
-  if ( typeof ROOT_DIR !== 'string' || !fs.existsSync( ROOT_DIR ) || !fs.statSync( ROOT_DIR ).isDirectory() ) {
-    throw new Error( `Invalid rootDirectory: ${ROOT_DIR}` );
-  }
 
   type Config = {
     basicAuthUser?: string;
@@ -343,7 +348,7 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
           const repoDirectory = getRepoDirectory( repo, branch );
 
           // eslint-disable-next-line require-atomic-updates
-          model.repos[ repo ].branches[ branch ].currentBranch = await getDirectoryBranch( repoDirectory );
+          model.repos[ repo ].branches[ branch ].currentBranch = branch === 'main' ? await getDirectoryBranch( repoDirectory ) : null;
           // eslint-disable-next-line require-atomic-updates
           model.repos[ repo ].branches[ branch ].sha = await getDirectorySHA( repoDirectory );
           // eslint-disable-next-line require-atomic-updates
@@ -435,6 +440,7 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
   for ( const repo of Object.keys( model.repos ) ) {
     for ( const branch of Object.keys( model.repos[ repo ].branches ) ) {
       model.repos[ repo ].branches[ branch ].buildJobID = null; // reset any in-progress builds
+      model.repos[ repo ].branches[ branch ].updateCheckoutJobID = null; // reset any in-progress updates
     }
   }
 
