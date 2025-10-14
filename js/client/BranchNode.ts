@@ -167,13 +167,38 @@ export class BranchNode extends VBox {
       const getBuildOnOutput = (): ( () => void ) => {
         let outputString = '';
 
-        const textNode = new RichText( 'Building...', {
+        const textNode = new RichText( 'Starting build...', {
           font: '12px sans-serif',
           replaceNewlines: true
         } );
+
+        const indicatorNode = new SpinningIndicatorNode();
+        const stepListener = ( dt: number ) => {
+          indicatorNode.step( dt );
+        };
+        viewContext.stepEmitter.addListener( stepListener );
+        disposeCallbacks.push( () => {
+          viewContext.stepEmitter.removeListener( stepListener );
+        } );
+
         buildOutputContainer.children = [
           new AccordionBox( textNode, {
-            titleNode: new Text( 'Build Running: Output', { font: '16px sans-serif' } )
+            titleNode: new HBox( {
+              spacing: 5,
+              children: [
+                new Text( 'Build Running...', { font: '16px sans-serif' } ),
+                indicatorNode
+              ],
+              justify: 'left'
+            } ),
+            expandedDefaultValue: false,
+            titleAlignX: 'left',
+            showTitleWhenExpanded: true,
+            useExpandedBoundsWhenCollapsed: false,
+            useContentWidthWhenCollapsed: false,
+            titleBarExpandCollapse: true,
+            stroke: null,
+            buttonXMargin: 0
           } )
         ];
 

@@ -96,6 +96,10 @@ if ( typeof autoUpdate !== 'boolean' ) {
   //     - first npm-updated chipper, perennial-alias, perennial
   //     - then sync --transpile=true --status=false logPull=false logFormatting=false --npmUpdate=false --checkoutMain=true (????)
   //     - Then check lists?
+  //   - Auto-update on release branches:
+  //     - Should we auto-build here?
+  //
+  // - Auto-build? (per-branch option perhaps?)
   //
   // - Front-end UI off of scenerystack
   //   - Show BRANCH separation dates for release branches?
