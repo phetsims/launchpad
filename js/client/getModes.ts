@@ -70,16 +70,16 @@ export const getModes = (
       }
     } );
 
-    // TODO: perhaps only show built mode IF it has been built!
-
-    modes.push( {
-      // TODO: locale-specific versions perhaps?
-      name: 'built',
-      description: 'Runs the simulation from the built all-locale HTML',
-      createCustomizationNode: () => {
-        return new EmptyCustomizationNode( `${repoDirectory}/build${phetFolder}/${repo}_all${phetSuffix}.html` );
-      }
-    } );
+    if ( branchInfo.lastBuiltTime ) {
+      modes.push( {
+        // TODO: locale-specific versions perhaps?
+        name: 'built',
+        description: 'Runs the simulation from the built all-locale HTML',
+        createCustomizationNode: () => {
+          return new EmptyCustomizationNode( `${repoDirectory}/build${phetFolder}/${repo}_all${phetSuffix}.html` );
+        }
+      } );
+    }
 
     if ( branchInfo.brands.includes( 'phet-io' ) ) {
       modes.push( {
@@ -89,13 +89,17 @@ export const getModes = (
           return new EmptyCustomizationNode( `${repoDirectory}/${repo}_en.html?ea&brand=phet-io&${phetioStandaloneQueryParameters}&debugger` );
         }
       } );
-      modes.push( {
-        name: 'phet-io standalone built',
-        description: 'Runs the built simulation in phet-io standalone mode',
-        createCustomizationNode: () => {
-          return new EmptyCustomizationNode( `${repoDirectory}/build${phetioFolder}/${repo}${phetioSuffix}.html?${phetioStandaloneQueryParameters}` );
-        }
-      } );
+
+      if ( branchInfo.lastBuiltTime ) {
+        modes.push( {
+          name: 'phet-io standalone built',
+          description: 'Runs the built simulation in phet-io standalone mode',
+          createCustomizationNode: () => {
+            return new EmptyCustomizationNode( `${repoDirectory}/build${phetioFolder}/${repo}${phetioSuffix}.html?${phetioStandaloneQueryParameters}` );
+          }
+        } );
+      }
+
       modes.push( {
         name: 'phet-io studio unbuilt',
         description: `Runs the unbuilt simulation in ${studioNameBeautified}`,
@@ -104,13 +108,16 @@ export const getModes = (
           return new EmptyCustomizationNode( `${releaseBranchPrefix}studio?sim=${branchInfo.repo}&phetioWrapperDebug=true&phetioElementsDisplay=all` );
         }
       } );
-      modes.push( {
-        name: 'phet-io studio built',
-        description: `Runs the built simulation in ${studioNameBeautified}`,
-        createCustomizationNode: () => {
-          return new EmptyCustomizationNode( `${repoDirectory}/build${phetioFolder}/wrappers/${studioName}${studioPathSuffix}` );
-        }
-      } );
+
+      if ( branchInfo.lastBuiltTime ) {
+        modes.push( {
+          name: 'phet-io studio built',
+          description: `Runs the built simulation in ${studioNameBeautified}`,
+          createCustomizationNode: () => {
+            return new EmptyCustomizationNode( `${repoDirectory}/build${phetioFolder}/wrappers/${studioName}${studioPathSuffix}` );
+          }
+        } );
+      }
     }
   }
 

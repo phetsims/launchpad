@@ -7,14 +7,15 @@
  */
 
 import { Property, TinyEmitter, TReadOnlyProperty } from 'scenerystack/axon';
-import { FireListener, HBox, HSeparator, Node, Text, VBox } from 'scenerystack/scenery';
+import { FireListener, HBox, HSeparator, Node, RichText, Text, VBox } from 'scenerystack/scenery';
 import { BranchInfo, RepoListEntry } from '../types/common-types.js';
 import moment from 'moment';
 import { copyToClipboard } from './copyToClipboard.js';
 import { ModeListNode } from './ModeListNode.js';
 import { getModes, CustomizationNode } from './getModes.js';
 import { ViewContext } from './ViewContext.js';
-import { TextPushButton } from 'scenerystack/sun';
+import { AccordionBox, TextPushButton } from 'scenerystack/sun';
+import { apiBuild, apiBuildEvents } from './client-api.js';
 
 const enterEmitter = new TinyEmitter();
 document.body.addEventListener( 'keydown', e => {
@@ -30,17 +31,18 @@ export class BranchNode extends VBox {
     branchInfo: BranchInfo,
     searchBoxTextProperty: TReadOnlyProperty<string>,
     launchURL: ( url: string ) => void,
+    requestNewBranchInfo: () => void,
     viewContext: ViewContext
   ) {
-    const children = [];
+    const infoChildren = [];
 
     if ( branchInfo.version && branchInfo.brands ) {
-      children.push( new Text( `${branchInfo.version} (${branchInfo.brands.join( ', ' )})`, {
+      infoChildren.push( new Text( `${branchInfo.version} (${branchInfo.brands.join( ', ' )})`, {
         font: '16px sans-serif'
       } ) );
     }
     if ( branchInfo.isCheckedOut ) {
-      children.push( new Text( `Last updated: ${moment( branchInfo.timestamp ).calendar()} (${branchInfo?.sha?.slice( 0, 7 ) ?? ''})`, {
+      infoChildren.push( new Text( `Last updated: ${moment( branchInfo.timestamp ).calendar()} (${branchInfo?.sha?.slice( 0, 7 ) ?? ''})`, {
         font: '16px sans-serif',
         cursor: 'pointer',
         inputListeners: [
@@ -55,7 +57,7 @@ export class BranchNode extends VBox {
       if ( branchInfo.dependencyRepos.length ) {
         const latestTimestamp = Math.max( ...Object.values( branchInfo.dependencyTimestampMap ) );
 
-        children.push( new Text( `Dependencies Last Updated: ${moment( latestTimestamp ).calendar()}`, {
+        infoChildren.push( new Text( `Dependencies Last Updated: ${moment( latestTimestamp ).calendar()}`, {
           font: '16px sans-serif'
         } ) );
       }
@@ -90,10 +92,76 @@ export class BranchNode extends VBox {
 
     const modeListNode = new ModeListNode( availableModes, searchBoxTextProperty, selectedModeNameProperty, viewContext );
 
+    // Build status and button
+    if ( repoListEntry.isRunnable ) {
+      const buildStatusText = new Text( branchInfo.lastBuiltTime === null ? 'No build available' : `Last successful build: ${moment( branchInfo.lastBuiltTime ).calendar()}`, {
+        font: '16px sans-serif'
+      } );
 
-    children.push( new HSeparator( {
-      stroke: '#888'
-    } ) );
+      const buildOutputContainer = new Node();
+
+      const getBuildOnOutput = (): ( () => void ) => {
+        let outputString = '';
+
+        const textNode = new RichText( 'Building...', {
+          font: '12px sans-serif',
+          replaceNewlines: true
+        } );
+        buildOutputContainer.children = [
+          new AccordionBox( textNode, {
+            titleNode: new Text( 'Build Running: Output', { font: '16px sans-serif' } )
+          } )
+        ];
+
+        const onOutput = ( str: string ) => {
+          outputString += str;
+          textNode.string = outputString;
+        };
+
+        return onOutput;
+      };
+
+      const buildButton = new TextPushButton( branchInfo.lastBuiltTime ? 'Rebuild' : 'Build', {
+        font: '16px sans-serif',
+        listener: async () => {
+          buildButton.visible = false;
+          buildStatusText.visible = false;
+
+          const success = await apiBuild( branchInfo.repo, branchInfo.branch, getBuildOnOutput() );
+
+          if ( success ) {
+            requestNewBranchInfo();
+          }
+        }
+      } );
+
+      if ( branchInfo.buildJobID !== null ) {
+        ( async () => {
+          buildButton.visible = false;
+          buildStatusText.visible = false;
+
+          const success = await apiBuildEvents( branchInfo.buildJobID, getBuildOnOutput() );
+
+          if ( success ) {
+            requestNewBranchInfo();
+          }
+        } )().catch( e => { throw e; } );
+      }
+
+      infoChildren.push( new VBox( {
+        spacing: 10,
+        children: [
+          new HBox( {
+            spacing: 10,
+            children: [
+              buildStatusText,
+              buildButton
+            ]
+          } ),
+          buildOutputContainer
+        ]
+      } ) );
+    }
 
     const mainBox = new HBox( {
       align: 'top',
@@ -113,12 +181,21 @@ export class BranchNode extends VBox {
         } )
       ]
     } );
-    children.push( mainBox );
 
     super( {
       spacing: 20,
       align: 'left',
-      children: children
+      children: [
+        new VBox( {
+          align: 'left',
+          spacing: 5,
+          children: infoChildren
+        } ),
+        new HSeparator( {
+          stroke: '#888'
+        } ),
+        mainBox
+      ]
     } );
 
     enterEmitter.addListener( launch );

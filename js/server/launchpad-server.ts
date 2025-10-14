@@ -679,6 +679,7 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
       const buildJobID = nextBuildJobID++;
 
       branchInfo.buildJobID = buildJobID;
+      branchInfo.lastBuiltTime = null;
       saveModel();
 
       buildJobs[ buildJobID ] = {
@@ -717,6 +718,11 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
         console.log( `Build job ${buildJobID} for ${repo}/${branch} completed successfully` );
 
         onCompleted( true );
+
+        // TODO: improved persistence model
+        // Only set this on success
+        branchInfo.lastBuiltTime = Date.now();
+        saveModel();
       }
       catch( e ) {
         console.log( `Build job ${buildJobID} for ${repo}/${branch} failed: ${e}` );
@@ -729,7 +735,6 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
         buildJobs[ buildJobID ].onCompletedCallbacks = [];
 
         branchInfo.buildJobID = null;
-        branchInfo.lastBuiltTime = Date.now();
         saveModel();
       }
     }

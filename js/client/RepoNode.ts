@@ -36,6 +36,17 @@ export class RepoNode extends VBox {
       }
     } );
 
+    const requestNewBranchInfo = async () => {
+      const branch = branchProperty.value;
+
+      const branchInfo = await apiGetBranchInfo( repoListEntry.name, branch );
+
+      // Ensure we haven't navigated to a new branch
+      if ( branchProperty.value === branch ) {
+        branchInfoProperty.value = branchInfo;
+      }
+    };
+
     const contentContainer = new Node();
 
     super( {
@@ -86,7 +97,7 @@ export class RepoNode extends VBox {
 
     const branchInfoListener = ( branchInfo: BranchInfo | null ) => {
       const oldChildren = contentContainer.children.slice();
-      contentContainer.children = [ branchInfo ? new BranchNode( repoListEntry, branchInfo, searchBoxTextProperty, launchURL, viewContext ) : new Text( 'Loading...', { font: '16px sans-serif', opacity: 0.5 } ) ];
+      contentContainer.children = [ branchInfo ? new BranchNode( repoListEntry, branchInfo, searchBoxTextProperty, launchURL, requestNewBranchInfo, viewContext ) : new Text( 'Loading...', { font: '16px sans-serif', opacity: 0.5 } ) ];
       oldChildren.forEach( child => child.dispose() );
     };
 
