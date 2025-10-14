@@ -65,9 +65,6 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
   //     - No concurrent builds for the same repo (building multiple sims at a time is fine)
   //     - All brands except for adapted-from-phet (from simPackage.phet?.supportedBrands)
   //     - (and do we skip linting and type-checking?) --- what about uglify?
-  //   - Status:
-  //     - git-remote-different-repos useful (isGitRemoteDifferent)
-  // - serve (and be able to build) release branches also (independent checkouts)
   // - auto-update option implementation (have it work for release branches also)
   // - modulify???
   // - Sync
@@ -75,6 +72,7 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
   //   - then sync --transpile=true --status=false logPull=false logFormatting=false --npmUpdate=false --checkoutMain=true (????)
   //   - Then check lists?
   // - Test on Windows
+  // - Get release branch unbuilt running
 
   // These will get stat'ed all at once
   const PREFERRED_EXTENSIONS = [ 'js', 'ts' ];
