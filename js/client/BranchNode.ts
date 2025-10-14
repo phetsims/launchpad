@@ -18,6 +18,8 @@ import { AccordionBox, TextPushButton } from 'scenerystack/sun';
 import { apiBuild, apiBuildEvents, apiUpdate, apiUpdateEvents } from './client-api.js';
 import { SpinningIndicatorNode } from 'scenerystack/scenery-phet';
 
+let isStartup = true;
+
 const enterEmitter = new TinyEmitter();
 document.body.addEventListener( 'keydown', e => {
   // if enter is pressed
@@ -71,7 +73,15 @@ export class BranchNode extends VBox {
     let customizationNode: CustomizationNode | null = null;
     const availableModes = getModes( repoListEntry, branchInfo );
 
-    const selectedModeNameProperty = new Property( availableModes[ 0 ].name );
+    // Some logic to select the same mode on startup (load)
+    const lastModeName = localStorage.getItem( 'lastModeName' ) ?? null;
+    const initialModeName = isStartup && lastModeName && availableModes.some( mode => mode.name === lastModeName ) ? lastModeName : availableModes[ 0 ].name;
+    isStartup = false;
+
+    const selectedModeNameProperty = new Property( initialModeName );
+    selectedModeNameProperty.link( modeName => {
+      localStorage.setItem( 'lastModeName', modeName );
+    } );
 
     selectedModeNameProperty.link( modeName => {
       if ( customizationNode ) {

@@ -55,6 +55,16 @@ export class RepoListNode extends VBox {
       if ( searchResults.length === 0 ) {
         selectedRepoProperty.value = null;
       }
+      else if ( selectedRepoProperty.value === null && searchText.length === 0 ) {
+        const lastSelectedRepo = localStorage.getItem( 'lastSelectedRepo' ) ?? null;
+
+        if ( lastSelectedRepo && searchResults.some( result => result.obj.name === lastSelectedRepo ) ) {
+          selectedRepoProperty.value = lastSelectedRepo;
+        }
+        else {
+          selectedRepoProperty.value = searchResults[ 0 ].obj.name;
+        }
+      }
       else {
         if (
           selectedRepoProperty.value === null ||

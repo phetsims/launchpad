@@ -81,8 +81,6 @@ if ( typeof autoUpdate !== 'boolean' ) {
 ( async () => {
   // To do list:
   //
-  // - Save current repo in localStorage -- possibly branch and mode also (just for on-load, to select the initial one if available)
-  //
   // - LOCK so we don't build while an update to a dependency is happening? Or update while a build is happening?
   // - SHOW whether the build is for the latest SHAs
   // - update job ID also works for the "git pull"

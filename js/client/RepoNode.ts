@@ -14,6 +14,8 @@ import { apiGetBranchInfo } from './client-api.js';
 import { BranchNode } from './BranchNode.js';
 import { ViewContext } from './ViewContext.js';
 
+let isStartup = true;
+
 export class RepoNode extends VBox {
   public constructor(
     repoListEntry: RepoListEntry,
@@ -21,7 +23,16 @@ export class RepoNode extends VBox {
     launchURL: ( url: string ) => void,
     viewContext: ViewContext
   ) {
-    const branchProperty = new Property( 'main' );
+    // Some logic to select the same branch on startup (load)
+    const lastBranch = localStorage.getItem( 'lastBranch' ) ?? null;
+    const initialBranch = isStartup && lastBranch && repoListEntry.branches.includes( lastBranch ) ? lastBranch : 'main';
+    isStartup = false;
+
+    const branchProperty = new Property( initialBranch );
+
+    branchProperty.link( branch => {
+      localStorage.setItem( 'lastBranch', branch );
+    } );
 
     const branchInfoProperty = new Property<BranchInfo | null>( null );
 

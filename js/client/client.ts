@@ -32,6 +32,12 @@ const searchBoxTextProperty = new Property( '' );
 const repoListProperty = new Property<RepoList | null>( null );
 const launchTypeProperty = new LocalStorageEnumerationProperty( 'launchType', LaunchType.SAME_TAB );
 
+selectedRepoProperty.lazyLink( repo => {
+  if ( repo ) {
+    localStorage.setItem( 'lastSelectedRepo', repo );
+  }
+} );
+
 ( async () => {
   repoListProperty.value = await apiGetRepoList();
 } )().catch( e => {
