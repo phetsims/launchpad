@@ -39,6 +39,26 @@ export const getModes = (
 
   const modes: ModeData[] = [];
 
+  const versionString = branchInfo.version || '';
+
+  const releaseBranchPrefix = branchInfo.branch === 'main' ? '' : `release-branches/${branchInfo.repo}-${branchInfo.branch}/`;
+  const repoDirectory = `${releaseBranchPrefix}${repo}`;
+
+  const phetioStandaloneQueryParameters = branchInfo.usesOldPhetioStandalone ? 'phet-io.standalone' : 'phetioStandalone';
+  const proxiesParams = branchInfo.usesRelativeSimPath ? 'relativeSimPath' : 'launchLocalVersion';
+  const studioName = branchInfo.brands.includes( 'phet-io' ) && branchInfo.usesPhetioStudio ? 'studio' : 'instance-proxies';
+  const studioNameBeautified = studioName === 'studio' ? 'Studio' : 'Instance Proxies';
+  const usesChipper2 = branchInfo.isChipper2;
+  const phetFolder = usesChipper2 ? '/phet' : '';
+  const phetioFolder = usesChipper2 ? '/phet-io' : '';
+  const phetSuffix = usesChipper2 ? '_phet' : '';
+  const phetioSuffix = usesChipper2 ? '_all_phet-io' : '_en-phetio';
+  const phetioBrandSuffix = usesChipper2 ? '' : '-phetio';
+  const studioPathSuffix = branchInfo.usesPhetioStudioIndex ? '' : `/${studioName}.html?sim=${branchInfo.repo}&${proxiesParams}`;
+  const phetioDevVersion = usesChipper2 ? versionString : versionString.split( '-' ).join( '-phetio' );
+
+  // `](https://phet-dev.colorado.edu/html/${this.repo}/${versionString}${phetFolder}/${this.repo}_all${phetSuffix}.html)`
+
   if ( repoListEntry.isRunnable ) {
     // TODO: handle release branches also https://github.com/phetsims/phettest/issues/20
 
@@ -46,9 +66,52 @@ export const getModes = (
       name: 'unbuilt',
       description: 'Runs the simulation from the top-level development HTML in unbuilt mode',
       createCustomizationNode: () => {
-        return new EmptyCustomizationNode( `${repo}/${repo}_en.html?ea&brand=phet&debugger` );
+        return new EmptyCustomizationNode( `${repoDirectory}/${repo}_en.html?ea&brand=phet&debugger` );
       }
     } );
+
+    // TODO: perhaps only show built mode IF it has been built!
+
+    modes.push( {
+      // TODO: locale-specific versions perhaps?
+      name: 'built',
+      description: 'Runs the simulation from the built all-locale HTML',
+      createCustomizationNode: () => {
+        return new EmptyCustomizationNode( `${repoDirectory}/build${phetFolder}/${repo}_all${phetSuffix}.html` );
+      }
+    } );
+
+    if ( branchInfo.brands.includes( 'phet-io' ) ) {
+      modes.push( {
+        name: 'phet-io standalone unbuilt',
+        description: 'Runs the unbuilt simulation in phet-io standalone mode',
+        createCustomizationNode: () => {
+          return new EmptyCustomizationNode( `${repoDirectory}/${repo}_en.html?ea&brand=phet-io&${phetioStandaloneQueryParameters}&debugger` );
+        }
+      } );
+      modes.push( {
+        name: 'phet-io standalone built',
+        description: 'Runs the built simulation in phet-io standalone mode',
+        createCustomizationNode: () => {
+          return new EmptyCustomizationNode( `${repoDirectory}/build${phetioFolder}/${repo}${phetioSuffix}.html?${phetioStandaloneQueryParameters}` );
+        }
+      } );
+      modes.push( {
+        name: 'phet-io studio unbuilt',
+        description: `Runs the unbuilt simulation in ${studioNameBeautified}`,
+        createCustomizationNode: () => {
+          // TODO: likely this URL won't work for older cases
+          return new EmptyCustomizationNode( `${releaseBranchPrefix}studio?sim=${branchInfo.repo}&phetioWrapperDebug=true&phetioElementsDisplay=all` );
+        }
+      } );
+      modes.push( {
+        name: 'phet-io studio built',
+        description: `Runs the built simulation in ${studioNameBeautified}`,
+        createCustomizationNode: () => {
+          return new EmptyCustomizationNode( `${repoDirectory}/build${phetioFolder}/wrappers/${studioName}${studioPathSuffix}` );
+        }
+      } );
+    }
   }
 
   modes.push( {

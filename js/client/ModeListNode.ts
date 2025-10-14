@@ -47,8 +47,10 @@ export class ModeListNode extends VBox {
 
       if (
         searchResults.length > 0 &&
-        selectedModeNameProperty.value === null ||
-        !searchResults.some( result => result.obj.name === selectedModeNameProperty.value )
+        (
+          selectedModeNameProperty.value === null ||
+          !searchResults.some( result => result.obj.name === selectedModeNameProperty.value )
+        )
       ) {
         selectedModeNameProperty.value = searchResults[ 0 ].obj.name;
       }

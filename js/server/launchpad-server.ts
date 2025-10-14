@@ -53,6 +53,7 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
   //     - Sim-specific query parameters
   //   - Show last commit messages of things?
   //   - TOP-level "most recently updated repos"?
+  //   - Links to latest dev/rc versions?
   //   - up/down keys for navigating the repo list?
   //   - get dependency list for each sim, so we can show it (and show updated timestamps for every dependency -- order by timestamp?)
   //   - Dark theme
@@ -177,6 +178,7 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
 
   const buildReleaseBranch = async ( releaseBranch: ReleaseBranch, onOutput: ( str: string ) => void ): Promise<void> => {
     await releaseBranch.build( {
+      brands: releaseBranch.brands,
       lint: false,
       typeCheck: false,
       locales: '*',
@@ -190,6 +192,7 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
 
   const buildMain = async ( branchInfo: ModelBranchInfo, onOutput: ( str: string ) => void ): Promise<void> => {
     const args = getBuildArguments( getCurrentChipperVersion(), {
+      brands: branchInfo.brands,
       lint: false,
       typeCheck: false,
       locales: '*',
