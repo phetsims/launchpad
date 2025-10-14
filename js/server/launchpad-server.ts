@@ -81,6 +81,24 @@ if ( typeof autoUpdate !== 'boolean' ) {
 ( async () => {
   // To do list:
   //
+  // - Save current repo in localStorage -- possibly branch and mode also (just for on-load, to select the initial one if available)
+  //
+  // - LOCK so we don't build while an update to a dependency is happening? Or update while a build is happening?
+  // - SHOW whether the build is for the latest SHAs
+  // - update job ID also works for the "git pull"
+  //
+  // - REQUEST RESPONSE for checking latest github-side SHAs for a set of repos (to show in UI)
+  //   - Polling for this type of thing (or hit github API if it is fast)
+  //
+  // - update model periodically (or on demand --- button?)
+  // - IF no autoUpdate, allow a manual "sync" or "sync all branches" (i.e. local developer machine)
+  //   - DO NOT auto-update launchpad - note that pulls of launchpad likely require rebuild of launchpad for serving to work
+  //     -- OR does that mean when launchpad gets pulled, we just auto-rebuild it?
+  //   - Sync
+  //     - first npm-updated chipper, perennial-alias, perennial
+  //     - then sync --transpile=true --status=false logPull=false logFormatting=false --npmUpdate=false --checkoutMain=true (????)
+  //     - Then check lists?
+  //
   // - Front-end UI off of scenerystack
   //   - Show BRANCH separation dates for release branches?
   //   - Query parameters: do we scan ALL locations (for dependencies) for query parameters? (initialize-globals, and *QueryParameters?)
@@ -93,6 +111,7 @@ if ( typeof autoUpdate !== 'boolean' ) {
   //   - up/down keys for navigating the repo list?
   //   - get dependency list for each sim, so we can show it (and show updated timestamps for every dependency -- order by timestamp?)
   //   - Dark theme
+  //   - Load which locales are supported(!)
   // - REST API
   //   - build, sync, status, repo-status, perhaps others?
   //   - Build:
@@ -102,12 +121,10 @@ if ( typeof autoUpdate !== 'boolean' ) {
   //     - (and do we skip linting and type-checking?) --- what about uglify?
   // - auto-update option implementation (have it work for release branches also)
   // - modulify???
-  // - Sync
-  //   - first npm-updated chipper, perennial-alias, perennial
-  //   - then sync --transpile=true --status=false logPull=false logFormatting=false --npmUpdate=false --checkoutMain=true (????)
-  //   - Then check lists?
   // - Test on Windows
   // - Get release branch unbuilt running
+  // - Complete package-lock items
+  // - Status?
 
   // These will get stat'ed all at once
   const PREFERRED_EXTENSIONS = [ 'js', 'ts' ];
