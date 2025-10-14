@@ -49,6 +49,10 @@ export type ModelBranchInfo = {
 
   buildJobID: number | null; // if it is a number, it is building currently
   lastBuiltTime: number | null;
+
+  updateCheckoutJobID: number | null; // if it is a number, it is updating currently
+  lastUpdatedTime: number | null;
+
   npmUpdated: boolean;
 };
 

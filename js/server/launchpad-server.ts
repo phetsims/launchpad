@@ -47,6 +47,7 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
   // To do list:
   //
   // - Front-end UI off of scenerystack
+  //   - Show BRANCH separation dates for release branches?
   //   - Query parameters: do we scan ALL locations (for dependencies) for query parameters? (initialize-globals, and *QueryParameters?)
   //     -- HAVE a search box for query parameters!
   //     -- BUILD: SHOW whether the sim SHOULD be up-to-date (note that doesn't include babel, so allow builds even if it looks up-to-date)
@@ -84,13 +85,19 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
   // TODO: don't allow this for production https://github.com/phetsims/phettest/issues/20
   const INCLUDE_CORS_ALL_ORIGINS = true;
 
-  let nextBuildJobID = 0;
+  let nextJobID = 0;
   const buildJobs: Record<number, {
     repo: Repo;
     branch: Branch;
     onOutputCallbacks: ( ( str: string ) => void )[];
     onCompletedCallbacks: ( ( success: boolean ) => void )[];
     outputString: string; // Current output so far
+    completionState: boolean | null; // null is in progress, otherwise success (true) or failure (false)
+  }> = {};
+  const updateCheckoutJobs: Record<number, {
+    repo: Repo;
+    branch: Branch;
+    onCompletedCallbacks: ( ( success: boolean ) => void )[];
     completionState: boolean | null; // null is in progress, otherwise success (true) or failure (false)
   }> = {};
 
@@ -294,6 +301,10 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
 
             buildJobID: null,
             lastBuiltTime: null,
+
+            updateCheckoutJobID: null,
+            lastUpdatedTime: null,
+
             npmUpdated: false
           }
         }
@@ -380,6 +391,10 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
 
           buildJobID: null,
           lastBuiltTime: null,
+
+          updateCheckoutJobID: null,
+          lastUpdatedTime: null,
+
           npmUpdated: true // We will handle this manually
         };
       }
@@ -676,7 +691,7 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
       } ) );
     }
     else {
-      const buildJobID = nextBuildJobID++;
+      const buildJobID = nextJobID++;
 
       branchInfo.buildJobID = buildJobID;
       branchInfo.lastBuiltTime = null;
@@ -787,6 +802,117 @@ const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
     }
     if ( buildJob.completionState !== null ) {
       completedCallback( buildJob.completionState );
+    }
+  } );
+
+  // For updating checkouts
+  app.post( '/api/update/:repo/:branch', async ( req, res, next ) => {
+    const repo = req.params.repo;
+    const branch = req.params.branch;
+
+    const branchInfo = model.repos[ repo ]?.branches[ branch ];
+    if ( !branchInfo ) {
+      res.status( 404 ).send( `Unknown repo/branch: ${repo}/${branch}` );
+      return;
+    }
+
+    if ( branchInfo.updateCheckoutJobID !== null ) {
+      console.log( 'Already updating', repo, branch, branchInfo.updateCheckoutJobID );
+
+      res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
+      res.send( JSON.stringify( {
+        updateCheckoutJobID: branchInfo.updateCheckoutJobID
+      } ) );
+    }
+    else {
+      const updateCheckoutJobID = nextJobID++;
+
+      branchInfo.updateCheckoutJobID = updateCheckoutJobID;
+      branchInfo.lastUpdatedTime = null;
+      branchInfo.isCheckedOut = false;
+      saveModel();
+
+      updateCheckoutJobs[ updateCheckoutJobID ] = {
+        repo: repo,
+        branch: branch,
+        onCompletedCallbacks: [],
+        completionState: null
+      };
+
+      res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
+      res.send( JSON.stringify( {
+        updateCheckoutJobID: branchInfo.updateCheckoutJobID
+      } ) );
+
+      const onCompleted = ( success: boolean ) => {
+        updateCheckoutJobs[ updateCheckoutJobID ].completionState = success;
+        updateCheckoutJobs[ updateCheckoutJobID ].onCompletedCallbacks.forEach( callback => callback( success ) );
+      };
+      try {
+        console.log( `Starting update checkout job ${updateCheckoutJobID} for ${repo}/${branch}` );
+
+        let success = true;
+        try {
+          await updateReleaseBranchCheckout( new ReleaseBranch( repo, branch, branchInfo.brands, branchInfo.isReleased ) );
+        }
+        catch( e ) {
+          success = false;
+          console.log( `Update checkout job ${updateCheckoutJobID} for ${repo}/${branch} failed: ${e}` );
+        }
+
+        onCompleted( success );
+
+        if ( success ) {
+          branchInfo.lastUpdatedTime = Date.now();
+          branchInfo.isCheckedOut = true;
+          saveModel();
+        }
+      }
+      finally {
+        updateCheckoutJobs[ updateCheckoutJobID ].onCompletedCallbacks = [];
+
+        branchInfo.updateCheckoutJobID = null;
+        saveModel();
+      }
+    }
+  } );
+
+  app.get( '/api/update-events/:id', async ( req, res, next ) => {
+    const id = Number.parseInt( req.params.id, 10 );
+
+    const updateCheckoutJob = updateCheckoutJobs[ id ];
+    if ( !updateCheckoutJob ) {
+      res.status( 404 ).send( `Unknown update checkout job: ${id}` );
+      return;
+    }
+
+    req.socket.setTimeout( 0 ); // Keep connection open
+    res.writeHead( 200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no' // for nginx
+    } );
+
+    const completedCallback = ( success: boolean ) => {
+      res.write( `data: ${JSON.stringify( {
+        type: 'completed',
+        success: success
+      } )}\n\n` );
+      res.end();
+    };
+
+    updateCheckoutJob.onCompletedCallbacks.push( completedCallback );
+
+    const ping = setInterval( () => res.write( ': ping\n\n' ), 15000 );
+
+    req.on( 'close', () => {
+      clearInterval( ping );
+      updateCheckoutJob.onCompletedCallbacks = updateCheckoutJob.onCompletedCallbacks.filter( callback => callback !== completedCallback );
+    } );
+
+    if ( updateCheckoutJob.completionState !== null ) {
+      completedCallback( updateCheckoutJob.completionState );
     }
   } );
 

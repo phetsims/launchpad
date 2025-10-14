@@ -15,7 +15,8 @@ import { ModeListNode } from './ModeListNode.js';
 import { getModes, CustomizationNode } from './getModes.js';
 import { ViewContext } from './ViewContext.js';
 import { AccordionBox, TextPushButton } from 'scenerystack/sun';
-import { apiBuild, apiBuildEvents } from './client-api.js';
+import { apiBuild, apiBuildEvents, apiUpdate, apiUpdateEvents } from './client-api.js';
+import { SpinningIndicatorNode } from 'scenerystack/scenery-phet';
 
 const enterEmitter = new TinyEmitter();
 document.body.addEventListener( 'keydown', e => {
@@ -35,13 +36,14 @@ export class BranchNode extends VBox {
     viewContext: ViewContext
   ) {
     const infoChildren = [];
+    const disposeCallbacks: ( () => void )[] = [];
 
     if ( branchInfo.version && branchInfo.brands ) {
       infoChildren.push( new Text( `${branchInfo.version} (${branchInfo.brands.join( ', ' )})`, {
         font: '16px sans-serif'
       } ) );
     }
-    if ( branchInfo.isCheckedOut ) {
+    if ( branchInfo.isCheckedOut && branchInfo.branch === 'main' ) {
       infoChildren.push( new Text( `Last updated: ${moment( branchInfo.timestamp ).calendar()} (${branchInfo?.sha?.slice( 0, 7 ) ?? ''})`, {
         font: '16px sans-serif',
         cursor: 'pointer',
@@ -92,8 +94,60 @@ export class BranchNode extends VBox {
 
     const modeListNode = new ModeListNode( availableModes, searchBoxTextProperty, selectedModeNameProperty, viewContext );
 
+    if ( branchInfo.branch !== 'main' ) {
+      const updateContainer = new HBox();
+
+      const showUpdating = () => {
+        updateStatusNode.visible = false;
+
+        const indicatorNode = new SpinningIndicatorNode();
+        const stepListener = ( dt: number ) => {
+          indicatorNode.step( dt );
+        };
+        viewContext.stepEmitter.addListener( stepListener );
+        disposeCallbacks.push( () => {
+          viewContext.stepEmitter.removeListener( stepListener );
+        } );
+
+        updateContainer.children = [
+          new Text( 'Updating checkout...', { font: '16px sans-serif' } ),
+          indicatorNode
+        ];
+      };
+
+      const updateStatusNode = new HBox( {
+        spacing: 10,
+        children: [
+          new Text( branchInfo.isCheckedOut && branchInfo.lastUpdatedTime ? `Checkout updated: ${moment( branchInfo.lastUpdatedTime ).calendar()}` : 'Not checked out', { font: '16px sans-serif' } ),
+          new TextPushButton( branchInfo.isCheckedOut && branchInfo.lastUpdatedTime ? 'Update Checkout' : 'Check Out', {
+            font: '16px sans-serif',
+            listener: async () => {
+              showUpdating();
+
+              await apiUpdate( branchInfo.repo, branchInfo.branch );
+              requestNewBranchInfo();
+            }
+          } )
+        ]
+      } );
+
+      infoChildren.push( updateContainer );
+      infoChildren.push( updateStatusNode );
+
+      if ( branchInfo.updateCheckoutJobID !== null ) {
+        showUpdating();
+
+        ( async () => {
+          await apiUpdateEvents( branchInfo.updateCheckoutJobID! );
+          requestNewBranchInfo();
+        } )().catch( e => { throw e; } );
+      }
+
+      // TODO: show update status for release branches!!!! --- get them updated and built ideally --- allow rebuilds because of babel
+    }
+
     // Build status and button
-    if ( repoListEntry.isRunnable ) {
+    if ( repoListEntry.isRunnable && branchInfo.isCheckedOut ) {
       const buildStatusText = new Text( branchInfo.lastBuiltTime === null ? 'No build available' : `Last successful build: ${moment( branchInfo.lastBuiltTime ).calendar()}`, {
         font: '16px sans-serif'
       } );
@@ -197,6 +251,8 @@ export class BranchNode extends VBox {
         mainBox
       ]
     } );
+
+    disposeCallbacks.forEach( callback => this.disposeEmitter.addListener( callback ) );
 
     enterEmitter.addListener( launch );
     this.disposeEmitter.addListener( () => {
