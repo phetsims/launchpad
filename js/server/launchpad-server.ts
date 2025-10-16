@@ -31,14 +31,9 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // To do list:
   //
   // -- Were names getting mangled by unbuilt form?
+  // --- don't concurrently build something
   //
-  // - Gear for settings:
-  //   - Existing ones
-  //   - Dark theme (auto / light / dark)
-  //   - Filter repos:
-  //     - All
-  //     - Runnables
-  //     - Sims
+  // --- CLONE NEW REPOS
   //
   // - SHOW out of date repos
   // - SHOW latest commits?
@@ -72,6 +67,8 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // - Auto-build? (per-branch option perhaps?)
   //
   // - Front-end UI off of scenerystack
+  //   - Scan dev (phet-dev.colorado.edu/html/REPO/) for all runnable versions
+  //     - Show production versions? or all?
   //   - Show BRANCH separation dates for release branches?
   //   - Query parameters: do we scan ALL locations (for dependencies) for query parameters? (initialize-globals, and *QueryParameters?)
   //     -- HAVE a search box for query parameters!
@@ -82,11 +79,9 @@ const ReleaseBranch = ReleaseBranchImport.default;
   //   - Links to latest dev/rc versions?
   //   - up/down keys for navigating the repo list?
   //   - get dependency list for each sim, so we can show it (and show updated timestamps for every dependency -- order by timestamp?)
-  //   - Dark theme (auto / light / dark)
-  //     - Gear for settings
   //   - Load which locales are supported(!)
   // - REST API
-  //   - build, sync, status, repo-status, perhaps others?
+  //   - status, repo-status, perhaps others?
   //   - Build:
   //     - Allow toggling of "auto build"
   //     - No concurrent builds for the same repo (building multiple sims at a time is fine)

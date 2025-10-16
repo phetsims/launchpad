@@ -140,6 +140,22 @@ export const getModes = (
       }
 
       modes.push( {
+        name: 'color editor',
+        description: 'Runs the top-level -colors.html file (allows editing/viewing different profile colors)',
+        createCustomizationNode: () => {
+          return new EmptyCustomizationNode( `${releaseBranchPrefix}phetmarks/color-editor.html?sim=${repo}` );
+        }
+      } );
+
+      modes.push( {
+        name: 'dev (bayes)',
+        description: 'Loads the location on phet-dev.colorado.edu with versions for each dev deploy',
+        createCustomizationNode: () => {
+          return new EmptyCustomizationNode( `https://phet-dev.colorado.edu/html/${repo}` );
+        }
+      } );
+
+      modes.push( {
         name: 'production latest',
         description: 'Runs latest production version',
         createCustomizationNode: () => {
@@ -154,6 +170,14 @@ export const getModes = (
     description: 'Opens to the repository\'s GitHub main page',
     createCustomizationNode: () => {
       return new EmptyCustomizationNode( `https://github.com/${owner}/${repo}` );
+    }
+  } );
+
+  modes.push( {
+    name: 'github issues',
+    description: 'Opens to the repository\'s GitHub issues page',
+    createCustomizationNode: () => {
+      return new EmptyCustomizationNode( `https://github.com/${owner}/${repo}/issues` );
     }
   } );
 
