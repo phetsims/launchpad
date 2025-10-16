@@ -143,3 +143,12 @@ export const getStaleBranches = async ( model: Model ): Promise<RepoBranch[]> =>
 
   return results;
 };
+
+export const getLatestSHA = async ( model: Model, repo: Repo, branch: Branch ): Promise<SHA> => {
+  if ( useGithubAPI ) {
+    return githubGetLatestBranchSHA( model.repos[ repo ].owner, repo, branch );
+  }
+  else {
+    return ( await getRemoteBranchSHAs( repo ) as Record<Repo, string> )[ branch ];
+  }
+};

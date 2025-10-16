@@ -15,7 +15,7 @@ import { ModeListNode } from './ModeListNode.js';
 import { CustomizationNode, getModes } from './getModes.js';
 import { ViewContext } from './ViewContext.js';
 import { AccordionBox } from 'scenerystack/sun';
-import { apiBuild, apiBuildEvents, apiUpdate, apiUpdateEvents } from './client-api.js';
+import { apiBuild, apiBuildEvents, apiUpdate, apiUpdateEvents, getLatestSHA } from './client-api.js';
 import { UIText } from './UIText.js';
 import { UITextPushButton } from './UITextPushButton.js';
 import { buildOutputFont, uiBackgroundColorProperty, uiForegroundColorProperty, uiHeaderFont } from './theme.js';
@@ -46,17 +46,54 @@ export class BranchNode extends VBox {
     if ( branchInfo.version && branchInfo.brands ) {
       infoChildren.push( new UIText( `${branchInfo.version} (${branchInfo.brands.join( ', ' )})` ) );
     }
-    if ( branchInfo.isCheckedOut && branchInfo.branch === 'main' ) {
-      infoChildren.push( new UIText( `Last updated: ${moment( branchInfo.timestamp ).calendar()} (${branchInfo?.sha?.slice( 0, 7 ) ?? ''})`, {
-        cursor: 'pointer',
-        inputListeners: [
-          new FireListener( {
-            fire: async () => {
-              await copyToClipboard( branchInfo.sha ?? '' );
-            }
+
+    if ( branchInfo.isCheckedOut ) {
+      const selfDependencyNode = new HBox( {
+        spacing: 10,
+        children: [
+          new UIText( `Last Commit: ${moment( branchInfo.timestamp ).calendar()} (${branchInfo?.sha?.slice( 0, 7 ) ?? ''})`, {
+            cursor: 'pointer',
+            inputListeners: [
+              new FireListener( {
+                fire: async () => {
+                  await copyToClipboard( branchInfo.sha ? `https://github.com/phetsims/${branchInfo.repo}/commit/${branchInfo.sha}` : '' );
+                }
+              } )
+            ]
           } )
         ]
-      } ) );
+      } );
+
+      const waitingNode = new WaitingNode( viewContext );
+      disposeCallbacks.push( () => {
+        waitingNode.dispose();
+      } );
+
+      selfDependencyNode.addChild( waitingNode );
+
+      ( async () => {
+        const latestSHA = await getLatestSHA( branchInfo.repo, branchInfo.branch );
+
+        if ( selfDependencyNode.hasChild( waitingNode ) ) {
+          selfDependencyNode.removeChild( waitingNode );
+        }
+
+        if ( branchInfo.sha ) {
+          if ( latestSHA === branchInfo.sha ) {
+            selfDependencyNode.addChild( new UIText( ' (Up to date)', { fill: 'green' } ) );
+          }
+          else {
+            selfDependencyNode.addChild( new UIText( ' (Out of date)', { fill: 'red' } ) );
+          }
+        }
+      } )().catch( e => { throw e; } );
+
+
+      infoChildren.push( selfDependencyNode );
+    }
+
+    if ( branchInfo.isCheckedOut && branchInfo.branch === 'main' ) {
+
 
       if ( branchInfo.dependencyRepos.length ) {
         const latestTimestamp = Math.max( ...Object.values( branchInfo.dependencyTimestampMap ) );

@@ -22,6 +22,7 @@ import getFileAtBranch from '../../../perennial/js/common/getFileAtBranch.js';
 import { model, Model } from './model.js';
 import { checkClean, ROOT_DIR } from './options.js';
 import { getDirectoryBranch, getDirectorySHA, getDirectoryTimestampBranch, getPackageJSON, getRepoDirectory, isDirectoryClean } from './util.js';
+import gitCloneDirectory from '../../../perennial/js/common/gitCloneDirectory.js';
 
 const execute = executeImport.default;
 const ReleaseBranch = ReleaseBranchImport.default;
@@ -97,6 +98,11 @@ export const searchForNewReleaseBranches = async (): Promise<void> => {
   await Promise.all( releaseBranches.map( releaseBranch => limit( async () => {
     const repo = releaseBranch.repo;
     const branch = releaseBranch.branch;
+
+    // no-op for now, we will do the release branch checks on the next run
+    if ( !model.repos[ repo ] ) {
+      return;
+    }
 
     if ( !model.repos[ repo ].branches[ branch ] ) {
       const packageJSON = JSON.parse( await getFileAtBranch( repo, branch, 'package.json' ) );
@@ -178,6 +184,11 @@ export const updateModel = async ( model: Model ): Promise<void> => {
 
     // Initialize new repos
     ...newRepos.map( newRepo => async () => {
+      // TODO: how do we skip private repos in the future?
+      if ( !fs.existsSync( path.join( ROOT_DIR, newRepo ) ) ) {
+        await gitCloneDirectory( newRepo, ROOT_DIR );
+      }
+
       const packageJSON = await getPackageJSON( getRepoDirectory( newRepo, 'main' ) );
 
       const mainBranchInfo: ModelBranchInfo = {

@@ -6,7 +6,7 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import { BranchInfo, RepoList } from '../types/common-types.js';
+import { Branch, BranchInfo, Repo, RepoList, SHA } from '../types/common-types.js';
 
 export const apiGetRepoList = async (): Promise<RepoList> => {
   const response = await fetch( 'api/repo-list' );
@@ -18,7 +18,7 @@ export const apiGetRepoList = async (): Promise<RepoList> => {
   return ( await response.json() ).repoList as Promise<RepoList>;
 };
 
-export const apiGetBranchInfo = async ( repo: string, branch: string ): Promise<BranchInfo> => {
+export const apiGetBranchInfo = async ( repo: Repo, branch: Branch ): Promise<BranchInfo> => {
   const response = await fetch( `api/branch-info/${repo}/${branch}` );
 
   if ( !response.ok ) {
@@ -29,7 +29,7 @@ export const apiGetBranchInfo = async ( repo: string, branch: string ): Promise<
 };
 
 // Resolves with success
-export const apiBuild = async ( repo: string, branch: string, onOutput: ( str: string ) => void ): Promise<boolean> => {
+export const apiBuild = async ( repo: Repo, branch: Branch, onOutput: ( str: string ) => void ): Promise<boolean> => {
   const response = await fetch( `api/build/${repo}/${branch}`, { method: 'POST' } );
 
   if ( !response.ok ) {
@@ -72,7 +72,7 @@ export const apiBuildEvents = async ( buildJobID: number, onOutput: ( str: strin
 };
 
 // Resolves with success
-export const apiUpdate = async ( repo: string, branch: string ): Promise<boolean> => {
+export const apiUpdate = async ( repo: Repo, branch: Branch ): Promise<boolean> => {
   const response = await fetch( `api/update/${repo}/${branch}`, { method: 'POST' } );
 
   if ( !response.ok ) {
@@ -106,4 +106,24 @@ export const apiUpdateEvents = async ( updateCheckoutJobID: number ): Promise<bo
       }
     } );
   } );
+};
+
+export const getLatestSHAs = async ( repos: Repo[] ): Promise<Record<Repo, SHA>> => {
+  const response = await fetch( `api/latest-shas/${repos.join( ',' )}` );
+
+  if ( !response.ok ) {
+    throw new Error( `Failed to fetch latest SHAs: ${response.status} ${response.statusText}` );
+  }
+
+  return ( await response.json() ) as Promise<Record<Repo, SHA>>;
+};
+
+export const getLatestSHA = async ( repo: Repo, branch: Branch ): Promise<SHA> => {
+  const response = await fetch( `api/latest-sha/${repo}/${branch}` );
+
+  if ( !response.ok ) {
+    throw new Error( `Failed to fetch latest SHA: ${repo} ${branch} ${response.status} ${response.statusText}` );
+  }
+
+  return ( ( await response.json() ) as { sha: SHA } ).sha;
 };

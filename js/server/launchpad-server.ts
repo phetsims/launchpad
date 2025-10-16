@@ -19,10 +19,12 @@ import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
 import basicAuth from 'basic-auth';
 import { config } from './config.js';
 import { model, saveModel } from './model.js';
-import { checkClean, port, ROOT_DIR } from './options.js';
-import { buildMain, buildReleaseBranch, getDirectorySHA, getDirectoryTimestampBranch, getRepoDirectory, getStaleBranches, isDirectoryClean, updateReleaseBranchCheckout } from './util.js';
+import { checkClean, port, ROOT_DIR, useGithubAPI } from './options.js';
+import { buildMain, buildReleaseBranch, getDirectorySHA, getDirectoryTimestampBranch, getLatestSHA, getRepoDirectory, getStaleBranches, isDirectoryClean, updateReleaseBranchCheckout } from './util.js';
 import { updateModel } from './updateModel.js';
 import { bundleFile, transpileTS } from './bundling.js';
+import { githubGetLatestBranchSHA } from './github-api.js';
+import getRemoteBranchSHAs from '../../../perennial/js/common/getRemoteBranchSHAs.js';
 
 const ReleaseBranch = ReleaseBranchImport.default;
 
@@ -30,10 +32,9 @@ const ReleaseBranch = ReleaseBranchImport.default;
 ( async () => {
   // To do list:
   //
-  // -- Were names getting mangled by unbuilt form?
-  // --- don't concurrently build something
+  // -- SECURITY REVIEW/AUDIT on variables passed into the API
   //
-  // --- CLONE NEW REPOS
+  // -- Were names getting mangled by unbuilt form?
   //
   // - SHOW out of date repos
   // - SHOW latest commits?
@@ -91,6 +92,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // - Get release branch unbuilt running
   // - Complete package-lock items
   // - Status?
+  // - Private repo handling for non-PhET members
 
   // These will get stat'ed all at once
   const PREFERRED_EXTENSIONS = [ 'js', 'ts' ];
@@ -258,6 +260,35 @@ const ReleaseBranch = ReleaseBranchImport.default;
 
       res.send( JSON.stringify( result ) );
     }
+  } );
+
+  // Get latest SHAs from a comma-separated list of repos (on the main branches)
+  // Returns { repo1: sha1, repo2: sha2, ... }
+  app.get( '/api/latest-shas/:repos', async ( req: Request, res: Response, next: NextFunction ) => {
+    // Filter by valid repos
+    const repos = req.params.repos.split( ',' ).filter( repo => !!model.repos[ repo ] );
+
+    const result: Record<Repo, SHA> = {};
+
+    await Promise.all( repos.map( repo => ( async () => {
+      result[ repo ] = await getLatestSHA( model, repo, 'main' );
+    } )() ) );
+
+    res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
+    res.send( JSON.stringify( result ) );
+  } );
+
+  // Get the latest SHA for a repo and branch, returns { sha: string }
+  app.get( '/api/latest-sha/:repo/:branch', async ( req: Request, res: Response, next: NextFunction ) => {
+    const repo = req.params.repo;
+    const branch = req.params.branch;
+
+    const result = {
+      sha: await getLatestSHA( model, repo, branch )
+    };
+
+    res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
+    res.send( JSON.stringify( result ) );
   } );
 
   // TODO: move the build job logic to another file https://github.com/phetsims/phettest/issues/20
