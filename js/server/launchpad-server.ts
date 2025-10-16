@@ -36,6 +36,8 @@ import basicAuth from 'basic-auth';
 import ChipperVersion from '../../../perennial/js/common/ChipperVersion.js';
 import getBuildArgumentsImport from '../../../perennial/js/common/getBuildArguments.js';
 import gruntCommand from '../../../perennial/js/common/gruntCommand.js';
+import { config } from './config.js';
+import { githubGetLatestBranchSHA } from './github-api.js';
 
 const execute = executeImport.default;
 const ReleaseBranch = ReleaseBranchImport.default;
@@ -81,6 +83,16 @@ if ( typeof autoUpdate !== 'boolean' ) {
 ( async () => {
   // To do list:
   //
+  // - A11y-view included
+  // - SHOW out of date repos
+  // - SHOW latest commits?
+
+  // - Bayes launchpad --- remove checkout buttons, and maybe built -- "force rebuild"
+  //
+  // - github SHA link
+  //
+  // - Auto-modulification? --- separate service
+  //
   // - LOCK so we don't build while an update to a dependency is happening? Or update while a build is happening?
   // - SHOW whether the build is for the latest SHAs
   // - update job ID also works for the "git pull"
@@ -99,6 +111,8 @@ if ( typeof autoUpdate !== 'boolean' ) {
   //   - Auto-update on release branches:
   //     - Should we auto-build here?
   //
+  // - What remote operations can we speed up by just using octokit?
+  //
   // - Auto-build? (per-branch option perhaps?)
   //
   // - Front-end UI off of scenerystack
@@ -112,7 +126,8 @@ if ( typeof autoUpdate !== 'boolean' ) {
   //   - Links to latest dev/rc versions?
   //   - up/down keys for navigating the repo list?
   //   - get dependency list for each sim, so we can show it (and show updated timestamps for every dependency -- order by timestamp?)
-  //   - Dark theme
+  //   - Dark theme (auto / light / dark)
+  //     - Gear for settings
   //   - Load which locales are supported(!)
   // - REST API
   //   - build, sync, status, repo-status, perhaps others?
@@ -121,8 +136,6 @@ if ( typeof autoUpdate !== 'boolean' ) {
   //     - No concurrent builds for the same repo (building multiple sims at a time is fine)
   //     - All brands except for adapted-from-phet (from simPackage.phet?.supportedBrands)
   //     - (and do we skip linting and type-checking?) --- what about uglify?
-  // - auto-update option implementation (have it work for release branches also)
-  // - modulify???
   // - Test on Windows
   // - Get release branch unbuilt running
   // - Complete package-lock items
@@ -153,18 +166,6 @@ if ( typeof autoUpdate !== 'boolean' ) {
     completionState: boolean | null; // null is in progress, otherwise success (true) or failure (false)
   }> = {};
 
-  type Config = {
-    basicAuthUser?: string;
-    basicAuthPassword?: string;
-  };
-
-  let config: Config = {};
-  const configFile = path.join( ROOT_DIR, 'launchpad/config.json' );
-
-  if ( fs.existsSync( configFile ) ) {
-    config = JSON.parse( fs.readFileSync( configFile, 'utf8' ) );
-  }
-
   const getRepoDirectory = ( repo: Repo, branch: Branch ): string => {
     if ( branch === 'main' ) {
       return path.join( ROOT_DIR, repo );
@@ -173,6 +174,11 @@ if ( typeof autoUpdate !== 'boolean' ) {
       return path.join( ROOT_DIR, 'release-branches', `${repo}-${branch}`, repo );
     }
   };
+
+  // TODO: remove after testing
+  ( async () => {
+    console.log( 'test github', await githubGetLatestBranchSHA( 'phetsims', 'scenery', 'main' ) );
+  } )().catch( e => { throw e; } );
 
   const getDirectoryBranch = async ( directory: string ): Promise<Branch> => {
     return execute( 'git', [ 'symbolic-ref', '-q', 'HEAD' ], directory ).then( stdout => stdout.trim().replace( 'refs/heads/', '' ) );
@@ -198,7 +204,6 @@ if ( typeof autoUpdate !== 'boolean' ) {
     return execute( 'git', [ 'status', '--porcelain' ], directory ).then( stdout => Promise.resolve( stdout.length === 0 ) );
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const updateReleaseBranchCheckout = async ( releaseBranch: ReleaseBranch ): Promise<void> => {
     return npmLimit( async () => {
       return releaseBranch.updateCheckout();
