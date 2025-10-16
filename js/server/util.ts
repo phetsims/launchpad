@@ -8,7 +8,9 @@
 
 import path from 'path';
 import fs from 'fs';
-import type { Branch, ModelBranchInfo, Repo, RepoBranch, SHA } from '../types/common-types.js';
+// eslint-disable-next-line phet/default-import-match-filename
+import fsPromises from 'fs/promises';
+import type { Branch, ModelBranchInfo, PackageJSON, Repo, RepoBranch, SHA } from '../types/common-types.js';
 // eslint-disable-next-line phet/default-import-match-filename
 import executeImport from '../../../perennial/js/common/execute.js';
 // eslint-disable-next-line phet/default-import-match-filename
@@ -19,11 +21,12 @@ import ChipperVersion from '../../../perennial/js/common/ChipperVersion.js';
 import getBuildArgumentsImport from '../../../perennial/js/common/getBuildArguments.js';
 import gruntCommand from '../../../perennial/js/common/gruntCommand.js';
 import { githubGetLatestBranchSHA } from './github-api.js';
-import { Model } from './Model.js';
+import { Model } from './model.js';
 import { ROOT_DIR } from './options.js';
 import { npmLimit } from './globals.js';
 
 const execute = executeImport.default;
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ReleaseBranch = ReleaseBranchImport.default;
 const getBuildArguments = getBuildArgumentsImport.default;
 
@@ -33,6 +36,17 @@ export const getRepoDirectory = ( repo: Repo, branch: Branch ): string => {
   }
   else {
     return path.join( ROOT_DIR, 'release-branches', `${repo}-${branch}`, repo );
+  }
+};
+
+export const getPackageJSON = async ( directory: string ): Promise<PackageJSON | null> => {
+  const packageJSONFile = path.join( directory, 'package.json' );
+
+  if ( fs.existsSync( packageJSONFile ) ) {
+    return JSON.parse( await fsPromises.readFile( packageJSONFile, 'utf-8' ) );
+  }
+  else {
+    return null;
   }
 };
 

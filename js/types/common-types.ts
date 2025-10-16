@@ -16,9 +16,12 @@ export type RepoBranch = {
 
 export type RepoListEntry = {
   name: Repo;
-  owner: string;
-  isSim: boolean;
-  isRunnable: boolean;
+  owner: string; // (from data/active-scenerystack-repos)
+  isSim: boolean; // phet.simulation
+  isRunnable: boolean; // phet.runnable
+  supportsInteractiveDescription: boolean; // phet.simFeatures.supportsInteractiveDescription
+  supportsVoicing: boolean; // phet.simFeatures.supportsVoicing
+  hasUnitTests: boolean; // phet.generatedUnitTests
   branches: string[];
 };
 
@@ -59,4 +62,34 @@ export type ModelBranchInfo = {
 export type BranchInfo = ModelBranchInfo & {
   dependencySHAMap: Record<Repo, SHA>;
   dependencyTimestampMap: Record<Repo, number>;
+};
+
+export type PackageJSON = {
+  name: string;
+  version: string;
+  phet?: {
+    runnable?: boolean;
+    simulation?: boolean;
+    generatedUnitTests?: boolean;
+    supportsOutputJS?: boolean;
+    requireJSNamespace?: string;
+    'phet-io'?: Record<string, any>;
+    supportedBrands?: string[];
+    simFeatures?: {
+      supportsInteractiveDescription?: boolean;
+      supportsVoicing?: boolean;
+      supportsCoreVoicing?: boolean;
+      supportsInteractiveHighlights?: boolean;
+      supportsSound?: boolean;
+      supportsExtraSound?: boolean;
+      supportsDynamicLocale?: boolean;
+      supportsPanAndZoom?: boolean;
+      colorProfiles?: string[];
+      supportedRegionsAndCultures?: string[];
+      defaultRegionAndCulture?: string;
+      preventMultitouch?: boolean;
+      interruptMultitouch?: boolean;
+    };
+
+  };
 };

@@ -12,9 +12,12 @@ import type { Branch, ModelBranchInfo, Repo } from '../types/common-types.js';
 export type Model = {
   repos: Record<Repo, {
     name: Repo;
-    owner: string;
-    isSim: boolean;
-    isRunnable: boolean;
+    owner: string; // (from data/active-scenerystack-repos)
+    isSim: boolean; // phet.simulation
+    isRunnable: boolean; // phet.runnable
+    supportsInteractiveDescription: boolean; // phet.simFeatures.supportsInteractiveDescription
+    supportsVoicing: boolean; // phet.simFeatures.supportsVoicing
+    hasUnitTests: boolean; // phet.generatedUnitTests
 
     branches: Record<Branch, ModelBranchInfo>;
   }>;

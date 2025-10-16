@@ -18,7 +18,7 @@ import type { Branch, BranchInfo, Repo, RepoListEntry, SHA } from '../types/comm
 import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
 import basicAuth from 'basic-auth';
 import { config } from './config.js';
-import { model, saveModel } from './Model.js';
+import { model, saveModel } from './model.js';
 import { checkClean, port, ROOT_DIR } from './options.js';
 import { buildMain, buildReleaseBranch, getDirectorySHA, getDirectoryTimestampBranch, getRepoDirectory, getStaleBranches, isDirectoryClean, updateReleaseBranchCheckout } from './util.js';
 import { updateModel } from './updateModel.js';
@@ -32,7 +32,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
   //
   // Use generate-data to see what flags we need to search for (e.g. simFeatures.supportsInteractiveDescription for a11y-view below)
   //
-  // - A11y-view included
   // - SHOW out of date repos
   // - SHOW latest commits?
 
@@ -215,6 +214,9 @@ const ReleaseBranch = ReleaseBranchImport.default;
           owner: model.repos[ repo ].owner,
           isSim: model.repos[ repo ].isSim,
           isRunnable: model.repos[ repo ].isRunnable,
+          supportsInteractiveDescription: model.repos[ repo ].supportsInteractiveDescription,
+          supportsVoicing: model.repos[ repo ].supportsVoicing,
+          hasUnitTests: model.repos[ repo ].hasUnitTests,
           branches: Object.keys( model.repos[ repo ].branches )
         };
 
@@ -255,7 +257,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
     }
   } );
 
-  // TODO: move the build job logic to another file
+  // TODO: move the build job logic to another file https://github.com/phetsims/phettest/issues/20
   app.post( '/api/build/:repo/:branch', async ( req: Request, res: Response, next: NextFunction ) => {
     const repo = req.params.repo;
     const branch = req.params.branch;
@@ -318,7 +320,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
 
         onCompleted( true );
 
-        // TODO: improved persistence model
+        // TODO: improved persistence model https://github.com/phetsims/phettest/issues/20
         // Only set this on success
         branchInfo.lastBuiltTime = Date.now();
         saveModel();

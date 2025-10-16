@@ -111,7 +111,7 @@ export const getModes = (
             description: `Runs the unbuilt simulation in ${studioNameBeautified}`,
             createCustomizationNode: () => {
               // TODO: likely this URL won't work for older cases
-              return new EmptyCustomizationNode( `${releaseBranchPrefix}studio?sim=${branchInfo.repo}&phetioWrapperDebug=true&phetioElementsDisplay=all` );
+              return new EmptyCustomizationNode( `${releaseBranchPrefix}studio?sim=${repo}&phetioWrapperDebug=true&phetioElementsDisplay=all` );
             }
           } );
         }
@@ -129,11 +129,21 @@ export const getModes = (
     }
 
     if ( branchInfo.branch === 'main' ) {
+      if ( repoListEntry.supportsInteractiveDescription ) {
+        modes.push( {
+          name: 'a11y view',
+          description: 'Runs the simulation in an iframe next to a copy of the PDOM to easily inspect accessible content',
+          createCustomizationNode: () => {
+            return new EmptyCustomizationNode( `${releaseBranchPrefix}chipper/wrappers/a11y-view/?sim=${repo}&brand=phet&ea&debugger` );
+          }
+        } );
+      }
+
       modes.push( {
         name: 'production latest',
         description: 'Runs latest production version',
         createCustomizationNode: () => {
-          return new EmptyCustomizationNode( `https://phet.colorado.edu/sims/html/${branchInfo.repo}/latest/${branchInfo.repo}_all.html` );
+          return new EmptyCustomizationNode( `https://phet.colorado.edu/sims/html/${repo}/latest/${repo}_all.html` );
         }
       } );
     }

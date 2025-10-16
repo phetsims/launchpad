@@ -11,23 +11,22 @@ import fs from 'fs';
 import getActiveRepos from '../../../perennial/js/common/getActiveRepos.js';
 import getActiveRunnables from '../../../perennial/js/common/getActiveRunnables.js';
 import getActiveSceneryStackRepos from '../../../perennial/js/common/getActiveSceneryStackRepos.js';
-import getActiveSims from '../../../perennial/js/common/getActiveSims.js';
 import tsxCommand from '../../../perennial/js/common/tsxCommand.js';
-import type { BranchInfo, Repo } from '../types/common-types.js';
+import type { ModelBranchInfo, Repo } from '../types/common-types.js';
 import pLimit from 'p-limit';
 // eslint-disable-next-line phet/default-import-match-filename
 import executeImport from '../../../perennial/js/common/execute.js';
 // eslint-disable-next-line phet/default-import-match-filename
 import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
 import getFileAtBranch from '../../../perennial/js/common/getFileAtBranch.js';
-import { model, Model } from './Model.js';
+import { model, Model } from './model.js';
 import { checkClean, ROOT_DIR } from './options.js';
-import { getDirectoryBranch, getDirectorySHA, getDirectoryTimestampBranch, getRepoDirectory, isDirectoryClean } from './util.js';
+import { getDirectoryBranch, getDirectorySHA, getDirectoryTimestampBranch, getPackageJSON, getRepoDirectory, isDirectoryClean } from './util.js';
 
 const execute = executeImport.default;
 const ReleaseBranch = ReleaseBranchImport.default;
 
-export const updateModelBranchInfo = async ( branchInfo: BranchInfo, runnableDependencies: Repo[] ): Promise<void> => {
+export const updateModelBranchInfo = async ( branchInfo: ModelBranchInfo, runnableDependencies: Repo[] ): Promise<void> => {
   branchInfo.dependencyRepos = runnableDependencies;
 
   if ( !branchInfo.isCheckedOut ) {
@@ -71,6 +70,25 @@ export const updateModelBranchInfo = async ( branchInfo: BranchInfo, runnableDep
   ] );
 };
 
+export const updateRepoInfo = async ( repo: Repo, owner: string, repoInfo: {
+  name: Repo;
+  owner: string; // (from data/active-scenerystack-repos)
+  isSim: boolean; // phet.simulation
+  isRunnable: boolean; // phet.runnable
+  supportsInteractiveDescription: boolean; // phet.simFeatures.supportsInteractiveDescription
+  supportsVoicing: boolean; // phet.simFeatures.supportsVoicing
+  hasUnitTests: boolean; // phet.generatedUnitTests
+} ): Promise<void> => {
+  const packageJSON = await getPackageJSON( getRepoDirectory( repo, 'main' ) );
+
+  repoInfo.owner = owner;
+  repoInfo.isSim = !!packageJSON?.phet?.simulation;
+  repoInfo.isRunnable = !!packageJSON?.phet?.runnable;
+  repoInfo.supportsInteractiveDescription = !!packageJSON?.phet?.simFeatures?.supportsInteractiveDescription;
+  repoInfo.supportsVoicing = !!packageJSON?.phet?.simFeatures?.supportsVoicing;
+  repoInfo.hasUnitTests = !!packageJSON?.phet?.generatedUnitTests;
+};
+
 export const searchForNewReleaseBranches = async (): Promise<void> => {
   const limit = pLimit( 30 );
 
@@ -100,7 +118,7 @@ export const searchForNewReleaseBranches = async (): Promise<void> => {
         timestamp: null,
         isClean: true,
 
-        // TODO: update these bits (just in case) on release branch updates
+        // TODO: update these bits (just in case) on release branch updates https://github.com/phetsims/phettest/issues/20
         isChipper2: await releaseBranch.usesChipper2(),
         usesOldPhetioStandalone: await releaseBranch.usesOldPhetioStandalone(),
         usesRelativeSimPath: await releaseBranch.usesRelativeSimPath(),
@@ -123,13 +141,11 @@ export const updateModel = async ( model: Model ): Promise<void> => {
   console.log( 'updating model' );
 
   const activeRepos = getActiveRepos();
-  const activeSims = getActiveSims();
   const activeRunnables = getActiveRunnables();
   const sceneryStackRepos = getActiveSceneryStackRepos();
 
   const repos = [ ...new Set( [
     ...activeRepos,
-    ...activeSims,
     ...activeRunnables,
     ...sceneryStackRepos
   ] ) ].sort();
@@ -141,24 +157,10 @@ export const updateModel = async ( model: Model ): Promise<void> => {
   const getOwner = ( repo: Repo ): string => {
     return sceneryStackRepos.includes( repo ) ? 'scenerystack' : 'phetsims';
   };
-  const isSim = ( repo: Repo ): boolean => {
-    return activeSims.includes( repo );
-  };
-  const isRunnable = ( repo: Repo ): boolean => {
-    return activeRunnables.includes( repo );
-  };
 
   // Remove old repos
   for ( const oldRepo of removedRepos ) {
     delete model.repos[ oldRepo ];
-  }
-
-  // Synchronously update existing repos (in case isSim/isRunnable change)
-  for ( const repo of existingRepos ) {
-    // On the off chance these change
-    model.repos[ repo ].owner = getOwner( repo );
-    model.repos[ repo ].isSim = isSim( repo );
-    model.repos[ repo ].isRunnable = isRunnable( repo );
   }
 
   // Determine the repo dependencies for each runnable
@@ -176,14 +178,14 @@ export const updateModel = async ( model: Model ): Promise<void> => {
 
     // Initialize new repos
     ...newRepos.map( newRepo => async () => {
-      const packageJSON = isRunnable( newRepo ) ? JSON.parse( fs.readFileSync( path.join( ROOT_DIR, newRepo, 'package.json' ), 'utf-8' ) ) : {};
+      const packageJSON = await getPackageJSON( getRepoDirectory( newRepo, 'main' ) );
 
-      const mainBranchInfo: BranchInfo = {
+      const mainBranchInfo: ModelBranchInfo = {
         repo: newRepo,
         branch: 'main',
 
-        version: packageJSON.version ?? null,
-        phetPackageJSON: packageJSON.phet ?? null,
+        version: packageJSON?.version ?? null,
+        phetPackageJSON: packageJSON?.phet ?? null,
         brands: [], // filled in by updateModelBranchInfo
         isReleased: false, // main is never released
         dependencyRepos: [], // filled in by updateModelBranchInfo
@@ -194,7 +196,7 @@ export const updateModel = async ( model: Model ): Promise<void> => {
         timestamp: null, // filled in by updateModelBranchInfo
         isClean: true, // filled in by updateModelBranchInfo
 
-        // TODO: update these bits (just in case) on release branch updates
+        // TODO: update these bits (just in case) on release branch updates https://github.com/phetsims/phettest/issues/20
         isChipper2: true,
         usesOldPhetioStandalone: false,
         usesRelativeSimPath: true,
@@ -212,24 +214,38 @@ export const updateModel = async ( model: Model ): Promise<void> => {
 
       await updateModelBranchInfo( mainBranchInfo, runnableDependenciesMap[ newRepo ] || [] );
 
-      model.repos[ newRepo ] = {
+      const owner = getOwner( newRepo );
+
+      const repoInfo = {
         name: newRepo,
-        owner: getOwner( newRepo ),
-        isSim: isSim( newRepo ),
-        isRunnable: isRunnable( newRepo ),
+        owner: owner,
+        isSim: false, // updated below
+        isRunnable: false, // updated below
+        supportsInteractiveDescription: false, // updated below
+        supportsVoicing: false, // updated below
+        hasUnitTests: false, // updated below
         branches: {
           main: mainBranchInfo
         }
       };
+
+      await updateRepoInfo( newRepo, owner, repoInfo );
+
+      model.repos[ newRepo ] = repoInfo;
     } ),
 
     // Update existing repos (and all of their branches)
     ...existingRepos.flatMap( repo => {
       const branches = Object.keys( model.repos[ repo ].branches );
 
-      return branches.map( branch => async () => {
-        await updateModelBranchInfo( model.repos[ repo ].branches[ branch ], branch === 'main' ? runnableDependenciesMap[ repo ] || [] : [] );
-      } );
+      return [
+        async () => {
+          await updateRepoInfo( repo, getOwner( repo ), model.repos[ repo ] );
+        },
+        ...branches.map( branch => async () => {
+          await updateModelBranchInfo( model.repos[ repo ].branches[ branch ], branch === 'main' ? runnableDependenciesMap[ repo ] || [] : [] );
+        } )
+      ];
     } )
   ].map( pLimit( 30 ) ) );
 
