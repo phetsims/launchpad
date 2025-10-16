@@ -7,8 +7,7 @@
  */
 
 import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
-import path from 'path';
+import path, { dirname, resolve } from 'path';
 import fs from 'fs';
 
 export type Config = {

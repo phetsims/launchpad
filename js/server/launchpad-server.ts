@@ -6,85 +6,26 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
-import fs from 'fs';
 import path from 'path';
+import fs from 'fs';
 import fsPromises from 'fs/promises'; // eslint-disable-line phet/default-import-match-filename
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import http from 'node:http';
 import serveIndex from 'serve-index';
-import esbuild from 'esbuild';
 import crypto from 'crypto';
-import os from 'os';
-import nopt from 'nopt';
-import getActiveRepos from '../../../perennial/js/common/getActiveRepos.js';
-import getActiveRunnables from '../../../perennial/js/common/getActiveRunnables.js';
-import getActiveSceneryStackRepos from '../../../perennial/js/common/getActiveSceneryStackRepos.js';
-import getActiveSims from '../../../perennial/js/common/getActiveSims.js';
-import tsxCommand from '../../../perennial/js/common/tsxCommand.js';
-import type { Branch, Repo, RepoBranch, RepoListEntry, ModelBranchInfo, SHA, BranchInfo } from '../types/common-types.js';
-import pLimit from 'p-limit';
-// eslint-disable-next-line phet/default-import-match-filename
-import executeImport from '../../../perennial/js/common/execute.js';
+import type { Branch, BranchInfo, Repo, RepoListEntry, SHA } from '../types/common-types.js';
 // eslint-disable-next-line phet/default-import-match-filename
 import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
-import getFileAtBranch from '../../../perennial/js/common/getFileAtBranch.js';
-import npmUpdateDirectory from '../../../perennial/js/common/npmUpdateDirectory.js';
 import basicAuth from 'basic-auth';
-import ChipperVersion from '../../../perennial/js/common/ChipperVersion.js';
-// eslint-disable-next-line phet/default-import-match-filename
-import getBuildArgumentsImport from '../../../perennial/js/common/getBuildArguments.js';
-import gruntCommand from '../../../perennial/js/common/gruntCommand.js';
 import { config } from './config.js';
-import { githubGetLatestBranchSHA } from './github-api.js';
+import { model, saveModel } from './Model.js';
+import { checkClean, port, ROOT_DIR } from './options.js';
+import { buildMain, buildReleaseBranch, getDirectorySHA, getDirectoryTimestampBranch, getRepoDirectory, getStaleBranches, isDirectoryClean, updateReleaseBranchCheckout } from './util.js';
+import { updateModel } from './updateModel.js';
+import { bundleFile, transpileTS } from './bundling.js';
 
-const execute = executeImport.default;
 const ReleaseBranch = ReleaseBranchImport.default;
-const getBuildArguments = getBuildArgumentsImport.default;
 
-const npmLimit = pLimit( 1 ); // limit npm operations to 1 at a time
-
-const __filename = fileURLToPath( import.meta.url );
-const __dirname = dirname( __filename );
-
-const noptOptions = nopt( {}, {}, process.argv, 2 );
-
-const getOptionIfProvided = <T>( keyName: string, defaultValue?: T ): T => {
-  return noptOptions[ keyName ] !== undefined ? noptOptions[ keyName ] : defaultValue!;
-};
-
-const options = {
-  port: getOptionIfProvided( 'port', '45372' ),
-  rootDirectory: getOptionIfProvided( 'rootDirectory', resolve( __dirname, '../../..' ) ),
-  autoUpdate: getOptionIfProvided( 'autoUpdate', true ),
-  checkClean: getOptionIfProvided( 'checkClean', false )
-};
-
-console.log( 'options:' );
-console.log( ` - port: ${options.port}` );
-console.log( ` - rootDirectory: ${options.rootDirectory}` );
-console.log( ` - autoUpdate: ${options.autoUpdate}` );
-
-const port = parseInt( options.port, 10 );
-if ( typeof port !== 'number' || isNaN( port ) || port < 0 || port > 65535 ) {
-  throw new Error( `Invalid port: ${port}` );
-}
-
-const ROOT_DIR = options.rootDirectory;
-if ( typeof ROOT_DIR !== 'string' || !fs.existsSync( ROOT_DIR ) || !fs.statSync( ROOT_DIR ).isDirectory() ) {
-  throw new Error( `Invalid rootDirectory: ${ROOT_DIR}` );
-}
-
-const autoUpdate = options.autoUpdate;
-if ( typeof autoUpdate !== 'boolean' ) {
-  throw new Error( `Invalid autoUpdate: ${autoUpdate}` );
-}
-
-const checkClean = options.checkClean;
-if ( typeof checkClean !== 'boolean' ) {
-  throw new Error( `Invalid checkClean: ${checkClean}` );
-}
 
 ( async () => {
   // To do list:
@@ -172,358 +113,12 @@ if ( typeof checkClean !== 'boolean' ) {
     completionState: boolean | null; // null is in progress, otherwise success (true) or failure (false)
   }> = {};
 
-  const getRepoDirectory = ( repo: Repo, branch: Branch ): string => {
-    if ( branch === 'main' ) {
-      return path.join( ROOT_DIR, repo );
-    }
-    else {
-      return path.join( ROOT_DIR, 'release-branches', `${repo}-${branch}`, repo );
-    }
-  };
-
-  // TODO: remove after testing
-  ( async () => {
-    console.log( 'test github', await githubGetLatestBranchSHA( 'phetsims', 'scenery', 'main' ) );
-  } )().catch( e => { throw e; } );
-
-  const getDirectoryBranch = async ( directory: string ): Promise<Branch> => {
-    return execute( 'git', [ 'symbolic-ref', '-q', 'HEAD' ], directory ).then( stdout => stdout.trim().replace( 'refs/heads/', '' ) );
-  };
-
-  const getDirectorySHA = async ( directory: string ): Promise<SHA> => {
-    return ( await execute( 'git', [ 'rev-parse', 'HEAD' ], directory ) ).trim();
-  };
-
-  const getDirectoryTimestampBranch = async ( directory: string, branch: Branch ): Promise<number> => {
-    return execute( 'git', [ 'show', '-s', '--format=%cd', '--date=iso', branch ], directory ).then( stdout => {
-      return Promise.resolve( new Date( stdout.trim() ).getTime() );
-    } );
-  };
-
-  const getCurrentChipperVersion = (): ChipperVersion => {
-    return ChipperVersion.getFromPackageJSON(
-      JSON.parse( fs.readFileSync( `${ROOT_DIR}/chipper/package.json`, 'utf8' ) )
-    );
-  };
-
-  const isDirectoryClean = async ( directory: string ): Promise<boolean> => {
-    return execute( 'git', [ 'status', '--porcelain' ], directory ).then( stdout => Promise.resolve( stdout.length === 0 ) );
-  };
-
-  const updateReleaseBranchCheckout = async ( releaseBranch: ReleaseBranch ): Promise<void> => {
-    return npmLimit( async () => {
-      return releaseBranch.updateCheckout();
-    } );
-  };
-
-  const buildReleaseBranch = async ( releaseBranch: ReleaseBranch, onOutput: ( str: string ) => void ): Promise<void> => {
-    await releaseBranch.build( {
-      brands: releaseBranch.brands,
-      lint: false,
-      typeCheck: false,
-      locales: '*',
-      allHTML: true,
-      debugHTML: true
-    }, {
-      onStdout: onOutput,
-      onStderr: onOutput
-    } );
-  };
-
-  const buildMain = async ( branchInfo: ModelBranchInfo, onOutput: ( str: string ) => void ): Promise<void> => {
-    const args = getBuildArguments( getCurrentChipperVersion(), {
-      brands: branchInfo.brands,
-      lint: false,
-      typeCheck: false,
-      locales: '*',
-      allHTML: true,
-      debugHTML: true
-    } );
-
-    await execute( gruntCommand, args, path.join( ROOT_DIR, branchInfo.repo ), {
-      onStdout: onOutput,
-      onStderr: onOutput
-    } );
-  };
-
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const updateNodeModules = async ( directory: string ): Promise<void> => {
-    return npmLimit( async () => {
-      return npmUpdateDirectory( directory );
-    } );
-  };
-
-  type Model = {
-    repos: Record<Repo, {
-      name: Repo;
-      owner: string;
-      isSim: boolean;
-      isRunnable: boolean;
-
-      branches: Record<Branch, ModelBranchInfo>;
-    }>;
-  };
-
-  const getEmptyModel = (): Model => {
-    return {
-      repos: {}
-    };
-  };
-
-  const updateModelBranchInfo = async ( branchInfo: BranchInfo, runnableDependencies: Repo[] ): Promise<void> => {
-    branchInfo.dependencyRepos = runnableDependencies;
-
-    if ( !branchInfo.isCheckedOut ) {
-      return;
-    }
-
-    const repo = branchInfo.repo;
-    const branch = branchInfo.branch;
-    const repoDirectory = getRepoDirectory( repo, branch );
-
-    await Promise.all( [
-      ( async () => {
-        branchInfo.currentBranch = branch === 'main' ? await getDirectoryBranch( repoDirectory ) : null;
-      } )(),
-      ( async () => {
-        branchInfo.sha = await getDirectorySHA( repoDirectory );
-      } )(),
-      ( async () => {
-        branchInfo.timestamp = await getDirectoryTimestampBranch( repoDirectory, branch );
-      } )(),
-      ( async () => {
-        branchInfo.isClean = checkClean ? await isDirectoryClean( repoDirectory ) : true;
-      } )(),
-      ( async () => {
-        if ( branch === 'main' ) {
-          let brands: string[] = [];
-          if ( fs.existsSync( path.join( ROOT_DIR, repo, 'package.json' ) ) ) {
-            try {
-              const packageJSON = JSON.parse( fs.readFileSync( path.join( ROOT_DIR, repo, 'package.json' ), 'utf8' ) );
-              if ( packageJSON.phet && Array.isArray( packageJSON.phet.supportedBrands ) ) {
-                brands = packageJSON.phet.supportedBrands.filter( ( brand: string ) => brand !== 'adapted-from-phet' );
-              }
-            }
-            catch( err ) {
-              console.warn( `Error reading/parsing package.json for ${repo}: ${err}` );
-            }
-          }
-          branchInfo.brands = brands;
-        }
-      } )()
-    ] );
-  };
-
-  const searchForNewReleaseBranches = async () => {
-    const limit = pLimit( 30 );
-
-    const releaseBranches = await ReleaseBranch.getAllMaintenanceBranches();
-
-    await Promise.all( releaseBranches.map( releaseBranch => limit( async () => {
-      const repo = releaseBranch.repo;
-      const branch = releaseBranch.branch;
-
-      if ( !model.repos[ repo ].branches[ branch ] ) {
-        const packageJSON = JSON.parse( await getFileAtBranch( repo, branch, 'package.json' ) );
-
-        // eslint-disable-next-line require-atomic-updates
-        model.repos[ repo ].branches[ branch ] = {
-          repo: repo,
-          branch: branch,
-
-          version: packageJSON.version ?? null,
-          phetPackageJSON: packageJSON.phet ?? null,
-          brands: releaseBranch.brands,
-          isReleased: releaseBranch.isReleased,
-          dependencyRepos: Object.keys( await releaseBranch.getDependencies() ).filter( name => name !== 'comment' ),
-
-          isCheckedOut: false,
-          currentBranch: null,
-          sha: null,
-          timestamp: null,
-          isClean: true,
-
-          // TODO: update these bits (just in case) on release branch updates
-          isChipper2: await releaseBranch.usesChipper2(),
-          usesOldPhetioStandalone: await releaseBranch.usesOldPhetioStandalone(),
-          usesRelativeSimPath: await releaseBranch.usesRelativeSimPath(),
-          usesPhetioStudio: await releaseBranch.usesPhetioStudio(),
-          usesPhetioStudioIndex: await releaseBranch.usesPhetioStudioIndex(),
-
-          buildJobID: null,
-          lastBuiltTime: null,
-
-          updateCheckoutJobID: null,
-          lastUpdatedTime: null,
-
-          npmUpdated: true // We will handle this manually
-        };
-      }
-    } ) ) );
-  };
-
-  const updateModel = async ( model: Model ): Promise<void> => {
-    console.log( 'updating model' );
-
-    const activeRepos = getActiveRepos();
-    const activeSims = getActiveSims();
-    const activeRunnables = getActiveRunnables();
-    const sceneryStackRepos = getActiveSceneryStackRepos();
-
-    const repos = [ ...new Set( [
-      ...activeRepos,
-      ...activeSims,
-      ...activeRunnables,
-      ...sceneryStackRepos
-    ] ) ].sort();
-
-    const existingRepos = Object.keys( model.repos );
-    const newRepos = repos.filter( repo => !existingRepos.includes( repo ) );
-    const removedRepos = existingRepos.filter( repo => !repos.includes( repo ) );
-
-    const getOwner = ( repo: Repo ): string => {
-      return sceneryStackRepos.includes( repo ) ? 'scenerystack' : 'phetsims';
-    };
-    const isSim = ( repo: Repo ): boolean => {
-      return activeSims.includes( repo );
-    };
-    const isRunnable = ( repo: Repo ): boolean => {
-      return activeRunnables.includes( repo );
-    };
-
-    // Remove old repos
-    for ( const oldRepo of removedRepos ) {
-      delete model.repos[ oldRepo ];
-    }
-
-    // Synchronously update existing repos (in case isSim/isRunnable change)
-    for ( const repo of existingRepos ) {
-      // On the off chance these change
-      model.repos[ repo ].owner = getOwner( repo );
-      model.repos[ repo ].isSim = isSim( repo );
-      model.repos[ repo ].isRunnable = isRunnable( repo );
-    }
-
-    // Determine the repo dependencies for each runnable
-    const runnableDependenciesMap: Record<Repo, Repo[]> = JSON.parse( await execute(
-      tsxCommand,
-      [ 'js/scripts/print-multiple-dependencies.ts', activeRunnables.join( ',' ) ],
-      path.join( ROOT_DIR, 'chipper' )
-    ) );
-
-    await Promise.all( [
-      // Search for new release branches (ensure this is kicked off at the start, since it will take a bit)
-      async () => {
-        await searchForNewReleaseBranches();
-      },
-
-      // Initialize new repos
-      ...newRepos.map( newRepo => async () => {
-        const packageJSON = isRunnable( newRepo ) ? JSON.parse( fs.readFileSync( path.join( ROOT_DIR, newRepo, 'package.json' ), 'utf-8' ) ) : {};
-
-        const mainBranchInfo: BranchInfo = {
-          repo: newRepo,
-          branch: 'main',
-
-          version: packageJSON.version ?? null,
-          phetPackageJSON: packageJSON.phet ?? null,
-          brands: [], // filled in by updateModelBranchInfo
-          isReleased: false, // main is never released
-          dependencyRepos: [], // filled in by updateModelBranchInfo
-
-          isCheckedOut: true,
-          currentBranch: null, // filled in by updateModelBranchInfo
-          sha: null, // filled in by updateModelBranchInfo
-          timestamp: null, // filled in by updateModelBranchInfo
-          isClean: true, // filled in by updateModelBranchInfo
-
-          // TODO: update these bits (just in case) on release branch updates
-          isChipper2: true,
-          usesOldPhetioStandalone: false,
-          usesRelativeSimPath: true,
-          usesPhetioStudio: true,
-          usesPhetioStudioIndex: true,
-
-          buildJobID: null,
-          lastBuiltTime: null,
-
-          updateCheckoutJobID: null,
-          lastUpdatedTime: null,
-
-          npmUpdated: false
-        };
-
-        await updateModelBranchInfo( mainBranchInfo, runnableDependenciesMap[ newRepo ] || [] );
-
-        model.repos[ newRepo ] = {
-          name: newRepo,
-          owner: getOwner( newRepo ),
-          isSim: isSim( newRepo ),
-          isRunnable: isRunnable( newRepo ),
-          branches: {
-            main: mainBranchInfo
-          }
-        };
-      } ),
-
-      // Update existing repos (and all of their branches)
-      ...existingRepos.flatMap( repo => {
-        const branches = Object.keys( model.repos[ repo ].branches );
-
-        return branches.map( branch => async () => {
-          await updateModelBranchInfo( model.repos[ repo ].branches[ branch ], branch === 'main' ? runnableDependenciesMap[ repo ] || [] : [] );
-        } );
-      } )
-    ].map( pLimit( 30 ) ) );
-
-    console.log( 'finised updating model' );
-  };
-
-  const getStaleBranches = async ( model: Model ): Promise<RepoBranch[]> => {
-    const repos = Object.keys( model.repos );
-
-    const results: RepoBranch[] = [];
-
-    await Promise.all( repos.map( async repo => {
-      const branches = Object.keys( model.repos[ repo ].branches );
-
-      for ( const branch of branches ) {
-        if ( model.repos[ repo ].branches[ branch ].isCheckedOut ) {
-          const localSHA = model.repos[ repo ].branches[ branch ].sha;
-          const remoteSHA = await githubGetLatestBranchSHA( model.repos[ repo ].owner, repo, branch );
-
-          if ( localSHA && remoteSHA && localSHA !== remoteSHA ) {
-            console.log( repo, branch, 'is stale', localSHA, remoteSHA );
-            results.push( { repo: repo, branch: branch } );
-          }
-        }
-      }
-    } ) );
-
-    return results;
-  };
-
-  const model = fs.existsSync( '.model.json' ) ? JSON.parse( fs.readFileSync( '.model.json', 'utf8' ) ) as Model : getEmptyModel();
-
-  // Reset some state on startup
-  for ( const repo of Object.keys( model.repos ) ) {
-    for ( const branch of Object.keys( model.repos[ repo ].branches ) ) {
-      model.repos[ repo ].branches[ branch ].buildJobID = null; // reset any in-progress builds
-      model.repos[ repo ].branches[ branch ].updateCheckoutJobID = null; // reset any in-progress updates
-    }
-  }
-
-  const saveModel = () => {
-    fs.writeFileSync( '.model.json', JSON.stringify( model, null, 2 ), 'utf8' );
-  };
-
   await updateModel( model );
-
+  saveModel();
 
   ( async () => {
     console.log( await getStaleBranches( model ) );
   } )().catch( e => { throw e; } );
-  saveModel();
 
   type JSCacheEntry = {
     mtime: number;
@@ -583,98 +178,10 @@ if ( typeof checkClean !== 'boolean' ) {
     return null;
   };
 
-
-  // --- esbuild Plugins (Hacks) ---
-  const simLauncherRewrite: esbuild.Plugin = {
-    name: 'simLauncher-rewrite',
-    setup( build ) {
-      build.onLoad( { filter: /simLauncher.ts$/ }, async ( { path } ) => {
-        let text = await fsPromises.readFile( path, 'utf8' );
-        text = text.replace( '\'js\'', '\'ts\'' );
-        return { contents: text, loader: 'ts' };
-      } );
-    }
-  };
-
-  const himalayaRewrite: esbuild.Plugin = {
-    name: 'himalaya-rewrite',
-    setup( build ) {
-      build.onLoad( { filter: /himalaya-1.1.0.js$/ }, async ( { path } ) => {
-        const originalText = await fsPromises.readFile( path, 'utf8' );
-        const text = originalText.replace(
-          '(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.himalaya = f()}})',
-          '( function( f ) {self.himalaya = f();})'
-        );
-        if ( text === originalText ) {
-          throw new Error( 'himalaya rewrite failed?' );
-        }
-        return { contents: text, loader: 'js' };
-      } );
-    }
-  };
-
-  const peggyRewrite: esbuild.Plugin = {
-    name: 'peggy-rewrite',
-    setup( build ) {
-      build.onLoad( { filter: /peggy-3.0.2.js$/ }, async ( { path } ) => {
-        let text = await fsPromises.readFile( path, 'utf8' );
-        text = text.replace(
-          'function(e,u){"object"==typeof exports&&"undefined"!=typeof module?module.exports=u():"function"==typeof define&&define.amd?define(u):(e="undefined"!=typeof globalThis?globalThis:e||self).peggy=u()}'.replaceAll( '\n', os.EOL ),
-          '( function( e,u ) {self.peggy = u();})'
-        );
-        return { contents: text, loader: 'js' };
-      } );
-    }
-  };
-
-  // Bundles a TS (or JS) entry point using esbuild, throws an error on failure.
-  const bundleFile = async ( filePath: string, originalPathname: string ): Promise<string> => {
-    try {
-      const result = await esbuild.build( {
-        entryPoints: [ filePath ],
-        bundle: true,
-        format: 'esm',
-        minify: true,
-        write: false, // We handle writing/sending the response
-        sourcemap: 'inline', // Keep source maps inline for dev
-        plugins: [ simLauncherRewrite, himalayaRewrite, peggyRewrite ],
-        absWorkingDir: ROOT_DIR // Needed to resolve files relative to the entry point's directory
-      } );
-      const output = result.outputFiles[ 0 ];
-
-      return output.text;
-    }
-    catch( err: unknown ) {
-      console.error( 'Esbuild bundling error:', err );
-      throw err;
-    }
-  };
-
-  // Transpiles a single TS file in-memory, throws an error on failure.
-  const transpileTS = async ( tsCode: string, filePath: string, originalPathname: string ): Promise<string> => {
-    try {
-      const loader = filePath.endsWith( 'tsx' ) ? 'tsx' :
-                     filePath.endsWith( 'jsx' ) ? 'jsx' :
-                     'ts';
-      const result = await esbuild.transform( tsCode, {
-        loader: loader,
-        format: 'esm', // Output ESM
-        sourcemap: 'inline', // Keep source maps inline for dev
-        target: 'esnext' // Use modern JS features
-      } );
-
-      return result.code;
-    }
-    catch( err: unknown ) {
-      console.error( 'Esbuild transform error:', err );
-      throw err;
-    }
-  };
-
   const app = express();
 
   // Global cache-control and authentication
-  app.use( ( req, res, next ) => {
+  app.use( ( req: Request, res: Response, next: NextFunction ) => {
 
     if ( config.basicAuthUser && config.basicAuthPassword ) {
       const credentials = basicAuth( req );
@@ -696,7 +203,7 @@ if ( typeof checkClean !== 'boolean' ) {
     next();
   } );
 
-  app.get( '/api/repo-list', async ( req, res, next ) => {
+  app.get( '/api/repo-list', async ( req: Request, res: Response, next: NextFunction ) => {
     res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
 
     res.send( JSON.stringify( {
@@ -714,7 +221,7 @@ if ( typeof checkClean !== 'boolean' ) {
     } ) );
   } );
 
-  app.get( /\/api\/branch-info\/([^/]+)\/([^/]+)$/, async ( req, res, next ) => {
+  app.get( /\/api\/branch-info\/([^/]+)\/([^/]+)$/, async ( req: Request, res: Response, next: NextFunction ) => {
     const repo = req.params[ 0 ];
     const branch = req.params[ 1 ];
 
@@ -747,7 +254,7 @@ if ( typeof checkClean !== 'boolean' ) {
   } );
 
   // TODO: move the build job logic to another file
-  app.post( '/api/build/:repo/:branch', async ( req, res, next ) => {
+  app.post( '/api/build/:repo/:branch', async ( req: Request, res: Response, next: NextFunction ) => {
     const repo = req.params.repo;
     const branch = req.params.branch;
 
@@ -830,7 +337,7 @@ if ( typeof checkClean !== 'boolean' ) {
     }
   } );
 
-  app.get( '/api/build-events/:id', async ( req, res, next ) => {
+  app.get( '/api/build-events/:id', async ( req: Request, res: Response, next: NextFunction ) => {
     const id = Number.parseInt( req.params.id, 10 );
 
     const buildJob = buildJobs[ id ];
@@ -881,7 +388,7 @@ if ( typeof checkClean !== 'boolean' ) {
   } );
 
   // For updating checkouts
-  app.post( '/api/update/:repo/:branch', async ( req, res, next ) => {
+  app.post( '/api/update/:repo/:branch', async ( req: Request, res: Response, next: NextFunction ) => {
     const repo = req.params.repo;
     const branch = req.params.branch;
 
@@ -959,7 +466,7 @@ if ( typeof checkClean !== 'boolean' ) {
     }
   } );
 
-  app.get( '/api/update-events/:id', async ( req, res, next ) => {
+  app.get( '/api/update-events/:id', async ( req: Request, res: Response, next: NextFunction ) => {
     const id = Number.parseInt( req.params.id, 10 );
 
     const updateCheckoutJob = updateCheckoutJobs[ id ];
@@ -998,7 +505,7 @@ if ( typeof checkClean !== 'boolean' ) {
     }
   } );
 
-  app.get( /^\/(.+)\.js$/, async ( req, res, next ) => {
+  app.get( /^\/(.+)\.js$/, async ( req: Request, res: Response, next: NextFunction ) => {
     try {
       const key = req.params[ 0 ].replace( 'chipper/dist/js/', '' ).replace( /^\/+/, '' );
       const reqPath = req.path.replace( 'chipper/dist/js/', '' );
@@ -1089,7 +596,7 @@ if ( typeof checkClean !== 'boolean' ) {
   // Handle server errors (e.g., port already in use)
   server.on( 'error', ( err: Error ) => {
     if ( err.message.includes( 'EADDRINUSE' ) ) {
-      console.error( `Error: Port ${options.port} is already in use. Try specifying a different port with --port=NUMBER` );
+      console.error( `Error: Port ${port} is already in use. Try specifying a different port with --port=NUMBER` );
     }
     else {
       console.error( 'Server startup error:', err );
@@ -1097,8 +604,8 @@ if ( typeof checkClean !== 'boolean' ) {
     process.exit( 1 );
   } );
 
-  server.listen( options.port, () => {
-    console.log( `Phettest Server listening at http://localhost:${options.port}/` );
+  server.listen( port, () => {
+    console.log( `Phettest Server listening at http://localhost:${port}/` );
     console.log( `Serving files from: ${ROOT_DIR}` );
   } );
 
