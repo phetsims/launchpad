@@ -343,6 +343,7 @@ if ( typeof checkClean !== 'boolean' ) {
           timestamp: null,
           isClean: true,
 
+          // TODO: update these bits (just in case) on release branch updates
           isChipper2: await releaseBranch.usesChipper2(),
           usesOldPhetioStandalone: await releaseBranch.usesOldPhetioStandalone(),
           usesRelativeSimPath: await releaseBranch.usesRelativeSimPath(),
@@ -411,10 +412,12 @@ if ( typeof checkClean !== 'boolean' ) {
     ) );
 
     await Promise.all( [
+      // Search for new release branches (ensure this is kicked off at the start, since it will take a bit)
       async () => {
         await searchForNewReleaseBranches();
       },
 
+      // Initialize new repos
       ...newRepos.map( newRepo => async () => {
         const packageJSON = isRunnable( newRepo ) ? JSON.parse( fs.readFileSync( path.join( ROOT_DIR, newRepo, 'package.json' ), 'utf-8' ) ) : {};
 
@@ -434,6 +437,7 @@ if ( typeof checkClean !== 'boolean' ) {
           timestamp: null, // filled in by updateModelBranchInfo
           isClean: true, // filled in by updateModelBranchInfo
 
+          // TODO: update these bits (just in case) on release branch updates
           isChipper2: true,
           usesOldPhetioStandalone: false,
           usesRelativeSimPath: true,
@@ -462,7 +466,8 @@ if ( typeof checkClean !== 'boolean' ) {
         };
       } ),
 
-      ...repos.flatMap( repo => {
+      // Update existing repos (and all of their branches)
+      ...existingRepos.flatMap( repo => {
         const branches = Object.keys( model.repos[ repo ].branches );
 
         return branches.map( branch => async () => {
@@ -695,7 +700,7 @@ if ( typeof checkClean !== 'boolean' ) {
     res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
 
     res.send( JSON.stringify( {
-      repoList: Object.keys( model.repos ).map( repo => {
+      repoList: Object.keys( model.repos ).sort().map( repo => {
         const repoListEntry: RepoListEntry = {
           name: repo,
           owner: model.repos[ repo ].owner,
