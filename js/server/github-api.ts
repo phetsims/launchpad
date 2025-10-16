@@ -9,6 +9,9 @@
 import { Octokit } from 'octokit';
 import fs from 'fs';
 import { config } from './config.js';
+import pLimit from 'p-limit';
+
+const githubRequestLimit = pLimit( 10 );
 
 let githubAuth = '';
 
@@ -31,11 +34,17 @@ if ( !githubAuth.length ) {
 const octokit = new Octokit( { auth: githubAuth } );
 
 export const githubGetLatestBranchSHA = async ( owner: string, repo: string, branch: string ): Promise<string> => {
-  const response = await octokit.request( `GET /repos/${owner}/${repo}/git/ref/heads/${branch}`, {
-    owner: owner,
-    repo: repo,
-    ref: `heads/${branch}` // Specify the branch reference
-  } );
+  return githubRequestLimit( async () => {
+    if ( repo === 'perennial-alias' ) {
+      repo = 'perennial';
+    }
 
-  return response.data.object.sha;
+    const response = await octokit.request( `GET /repos/${owner}/${repo}/git/ref/heads/${branch}`, {
+      owner: owner,
+      repo: repo,
+      ref: `heads/${branch}` // Specify the branch reference
+    } );
+
+    return response.data.object.sha;
+  } );
 };

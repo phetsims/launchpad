@@ -27,7 +27,6 @@ import type { Branch, Repo, RepoBranch, RepoListEntry, ModelBranchInfo, SHA, Bra
 import pLimit from 'p-limit';
 // eslint-disable-next-line phet/default-import-match-filename
 import executeImport from '../../../perennial/js/common/execute.js';
-import getRemoteBranchSHAs from '../../../perennial/js/common/getRemoteBranchSHAs.js';
 // eslint-disable-next-line phet/default-import-match-filename
 import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
 import getFileAtBranch from '../../../perennial/js/common/getFileAtBranch.js';
@@ -57,7 +56,8 @@ const getOptionIfProvided = <T>( keyName: string, defaultValue?: T ): T => {
 const options = {
   port: getOptionIfProvided( 'port', '45372' ),
   rootDirectory: getOptionIfProvided( 'rootDirectory', resolve( __dirname, '../../..' ) ),
-  autoUpdate: getOptionIfProvided( 'autoUpdate', true )
+  autoUpdate: getOptionIfProvided( 'autoUpdate', true ),
+  checkClean: getOptionIfProvided( 'checkClean', false )
 };
 
 console.log( 'options:' );
@@ -78,6 +78,11 @@ if ( typeof ROOT_DIR !== 'string' || !fs.existsSync( ROOT_DIR ) || !fs.statSync(
 const autoUpdate = options.autoUpdate;
 if ( typeof autoUpdate !== 'boolean' ) {
   throw new Error( `Invalid autoUpdate: ${autoUpdate}` );
+}
+
+const checkClean = options.checkClean;
+if ( typeof checkClean !== 'boolean' ) {
+  throw new Error( `Invalid checkClean: ${checkClean}` );
 }
 
 ( async () => {
@@ -363,7 +368,7 @@ if ( typeof autoUpdate !== 'boolean' ) {
       model.repos[ repo ].branches.main.brands = brands;
     }
 
-    const limit = pLimit( 15 ); // limit concurrency to avoid excessive resource usage
+    const limit = pLimit( 30 ); // limit concurrency to avoid excessive resource usage
 
     console.log( 'scanning main branches/shas' );
     await Promise.all( repos.map( repo => limit( async () => {
@@ -378,7 +383,7 @@ if ( typeof autoUpdate !== 'boolean' ) {
           // eslint-disable-next-line require-atomic-updates
           model.repos[ repo ].branches[ branch ].timestamp = await getDirectoryTimestampBranch( repoDirectory, branch );
           // eslint-disable-next-line require-atomic-updates
-          model.repos[ repo ].branches[ branch ].isClean = await isDirectoryClean( repoDirectory );
+          model.repos[ repo ].branches[ branch ].isClean = checkClean ? await isDirectoryClean( repoDirectory ) : true;
         }
       }
     } ) ) );
@@ -433,19 +438,15 @@ if ( typeof autoUpdate !== 'boolean' ) {
   const getStaleBranches = async ( model: Model ): Promise<RepoBranch[]> => {
     const repos = Object.keys( model.repos );
 
-    const limit = pLimit( 10 );
-
     const results: RepoBranch[] = [];
 
-    await Promise.all( repos.map( repo => limit( async () => {
-      const branchSHAs = await getRemoteBranchSHAs( repo );
-
+    await Promise.all( repos.map( async repo => {
       const branches = Object.keys( model.repos[ repo ].branches );
 
       for ( const branch of branches ) {
         if ( model.repos[ repo ].branches[ branch ].isCheckedOut ) {
           const localSHA = model.repos[ repo ].branches[ branch ].sha;
-          const remoteSHA = branchSHAs[ branch ];
+          const remoteSHA = await githubGetLatestBranchSHA( model.repos[ repo ].owner, repo, branch );
 
           if ( localSHA && remoteSHA && localSHA !== remoteSHA ) {
             console.log( repo, branch, 'is stale', localSHA, remoteSHA );
@@ -453,7 +454,7 @@ if ( typeof autoUpdate !== 'boolean' ) {
           }
         }
       }
-    } ) ) );
+    } ) );
 
     return results;
   };
