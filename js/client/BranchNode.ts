@@ -7,19 +7,19 @@
  */
 
 import { Property, TinyEmitter, TReadOnlyProperty } from 'scenerystack/axon';
-import { FireListener, HBox, HSeparator, Node, RichText, Text, VBox } from 'scenerystack/scenery';
+import { FireListener, HBox, HSeparator, Node, RichText, VBox } from 'scenerystack/scenery';
 import { BranchInfo, RepoListEntry } from '../types/common-types.js';
 import moment from 'moment';
 import { copyToClipboard } from './copyToClipboard.js';
 import { ModeListNode } from './ModeListNode.js';
-import { getModes, CustomizationNode } from './getModes.js';
+import { CustomizationNode, getModes } from './getModes.js';
 import { ViewContext } from './ViewContext.js';
 import { AccordionBox } from 'scenerystack/sun';
 import { apiBuild, apiBuildEvents, apiUpdate, apiUpdateEvents } from './client-api.js';
-import { SpinningIndicatorNode } from 'scenerystack/scenery-phet';
 import { UIText } from './UIText.js';
 import { UITextPushButton } from './UITextPushButton.js';
 import { buildOutputFont, uiBackgroundColorProperty, uiForegroundColorProperty, uiHeaderFont } from './theme.js';
+import { WaitingNode } from './WaitingNode.js';
 
 let isStartup = true;
 
@@ -108,18 +108,14 @@ export class BranchNode extends VBox {
       const showUpdating = () => {
         updateStatusNode.visible = false;
 
-        const indicatorNode = new SpinningIndicatorNode();
-        const stepListener = ( dt: number ) => {
-          indicatorNode.step( dt );
-        };
-        viewContext.stepEmitter.addListener( stepListener );
+        const waitingNode = new WaitingNode( viewContext );
         disposeCallbacks.push( () => {
-          viewContext.stepEmitter.removeListener( stepListener );
+          waitingNode.dispose();
         } );
 
         updateContainer.children = [
           new UIText( 'Updating checkout...' ),
-          indicatorNode
+          waitingNode
         ];
       };
 
@@ -168,13 +164,9 @@ export class BranchNode extends VBox {
           replaceNewlines: true
         } );
 
-        const indicatorNode = new SpinningIndicatorNode();
-        const stepListener = ( dt: number ) => {
-          indicatorNode.step( dt );
-        };
-        viewContext.stepEmitter.addListener( stepListener );
+        const waitingNode = new WaitingNode( viewContext );
         disposeCallbacks.push( () => {
-          viewContext.stepEmitter.removeListener( stepListener );
+          waitingNode.dispose();
         } );
 
         buildOutputContainer.children = [
@@ -183,7 +175,7 @@ export class BranchNode extends VBox {
               spacing: 5,
               children: [
                 new UIText( 'Build Running...' ),
-                indicatorNode
+                waitingNode
               ],
               justify: 'left'
             } ),
