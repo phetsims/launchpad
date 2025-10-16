@@ -87,27 +87,7 @@ export const getModes = (
       if ( branchInfo.brands.includes( 'phet-io' ) ) {
         if ( branchInfo.branch === 'main' ) {
           modes.push( {
-            name: 'phet-io standalone unbuilt',
-            description: 'Runs the unbuilt simulation in phet-io standalone mode',
-            createCustomizationNode: () => {
-              return new EmptyCustomizationNode( `${repoDirectory}/${repo}_en.html?ea&brand=phet-io&${phetioStandaloneQueryParameters}&debugger` );
-            }
-          } );
-        }
-
-        if ( branchInfo.lastBuiltTime ) {
-          modes.push( {
-            name: 'phet-io standalone built',
-            description: 'Runs the built simulation in phet-io standalone mode',
-            createCustomizationNode: () => {
-              return new EmptyCustomizationNode( `${repoDirectory}/build${phetioFolder}/${repo}${phetioSuffix}.html?${phetioStandaloneQueryParameters}` );
-            }
-          } );
-        }
-
-        if ( branchInfo.branch === 'main' ) {
-          modes.push( {
-            name: 'phet-io studio unbuilt',
+            name: 'studio (phet-io unbuilt)',
             description: `Runs the unbuilt simulation in ${studioNameBeautified}`,
             createCustomizationNode: () => {
               // TODO: likely this URL won't work for older cases
@@ -118,10 +98,30 @@ export const getModes = (
 
         if ( branchInfo.lastBuiltTime ) {
           modes.push( {
-            name: 'phet-io studio built',
+            name: 'studio (phet-io built)',
             description: `Runs the built simulation in ${studioNameBeautified}`,
             createCustomizationNode: () => {
               return new EmptyCustomizationNode( `${repoDirectory}/build${phetioFolder}/wrappers/${studioName}${studioPathSuffix}` );
+            }
+          } );
+        }
+
+        if ( branchInfo.branch === 'main' ) {
+          modes.push( {
+            name: 'standalone (phet-io unbuilt)',
+            description: 'Runs the unbuilt simulation in phet-io standalone mode',
+            createCustomizationNode: () => {
+              return new EmptyCustomizationNode( `${repoDirectory}/${repo}_en.html?ea&brand=phet-io&${phetioStandaloneQueryParameters}&debugger` );
+            }
+          } );
+        }
+
+        if ( branchInfo.lastBuiltTime ) {
+          modes.push( {
+            name: 'standalone (phet-io built)',
+            description: 'Runs the built simulation in phet-io standalone mode',
+            createCustomizationNode: () => {
+              return new EmptyCustomizationNode( `${repoDirectory}/build${phetioFolder}/${repo}${phetioSuffix}.html?${phetioStandaloneQueryParameters}` );
             }
           } );
         }
