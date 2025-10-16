@@ -22,8 +22,9 @@ import getBuildArgumentsImport from '../../../perennial/js/common/getBuildArgume
 import gruntCommand from '../../../perennial/js/common/gruntCommand.js';
 import { githubGetLatestBranchSHA } from './github-api.js';
 import { Model } from './model.js';
-import { ROOT_DIR } from './options.js';
+import { ROOT_DIR, useGithubAPI } from './options.js';
 import { npmLimit } from './globals.js';
+import getRemoteBranchSHAs from '../../../perennial/js/common/getRemoteBranchSHAs.js';
 
 const execute = executeImport.default;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -124,10 +125,13 @@ export const getStaleBranches = async ( model: Model ): Promise<RepoBranch[]> =>
   await Promise.all( repos.map( async repo => {
     const branches = Object.keys( model.repos[ repo ].branches );
 
+    // no-op if using GitHub API. Otherwise we will... request all of these at the same time (or limit in the future?)
+    const branchSHAs = useGithubAPI ? {} : ( await getRemoteBranchSHAs( repo ) as Record<Repo, string> );
+
     for ( const branch of branches ) {
       if ( model.repos[ repo ].branches[ branch ].isCheckedOut ) {
         const localSHA = model.repos[ repo ].branches[ branch ].sha;
-        const remoteSHA = await githubGetLatestBranchSHA( model.repos[ repo ].owner, repo, branch );
+        const remoteSHA = useGithubAPI ? ( await githubGetLatestBranchSHA( model.repos[ repo ].owner, repo, branch ) ) : branchSHAs[ branch ];
 
         if ( localSHA && remoteSHA && localSHA !== remoteSHA ) {
           console.log( repo, branch, 'is stale', localSHA, remoteSHA );

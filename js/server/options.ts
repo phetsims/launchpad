@@ -24,7 +24,10 @@ export const options = {
   port: getOptionIfProvided( 'port', '45372' ),
   rootDirectory: getOptionIfProvided( 'rootDirectory', resolve( __dirname, '../../..' ) ),
   autoUpdate: getOptionIfProvided( 'autoUpdate', true ),
-  checkClean: getOptionIfProvided( 'checkClean', false )
+  checkClean: getOptionIfProvided( 'checkClean', false ),
+
+  // NOTE: this might run through rate limits very quickly if using the API, but it is faster for many things
+  useGithubAPI: getOptionIfProvided( 'useGithubAPI', false )
 };
 
 console.log( 'options:' );
@@ -50,4 +53,9 @@ if ( typeof autoUpdate !== 'boolean' ) {
 export const checkClean = options.checkClean;
 if ( typeof checkClean !== 'boolean' ) {
   throw new Error( `Invalid checkClean: ${checkClean}` );
+}
+
+export const useGithubAPI = options.useGithubAPI;
+if ( typeof useGithubAPI !== 'boolean' ) {
+  throw new Error( `Invalid useGithubAPI: ${useGithubAPI}` );
 }
