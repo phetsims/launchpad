@@ -30,6 +30,8 @@ const ReleaseBranch = ReleaseBranchImport.default;
 ( async () => {
   // To do list:
   //
+  // Use generate-data to see what flags we need to search for (e.g. simFeatures.supportsInteractiveDescription for a11y-view below)
+  //
   // - A11y-view included
   // - SHOW out of date repos
   // - SHOW latest commits?

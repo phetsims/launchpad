@@ -71,7 +71,7 @@ export const updateModelBranchInfo = async ( branchInfo: BranchInfo, runnableDep
   ] );
 };
 
-export const searchForNewReleaseBranches = async () => {
+export const searchForNewReleaseBranches = async (): Promise<void> => {
   const limit = pLimit( 30 );
 
   const releaseBranches = await ReleaseBranch.getAllMaintenanceBranches();
