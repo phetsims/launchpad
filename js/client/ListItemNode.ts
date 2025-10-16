@@ -7,9 +7,10 @@
  */
 
 import { DerivedProperty, TProperty } from 'scenerystack/axon';
-import { FireListener, Node, Rectangle, RichText } from 'scenerystack/scenery';
+import { Color, FireListener, Node, Rectangle, RichText } from 'scenerystack/scenery';
 import { ViewContext } from './ViewContext.js';
 import { TooltipListener } from './TooltipListener.js';
+import { listEvenColorProperty, listHoverColorProperty, listOddColorProperty, listSelectedColorProperty, uiFont, uiForegroundColorProperty, autocompleteMatchColorProperty } from './theme.js';
 
 // TODO: GC https://github.com/phetsims/phettest/issues/20
 export class ListItemNode extends Node {
@@ -32,33 +33,43 @@ export class ListItemNode extends Node {
 
     // TODO: arrow keys to switch between entries (up/down) https://github.com/phetsims/phettest/issues/20
 
-    const richText = new RichText( highlight( '<b style="color: #02a;">', '</b>' ), {
-      font: '16px sans-serif'
+    const richText = new RichText( '', {
+      font: uiFont,
+      fill: uiForegroundColorProperty
     } );
+
+    const highlightListener = ( color: Color ) => {
+      const cssColor = color.toCSS();
+      richText.string = highlight( `<b style="color: ${cssColor};">`, '</b>' );
+    };
+    autocompleteMatchColorProperty.link( highlightListener );
+
     const backgroundRect = new Rectangle( 0, richText.top - vPadding, width, richText.height + 2 * vPadding );
 
-    backgroundRect.fill = new DerivedProperty( [
+    const fillProperty = new DerivedProperty( [
       selectedItemProperty,
-      fireListener.isHighlightedProperty
-    ], ( selectedItem, isHighlighted ) => {
+      fireListener.isHighlightedProperty,
+      listSelectedColorProperty,
+      listHoverColorProperty,
+      listEvenColorProperty,
+      listOddColorProperty
+    ], ( selectedItem, isHighlighted, selectedColor, listHoverColor, listEvenColor, listOddColor ) => {
       const isSelected = selectedItem === item;
       const isEven = index % 2 === 0;
 
-      const unincludedHoverColor = '#ccc';
-      const unincludedEvenColor = '#ddd';
-      const unincludedOddColor = '#eee';
-
       if ( isSelected ) {
-        return '#9cf';
+        return selectedColor;
       }
       else {
         return isHighlighted
-          ? unincludedHoverColor
+          ? listHoverColor
           : isEven
-            ? unincludedEvenColor
-            : unincludedOddColor;
+            ? listEvenColor
+            : listOddColor;
       }
     } );
+
+    backgroundRect.fill = fillProperty;
 
     super( {
       cursor: 'pointer',
@@ -74,7 +85,11 @@ export class ListItemNode extends Node {
       labelContent: description ?? null
     } );
 
+    this.addDisposable( fillProperty );
     this.addDisposable( fireListener );
+    this.disposeEmitter.addListener( () => {
+      autocompleteMatchColorProperty.unlink( highlightListener );
+    } );
 
     if ( description ) {
       const tooltipListener = new TooltipListener( viewContext );

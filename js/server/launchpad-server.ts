@@ -30,11 +30,19 @@ const ReleaseBranch = ReleaseBranchImport.default;
 ( async () => {
   // To do list:
   //
-  // Use generate-data to see what flags we need to search for (e.g. simFeatures.supportsInteractiveDescription for a11y-view below)
+  // -- Were names getting mangled by unbuilt form?
+  //
+  // - Gear for settings:
+  //   - Existing ones
+  //   - Dark theme (auto / light / dark)
+  //   - Filter repos:
+  //     - All
+  //     - Runnables
+  //     - Sims
   //
   // - SHOW out of date repos
   // - SHOW latest commits?
-
+  //
   // - Bayes launchpad --- remove checkout buttons, and maybe built -- "force rebuild"
   //
   // - github SHA link

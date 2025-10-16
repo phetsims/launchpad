@@ -8,9 +8,11 @@
 
 import { ViewContext } from './ViewContext.js';
 import { TimerListener, stepTimer } from 'scenerystack/axon';
-import { Font, Node, Pointer, SceneryEvent, TInputListener, Text } from 'scenerystack/scenery';
+import { Font, Node, Pointer, SceneryEvent, TInputListener } from 'scenerystack/scenery';
 import { Panel } from 'scenerystack/sun';
 import { optionize } from 'scenerystack/phet-core';
+import { UIText } from './UIText.js';
+import { uiBackgroundColorProperty, uiForegroundColorProperty } from './theme.js';
 
 export type TooltipListenerOptions = {
   tooltipFont?: Font | string;
@@ -33,10 +35,12 @@ export class TooltipListener implements TInputListener {
 
     if ( !this.tooltipNode ) {
       this.tooltipNode = new Panel(
-        new Text( label, {
+        new UIText( label, {
           font: options.tooltipFont
         } ),
         {
+          stroke: uiForegroundColorProperty,
+          fill: uiBackgroundColorProperty,
           cornerRadius: 1,
           xMargin: 2,
           yMargin: 2

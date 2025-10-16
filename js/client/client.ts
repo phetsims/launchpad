@@ -7,19 +7,23 @@
  */
 
 import { enableAssert } from 'scenerystack/assert';
-import { Property, stepTimer } from 'scenerystack/axon';
+import { DerivedProperty, Property, stepTimer } from 'scenerystack/axon';
 import { Bounds2 } from 'scenerystack/dot';
 import { platform } from 'scenerystack/phet-core';
-import { AlignBox, Display, HBox, Node, Text, VBox } from 'scenerystack/scenery';
-import { AquaRadioButtonGroup } from 'scenerystack/sun';
+import { AlignBox, Display, FireListener, HBox, Image, Node, Text, VBox } from 'scenerystack/scenery';
 import { SearchBoxNode } from './SearchBoxNode.js';
 import type { RepoList } from '../types/common-types.js';
 import { apiGetRepoList } from './client-api.js';
 import { RepoListNode } from './RepoListNode.js';
 import { RepoNode } from './RepoNode.js';
-import { LocalStorageEnumerationProperty } from './localStorage.js';
 import { LaunchType } from './LaunchType.js';
 import { ViewContext } from './ViewContext.js';
+import { preferencesIcon_png, preferencesIconOnWhite_png } from 'scenerystack/joist';
+import { isDarkModeProperty, uiBackgroundColorProperty, uiHeaderFont } from './theme.js';
+import { launchTypeProperty } from './settings.js';
+import { SettingsNode } from './SettingsNode.js';
+import { UIRectangularPushButton } from './UIRectangularPushButton.js';
+import { UIText } from './UIText.js';
 
 // eslint-disable-next-line no-undef
 if ( process.env.NODE_ENV === 'development' ) {
@@ -30,7 +34,6 @@ if ( process.env.NODE_ENV === 'development' ) {
 const selectedRepoProperty = new Property<string | null>( null );
 const searchBoxTextProperty = new Property( '' );
 const repoListProperty = new Property<RepoList | null>( null );
-const launchTypeProperty = new LocalStorageEnumerationProperty( 'launchType', LaunchType.SAME_TAB );
 
 selectedRepoProperty.lazyLink( repo => {
   if ( repo ) {
@@ -62,6 +65,10 @@ const display = new Display( rootNode, {
   assumeFullWindow: false,
   listenToOnlyElement: true,
   passiveEvents: true
+} );
+
+uiBackgroundColorProperty.link( backgroundColor => {
+  display.backgroundColor = backgroundColor;
 } );
 
 document.body.appendChild( display.domElement );
@@ -98,19 +105,18 @@ selectedRepoProperty.link( selectedRepo => {
     oldChildren.forEach( child => child.dispose() );
   }
 } );
-const launchTypeRadioButtonGroup = new AquaRadioButtonGroup( launchTypeProperty, [
-  {
-    value: LaunchType.SAME_TAB,
-    createNode: () => new Text( 'Launch in Same Tab', { font: '14px sans-serif' } )
-  },
-  {
-    value: LaunchType.NEW_TAB,
-    createNode: () => new Text( 'Launch in New Tab', { font: '14px sans-serif' } )
+
+let settingsNode: SettingsNode | null = null;
+const settingsImage = new Image( preferencesIconOnWhite_png, {
+  scale: 0.15
+} );
+const settingsButton = new UIRectangularPushButton( {
+  content: settingsImage,
+  listener: () => {
+    settingsNode = settingsNode || new SettingsNode( viewContext );
+
+    settingsNode.show();
   }
-], {
-  orientation: 'horizontal',
-  align: 'center',
-  spacing: 30
 } );
 
 const baseBox = new VBox( {
@@ -121,11 +127,11 @@ const baseBox = new VBox( {
       align: 'center',
       spacing: 50,
       children: [
-        new Text( 'Launchpad', {
-          font: '24px sans-serif'
+        new UIText( 'Launchpad', {
+          font: uiHeaderFont
         } ),
         searchBoxNode,
-        launchTypeRadioButtonGroup
+        settingsButton
       ]
     } ),
     new HBox( {

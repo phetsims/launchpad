@@ -12,6 +12,8 @@ import { RepoList, RepoListEntry } from '../types/common-types.js';
 import { ListItemNode } from './ListItemNode.js';
 import fuzzysort from 'fuzzysort';
 import { ViewContext } from './ViewContext.js';
+import { repoFilterTypeProperty } from './settings.js';
+import { RepoFilterType } from './RepoFilterType.js';
 
 const WIDTH = 300;
 
@@ -30,10 +32,29 @@ export class RepoListNode extends VBox {
       }
     } );
 
-    const multilink = Multilink.multilink( [ repoListProperty, searchBoxTextProperty ], ( repoList, searchText ) => {
+    const multilink = Multilink.multilink(
+      [ repoListProperty,
+        searchBoxTextProperty,
+        repoFilterTypeProperty
+      ], ( repoList, searchText, repoFilterType ) => {
       if ( !repoList ) {
         return;
       }
+
+      repoList = repoList.filter( repoListEntry => {
+        if ( repoFilterType === RepoFilterType.ALL ) {
+          return true;
+        }
+        else if ( repoFilterType === RepoFilterType.RUNNABLES ) {
+          return repoListEntry.isRunnable;
+        }
+        else if ( repoFilterType === RepoFilterType.SIMULATIONS ) {
+          return repoListEntry.isSim;
+        }
+        else {
+          throw new Error( 'unknown repo filter type: ' + repoFilterType );
+        }
+      } );
 
       // TODO: GC-friendly https://github.com/phetsims/phettest/issues/20
 

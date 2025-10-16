@@ -14,9 +14,12 @@ import { copyToClipboard } from './copyToClipboard.js';
 import { ModeListNode } from './ModeListNode.js';
 import { getModes, CustomizationNode } from './getModes.js';
 import { ViewContext } from './ViewContext.js';
-import { AccordionBox, TextPushButton } from 'scenerystack/sun';
+import { AccordionBox } from 'scenerystack/sun';
 import { apiBuild, apiBuildEvents, apiUpdate, apiUpdateEvents } from './client-api.js';
 import { SpinningIndicatorNode } from 'scenerystack/scenery-phet';
+import { UIText } from './UIText.js';
+import { UITextPushButton } from './UITextPushButton.js';
+import { buildOutputFont, uiBackgroundColorProperty, uiForegroundColorProperty, uiHeaderFont } from './theme.js';
 
 let isStartup = true;
 
@@ -41,13 +44,10 @@ export class BranchNode extends VBox {
     const disposeCallbacks: ( () => void )[] = [];
 
     if ( branchInfo.version && branchInfo.brands ) {
-      infoChildren.push( new Text( `${branchInfo.version} (${branchInfo.brands.join( ', ' )})`, {
-        font: '16px sans-serif'
-      } ) );
+      infoChildren.push( new UIText( `${branchInfo.version} (${branchInfo.brands.join( ', ' )})` ) );
     }
     if ( branchInfo.isCheckedOut && branchInfo.branch === 'main' ) {
-      infoChildren.push( new Text( `Last updated: ${moment( branchInfo.timestamp ).calendar()} (${branchInfo?.sha?.slice( 0, 7 ) ?? ''})`, {
-        font: '16px sans-serif',
+      infoChildren.push( new UIText( `Last updated: ${moment( branchInfo.timestamp ).calendar()} (${branchInfo?.sha?.slice( 0, 7 ) ?? ''})`, {
         cursor: 'pointer',
         inputListeners: [
           new FireListener( {
@@ -61,9 +61,7 @@ export class BranchNode extends VBox {
       if ( branchInfo.dependencyRepos.length ) {
         const latestTimestamp = Math.max( ...Object.values( branchInfo.dependencyTimestampMap ) );
 
-        infoChildren.push( new Text( `Dependencies Last Updated: ${moment( latestTimestamp ).calendar()}`, {
-          font: '16px sans-serif'
-        } ) );
+        infoChildren.push( new UIText( `Dependencies Last Updated: ${moment( latestTimestamp ).calendar()}` ) );
       }
 
       // TODO: potentially show list of dependencies and the updates https://github.com/phetsims/phettest/issues/20
@@ -120,7 +118,7 @@ export class BranchNode extends VBox {
         } );
 
         updateContainer.children = [
-          new Text( 'Updating checkout...', { font: '16px sans-serif' } ),
+          new UIText( 'Updating checkout...' ),
           indicatorNode
         ];
       };
@@ -128,9 +126,8 @@ export class BranchNode extends VBox {
       const updateStatusNode = new HBox( {
         spacing: 10,
         children: [
-          new Text( branchInfo.isCheckedOut && branchInfo.lastUpdatedTime ? `Checkout updated: ${moment( branchInfo.lastUpdatedTime ).calendar()}` : 'Not checked out', { font: '16px sans-serif' } ),
-          new TextPushButton( branchInfo.isCheckedOut && branchInfo.lastUpdatedTime ? 'Update Checkout' : 'Check Out', {
-            font: '16px sans-serif',
+          new UIText( branchInfo.isCheckedOut && branchInfo.lastUpdatedTime ? `Checkout updated: ${moment( branchInfo.lastUpdatedTime ).calendar()}` : 'Not checked out' ),
+          new UITextPushButton( branchInfo.isCheckedOut && branchInfo.lastUpdatedTime ? 'Update Checkout' : 'Check Out', {
             listener: async () => {
               showUpdating();
 
@@ -158,17 +155,16 @@ export class BranchNode extends VBox {
 
     // Build status and button
     if ( repoListEntry.isRunnable && branchInfo.isCheckedOut ) {
-      const buildStatusText = new Text( branchInfo.lastBuiltTime === null ? 'No build available' : `Last successful build: ${moment( branchInfo.lastBuiltTime ).calendar()}`, {
-        font: '16px sans-serif'
-      } );
+      const buildStatusText = new UIText( branchInfo.lastBuiltTime === null ? 'No build available' : `Last successful build: ${moment( branchInfo.lastBuiltTime ).calendar()}` );
 
       const buildOutputContainer = new Node();
 
-      const getBuildOnOutput = (): ( () => void ) => {
+      const getBuildOnOutput = (): ( ( str: string ) => void ) => {
         let outputString = '';
 
         const textNode = new RichText( 'Starting build...', {
-          font: '12px sans-serif',
+          font: buildOutputFont,
+          fill: uiForegroundColorProperty,
           replaceNewlines: true
         } );
 
@@ -186,7 +182,7 @@ export class BranchNode extends VBox {
             titleNode: new HBox( {
               spacing: 5,
               children: [
-                new Text( 'Build Running...', { font: '16px sans-serif' } ),
+                new UIText( 'Build Running...' ),
                 indicatorNode
               ],
               justify: 'left'
@@ -198,6 +194,7 @@ export class BranchNode extends VBox {
             useContentWidthWhenCollapsed: false,
             titleBarExpandCollapse: true,
             stroke: null,
+            fill: uiBackgroundColorProperty,
             buttonXMargin: 0
           } )
         ];
@@ -210,8 +207,7 @@ export class BranchNode extends VBox {
         return onOutput;
       };
 
-      const buildButton = new TextPushButton( branchInfo.lastBuiltTime ? 'Rebuild' : 'Build', {
-        font: '16px sans-serif',
+      const buildButton = new UITextPushButton( branchInfo.lastBuiltTime ? 'Rebuild' : 'Build', {
         listener: async () => {
           buildButton.visible = false;
           buildStatusText.visible = false;
@@ -261,9 +257,9 @@ export class BranchNode extends VBox {
           spacing: 10,
           align: 'left',
           children: [
-            new TextPushButton( 'Launch', {
+            new UITextPushButton( 'Launch', {
               listener: launch,
-              font: '24px sans-serif'
+              font: uiHeaderFont
             } ),
             customizationContainerNode
           ]
