@@ -30,11 +30,17 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // To do list:
   //
   // -- SECURITY REVIEW/AUDIT on variables passed into the API
+  // - preview of URL?
   //
   // - SHOW out of date repos
-  // - SHOW latest commits?
+  // - SHOW latest commits? - AccordionBox? - show the "up to date" or "out of date" in the title node?
   //
-  // - Bayes launchpad --- remove checkout buttons, and maybe built -- "force rebuild"
+  // - BAYES setup (once secure and vetted)
+  //
+  // - Release Branch Pages
+  //   - Simplify (combine update checkout and build?) --- since we only build?
+  //
+  // - remove checkout buttons, and maybe built -- "force rebuild"
   //
   // - Auto-modulification? --- separate service
   //
@@ -87,6 +93,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // - Status?
   // - Private repo handling for non-PhET members
   // - Proper a11y for lists and selection -- do group selection?
+  // - Reduce file sizes --- they are pretty big, especially with the source map inline
 
   // These will get stat'ed all at once
   const PREFERRED_EXTENSIONS = [ 'js', 'ts' ];

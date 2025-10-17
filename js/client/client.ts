@@ -144,7 +144,8 @@ const settingsButton = new UIRectangularPushButton( {
     settingsNode = settingsNode || new SettingsNode( viewContext );
 
     settingsNode.show();
-  }
+  },
+  layoutOptions: { grow: 1 }
 } );
 
 const baseBox = new VBox( {
@@ -154,6 +155,7 @@ const baseBox = new VBox( {
     new HBox( {
       align: 'center',
       spacing: 50,
+      stretch: true,
       children: [
         new UIText( 'Launchpad', {
           font: uiHeaderFont
@@ -173,8 +175,14 @@ const baseBox = new VBox( {
   ]
 } );
 
+const MAIN_MARGIN = 10;
+
+layoutBoundsProperty.link( layoutBounds => {
+  baseBox.preferredWidth = layoutBounds.width - 2 * MAIN_MARGIN;
+} );
+
 const alignBox = new AlignBox( baseBox, {
-  margin: 10
+  margin: MAIN_MARGIN
 } );
 
 alignBox.localBoundsProperty.link( () => {
