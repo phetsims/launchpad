@@ -61,7 +61,9 @@ export const bundleFile = async ( filePath: string, originalPathname: string ): 
       entryPoints: [ filePath ],
       bundle: true,
       format: 'esm',
-      minify: true,
+      // minify: true, TODO: consider better minification? https://github.com/phetsims/phettest/issues/20
+      minifyWhitespace: true,
+      minifySyntax: true,
       write: false, // We handle writing/sending the response
       sourcemap: 'inline', // Keep source maps inline for dev
       plugins: [ simLauncherRewrite, himalayaRewrite, peggyRewrite ],

@@ -31,14 +31,10 @@ const ReleaseBranch = ReleaseBranchImport.default;
   //
   // -- SECURITY REVIEW/AUDIT on variables passed into the API
   //
-  // -- Were names getting mangled by unbuilt form?
-  //
   // - SHOW out of date repos
   // - SHOW latest commits?
   //
   // - Bayes launchpad --- remove checkout buttons, and maybe built -- "force rebuild"
-  //
-  // - github SHA link
   //
   // - Auto-modulification? --- separate service
   //

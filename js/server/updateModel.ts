@@ -260,5 +260,5 @@ export const updateModel = async ( model: Model ): Promise<void> => {
     } )
   ].map( pLimit( 30 ) ) );
 
-  console.log( 'finised updating model' );
+  console.log( 'finished updating model' );
 };
