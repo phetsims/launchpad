@@ -106,6 +106,34 @@ selectedRepoProperty.link( selectedRepo => {
   }
 } );
 
+// up/down arrow key handling TODO: could we potentially FOCUS the list, and have them be traversed as a group? https://github.com/phetsims/phettest/issues/20
+document.body.addEventListener( 'keydown', e => {
+  const repoList = repoListProperty.value;
+  const selectedRepo = selectedRepoProperty.value;
+  if ( !repoList || repoList.length === 0 || !selectedRepo ) {
+    return;
+  }
+
+  const currentIndex = repoList.findIndex( repo => repo.name === selectedRepo );
+  if ( currentIndex < 0 ) {
+    return;
+  }
+
+  // TODO: these preventDefaults might be annoying to a11y? https://github.com/phetsims/phettest/issues/20
+  // if 'up' is pressed
+  if ( e.keyCode === 38 ) {
+    const newIndex = ( currentIndex - 1 + repoList.length ) % repoList.length;
+    selectedRepoProperty.value = repoList[ newIndex ].name;
+    e.preventDefault();
+  }
+  // if 'down' is pressed
+  if ( e.keyCode === 40 ) {
+    const newIndex = ( currentIndex + 1 ) % repoList.length;
+    selectedRepoProperty.value = repoList[ newIndex ].name;
+    e.preventDefault();
+  }
+} );
+
 let settingsNode: SettingsNode | null = null;
 const settingsImage = new Image( preferencesIconOnWhite_png, {
   scale: 0.15

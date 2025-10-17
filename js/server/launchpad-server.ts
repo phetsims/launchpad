@@ -93,6 +93,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // - Complete package-lock items
   // - Status?
   // - Private repo handling for non-PhET members
+  // - Proper a11y for lists and selection -- do group selection?
 
   // These will get stat'ed all at once
   const PREFERRED_EXTENSIONS = [ 'js', 'ts' ];
