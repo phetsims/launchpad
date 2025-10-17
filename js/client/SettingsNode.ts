@@ -6,18 +6,10 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import { PopupNode } from './PopupNode.ts';
-import { TooltipListener } from './TooltipListener.ts';
-import { UIText } from './UIText.ts';
-import { UITextCheckbox } from './UITextCheckbox.ts';
-import { UITextPushButton } from './UITextPushButton.ts';
-import { UITextSwitch } from './UITextSwitch.ts';
-import { ViewContext } from './ViewContext.ts';
-import ViewStyleBarNode from './ViewStyleBarNode.ts';
-import { getVerticalRadioButtonGroup } from './getVerticalRadioButtonGroup.ts';
-
-import { BooleanProperty, DerivedProperty, MappedProperty, Property } from 'scenerystack/axon';
-import { GridBox, HBox, Node, Rectangle, Text, VBox } from 'scenerystack/scenery';
+import { PopupNode } from './PopupNode.js';
+import { UIText } from './UIText.js';
+import { ViewContext } from './ViewContext.js';
+import { HBox, Node, VBox } from 'scenerystack/scenery';
 import { UIAquaRadioButtonGroup } from './UIAquaRadioButtonGroup.js';
 import { LaunchType } from './LaunchType.js';
 import { launchTypeProperty, repoFilterTypeProperty } from './settings.js';

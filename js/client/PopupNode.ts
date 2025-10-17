@@ -23,7 +23,7 @@ export class PopupNode extends Node {
   public constructor(
     public readonly content: Node,
     public readonly viewContext: ViewContext,
-    providedOptions?: PopupNodeOptions,
+    providedOptions?: PopupNodeOptions
   ) {
     const options = optionize<PopupNodeOptions>()(
       {

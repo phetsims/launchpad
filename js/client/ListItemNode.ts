@@ -10,7 +10,7 @@ import { DerivedProperty, TProperty } from 'scenerystack/axon';
 import { Color, FireListener, Node, Rectangle, RichText } from 'scenerystack/scenery';
 import { ViewContext } from './ViewContext.js';
 import { TooltipListener } from './TooltipListener.js';
-import { listEvenColorProperty, listHoverColorProperty, listOddColorProperty, listSelectedColorProperty, uiFont, uiForegroundColorProperty, autocompleteMatchColorProperty } from './theme.js';
+import { autocompleteMatchColorProperty, listEvenColorProperty, listHoverColorProperty, listOddColorProperty, listSelectedColorProperty, uiFont, uiForegroundColorProperty } from './theme.js';
 
 // TODO: GC https://github.com/phetsims/phettest/issues/20
 export class ListItemNode extends Node {

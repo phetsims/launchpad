@@ -19,15 +19,12 @@ import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
 import basicAuth from 'basic-auth';
 import { config } from './config.js';
 import { model, saveModel } from './model.js';
-import { checkClean, port, ROOT_DIR, useGithubAPI } from './options.js';
+import { checkClean, port, ROOT_DIR } from './options.js';
 import { buildMain, buildReleaseBranch, getDirectorySHA, getDirectoryTimestampBranch, getLatestSHA, getRepoDirectory, getStaleBranches, isDirectoryClean, updateReleaseBranchCheckout } from './util.js';
 import { updateModel } from './updateModel.js';
 import { bundleFile, transpileTS } from './bundling.js';
-import { githubGetLatestBranchSHA } from './github-api.js';
-import getRemoteBranchSHAs from '../../../perennial/js/common/getRemoteBranchSHAs.js';
 
 const ReleaseBranch = ReleaseBranchImport.default;
-
 
 ( async () => {
   // To do list:

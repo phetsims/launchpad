@@ -6,7 +6,7 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import { TReadOnlyProperty, TinyEmitter } from 'scenerystack/axon';
+import { TinyEmitter, TReadOnlyProperty } from 'scenerystack/axon';
 import { Bounds2 } from 'scenerystack/dot';
 import { Node } from 'scenerystack/scenery';
 

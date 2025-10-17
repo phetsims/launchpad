@@ -14,7 +14,7 @@ import { apiGetBranchInfo } from './client-api.js';
 import { BranchNode } from './BranchNode.js';
 import { ViewContext } from './ViewContext.js';
 import { UIText } from './UIText.js';
-import { uiBackgroundColorProperty, uiForegroundColorProperty, uiRepoNameFont, listSelectedColorProperty } from './theme.js';
+import { listSelectedColorProperty, uiBackgroundColorProperty, uiForegroundColorProperty, uiRepoNameFont } from './theme.js';
 
 let isStartup = true;
 
@@ -88,7 +88,9 @@ export class RepoNode extends VBox {
 
     // TODO: get arrow and separator fill working (new scenerystack version): https://github.com/phetsims/phettest/issues/20
     uiForegroundColorProperty.link( color => {
+      // @ts-expect-error USING PRIVATE API -- WARNING -- upgrade scenerystack
       branchComboBox.button.arrow.fill = color;
+      // @ts-expect-error USING PRIVATE API -- WARNING -- upgrade scenerystack
       branchComboBox.button.separatorLine.stroke = color;
     } );
 

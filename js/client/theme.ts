@@ -23,7 +23,6 @@ export class ColorTheme extends EnumerationValue {
 const mediaQueryList = window.matchMedia( '(prefers-color-scheme: dark)' );
 
 export const isOSDarkModeProperty = new BooleanProperty( mediaQueryList.matches );
-// @ts-expect-error Typing
 mediaQueryList.addEventListener( 'change', e => {
   isOSDarkModeProperty.value = e.matches;
 } );

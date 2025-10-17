@@ -39,7 +39,7 @@ export const getModes = (
 
   const modes: ModeData[] = [];
 
-  const versionString = branchInfo.version || '';
+  // const versionString = branchInfo.version || '';
 
   const releaseBranchPrefix = branchInfo.branch === 'main' ? '' : `release-branches/${branchInfo.repo}-${branchInfo.branch}/`;
   const repoDirectory = `${releaseBranchPrefix}${repo}`;
@@ -53,9 +53,9 @@ export const getModes = (
   const phetioFolder = usesChipper2 ? '/phet-io' : '';
   const phetSuffix = usesChipper2 ? '_phet' : '';
   const phetioSuffix = usesChipper2 ? '_all_phet-io' : '_en-phetio';
-  const phetioBrandSuffix = usesChipper2 ? '' : '-phetio';
+  // const phetioBrandSuffix = usesChipper2 ? '' : '-phetio';
   const studioPathSuffix = branchInfo.usesPhetioStudioIndex ? '' : `/${studioName}.html?sim=${branchInfo.repo}&${proxiesParams}`;
-  const phetioDevVersion = usesChipper2 ? versionString : versionString.split( '-' ).join( '-phetio' );
+  // const phetioDevVersion = usesChipper2 ? versionString : versionString.split( '-' ).join( '-phetio' );
 
   // `](https://phet-dev.colorado.edu/html/${this.repo}/${versionString}${phetFolder}/${this.repo}_all${phetSuffix}.html)`
 
@@ -75,7 +75,7 @@ export const getModes = (
 
       if ( branchInfo.lastBuiltTime ) {
         modes.push( {
-          // TODO: locale-specific versions perhaps?
+          // TODO: locale-specific versions perhaps? https://github.com/phetsims/phettest/issues/20
           name: 'built',
           description: 'Runs the simulation from the built all-locale HTML',
           createCustomizationNode: () => {
@@ -90,7 +90,7 @@ export const getModes = (
             name: 'studio (phet-io unbuilt)',
             description: `Runs the unbuilt simulation in ${studioNameBeautified}`,
             createCustomizationNode: () => {
-              // TODO: likely this URL won't work for older cases
+              // TODO: likely this URL won't work for older cases https://github.com/phetsims/phettest/issues/20
               return new EmptyCustomizationNode( `${releaseBranchPrefix}studio?sim=${repo}&phetioWrapperDebug=true&phetioElementsDisplay=all` );
             }
           } );

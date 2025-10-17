@@ -7,10 +7,10 @@
  */
 
 import { enableAssert } from 'scenerystack/assert';
-import { DerivedProperty, Property, stepTimer } from 'scenerystack/axon';
+import { Property, stepTimer } from 'scenerystack/axon';
 import { Bounds2 } from 'scenerystack/dot';
 import { platform } from 'scenerystack/phet-core';
-import { AlignBox, Display, FireListener, HBox, Image, Node, Text, VBox } from 'scenerystack/scenery';
+import { AlignBox, Display, HBox, Image, Node, VBox } from 'scenerystack/scenery';
 import { SearchBoxNode } from './SearchBoxNode.js';
 import type { RepoList } from '../types/common-types.js';
 import { apiGetRepoList } from './client-api.js';
@@ -18,8 +18,8 @@ import { RepoListNode } from './RepoListNode.js';
 import { RepoNode } from './RepoNode.js';
 import { LaunchType } from './LaunchType.js';
 import { ViewContext } from './ViewContext.js';
-import { preferencesIcon_png, preferencesIconOnWhite_png } from 'scenerystack/joist';
-import { isDarkModeProperty, uiBackgroundColorProperty, uiHeaderFont } from './theme.js';
+import { preferencesIconOnWhite_png } from 'scenerystack/joist';
+import { uiBackgroundColorProperty, uiHeaderFont } from './theme.js';
 import { launchTypeProperty } from './settings.js';
 import { SettingsNode } from './SettingsNode.js';
 import { UIRectangularPushButton } from './UIRectangularPushButton.js';

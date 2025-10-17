@@ -7,7 +7,7 @@
  */
 
 import { ViewContext } from './ViewContext.js';
-import { TimerListener, stepTimer } from 'scenerystack/axon';
+import { stepTimer, TimerListener } from 'scenerystack/axon';
 import { Font, Node, Pointer, SceneryEvent, TInputListener } from 'scenerystack/scenery';
 import { Panel } from 'scenerystack/sun';
 import { optionize } from 'scenerystack/phet-core';

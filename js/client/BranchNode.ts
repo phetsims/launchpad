@@ -183,7 +183,7 @@ export class BranchNode extends VBox {
         } )().catch( e => { throw e; } );
       }
 
-      // TODO: show update status for release branches!!!! --- get them updated and built ideally --- allow rebuilds because of babel
+      // TODO: show update status for release branches!!!! --- get them updated and built ideally --- allow rebuilds because of babel https://github.com/phetsims/phettest/issues/20
     }
 
     // Build status and button
@@ -254,7 +254,7 @@ export class BranchNode extends VBox {
           buildButton.visible = false;
           buildStatusText.visible = false;
 
-          const success = await apiBuildEvents( branchInfo.buildJobID, getBuildOnOutput() );
+          const success = await apiBuildEvents( branchInfo.buildJobID!, getBuildOnOutput() );
 
           if ( success ) {
             requestNewBranchInfo();
