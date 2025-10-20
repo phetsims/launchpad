@@ -32,6 +32,8 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // -- SECURITY REVIEW/AUDIT on variables passed into the API
   // - preview of URL?
   //
+  // -- things still seemingly mangled when launching sims
+  //
   // - SHOW out of date repos
   // - SHOW latest commits? - AccordionBox? - show the "up to date" or "out of date" in the title node?
   //
@@ -78,7 +80,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
   //   - TOP-level "most recently updated repos"?
   //   - Links to latest dev/rc versions?
   //   - up/down keys for navigating the repo list?
-  //   - get dependency list for each sim, so we can show it (and show updated timestamps for every dependency -- order by timestamp?)
   //   - Load which locales are supported(!)
   // - REST API
   //   - status, repo-status, perhaps others?

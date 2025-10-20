@@ -7,19 +7,20 @@
  */
 
 import { Property, TinyEmitter, TReadOnlyProperty } from 'scenerystack/axon';
-import { FireListener, HBox, HSeparator, Node, RichText, VBox } from 'scenerystack/scenery';
+import { FireListener, GridBox, HBox, HSeparator, Node, RichText, VBox } from 'scenerystack/scenery';
 import { BranchInfo, RepoListEntry } from '../types/common-types.js';
 import moment from 'moment';
 import { copyToClipboard } from './copyToClipboard.js';
 import { ModeListNode } from './ModeListNode.js';
 import { CustomizationNode, getModes } from './getModes.js';
 import { ViewContext } from './ViewContext.js';
-import { AccordionBox } from 'scenerystack/sun';
-import { apiBuild, apiBuildEvents, apiUpdate, apiUpdateEvents, getLatestSHA } from './client-api.js';
+import { apiBuild, apiBuildEvents, apiUpdate, apiUpdateEvents, getLatestSHA, getLatestSHAs } from './client-api.js';
 import { UIText } from './UIText.js';
 import { UITextPushButton } from './UITextPushButton.js';
-import { buildOutputFont, uiBackgroundColorProperty, uiForegroundColorProperty, uiHeaderFont } from './theme.js';
+import { buildOutputFont, uiForegroundColorProperty, uiHeaderFont } from './theme.js';
 import { WaitingNode } from './WaitingNode.js';
+import { UIAccordionBox } from './UIAccordionBox.js';
+import { OutOfDateIcon, UpToDateIcon } from './icons.js';
 
 let isStartup = true;
 
@@ -80,10 +81,10 @@ export class BranchNode extends VBox {
 
         if ( branchInfo.sha ) {
           if ( latestSHA === branchInfo.sha ) {
-            selfDependencyNode.addChild( new UIText( ' (Up to date)', { fill: 'green' } ) );
+            selfDependencyNode.addChild( new UpToDateIcon( viewContext ) );
           }
           else {
-            selfDependencyNode.addChild( new UIText( ' (Out of date)', { fill: 'red' } ) );
+            selfDependencyNode.addChild( new OutOfDateIcon( viewContext ) );
           }
         }
       } )().catch( e => { throw e; } );
@@ -92,16 +93,71 @@ export class BranchNode extends VBox {
       infoChildren.push( selfDependencyNode );
     }
 
-    if ( branchInfo.isCheckedOut && branchInfo.branch === 'main' ) {
+    if ( branchInfo.isCheckedOut && branchInfo.branch === 'main' && branchInfo.dependencyRepos.length ) {
+      const latestTimestamp = Math.max( ...Object.values( branchInfo.dependencyTimestampMap ) );
 
+      const dependenciesContainerGridNode = new GridBox( {
+        xAlign: 'left',
+        xSpacing: 10,
+        ySpacing: 3,
+        children: [
+          new UIText( 'Dependencies loading...' )
+        ]
+      } );
 
-      if ( branchInfo.dependencyRepos.length ) {
-        const latestTimestamp = Math.max( ...Object.values( branchInfo.dependencyTimestampMap ) );
+      const dependenciesTitleNode = new HBox( {
+        spacing: 10,
+        children: [
+          new UIText( `Dependencies Last Updated: ${moment( latestTimestamp ).calendar()}` )
+        ]
+      } );
 
-        infoChildren.push( new UIText( `Dependencies Last Updated: ${moment( latestTimestamp ).calendar()}` ) );
-      }
+      const waitingNode = new WaitingNode( viewContext );
+      disposeCallbacks.push( () => {
+        waitingNode.dispose();
+      } );
 
-      // TODO: potentially show list of dependencies and the updates https://github.com/phetsims/phettest/issues/20
+      dependenciesTitleNode.addChild( waitingNode );
+
+      infoChildren.push( new UIAccordionBox( dependenciesContainerGridNode, {
+        titleNode: dependenciesTitleNode
+      } ) );
+
+      ( async () => {
+        const shaMap = await getLatestSHAs( branchInfo.dependencyRepos );
+
+        if ( dependenciesTitleNode.hasChild( waitingNode ) ) {
+          dependenciesTitleNode.removeChild( waitingNode );
+        }
+
+        let allUpToDate = true;
+
+        dependenciesContainerGridNode.rows = ( branchInfo.dependencyRepos.slice().sort() ).map( dependencyRepo => {
+          const localSHA = branchInfo.dependencySHAMap[ dependencyRepo ];
+          const latestSHA = shaMap[ dependencyRepo ];
+
+          const isUpToDate = localSHA === latestSHA;
+
+          if ( localSHA !== latestSHA ) {
+            allUpToDate = false;
+          }
+
+          return [
+            isUpToDate ? new UpToDateIcon( viewContext ) : new OutOfDateIcon( viewContext ),
+            new UIText( dependencyRepo ),
+            new UIText( localSHA.slice( 0, 7 ) ),
+            isUpToDate ? null : new UIText( latestSHA.slice( 0, 7 ) ),
+            new UIText( moment( branchInfo.dependencyTimestampMap[ dependencyRepo ] ).calendar() )
+          ];
+        } );
+
+        if ( allUpToDate ) {
+          dependenciesTitleNode.addChild( new UpToDateIcon( viewContext ) );
+        }
+        else {
+          dependenciesTitleNode.addChild( new OutOfDateIcon( viewContext ) );
+        }
+      } )().catch( e => { throw e; } );
     }
 
     const customizationContainerNode = new Node();
@@ -207,7 +263,7 @@ export class BranchNode extends VBox {
         } );
 
         buildOutputContainer.children = [
-          new AccordionBox( textNode, {
+          new UIAccordionBox( textNode, {
             titleNode: new HBox( {
               spacing: 5,
               children: [
@@ -215,16 +271,7 @@ export class BranchNode extends VBox {
                 waitingNode
               ],
               justify: 'left'
-            } ),
-            expandedDefaultValue: false,
-            titleAlignX: 'left',
-            showTitleWhenExpanded: true,
-            useExpandedBoundsWhenCollapsed: false,
-            useContentWidthWhenCollapsed: false,
-            titleBarExpandCollapse: true,
-            stroke: null,
-            fill: uiBackgroundColorProperty,
-            buttonXMargin: 0
+            } )
           } )
         ];
 
