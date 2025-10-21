@@ -68,8 +68,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // - GitHub WEBHOOKS - organization-wide, send updated repos (for faster updates)
   //
   // - Front-end UI off of scenerystack
-  //   - Scan dev (phet-dev.colorado.edu/html/REPO/) for all runnable versions
-  //     - Show production versions? or all?
   //   - Show BRANCH separation dates for release branches?
   //   - Query parameters: do we scan ALL locations (for dependencies) for query parameters? (initialize-globals, and *QueryParameters?)
   //     -- HAVE a search box for query parameters!
@@ -77,7 +75,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
   //     - Sim-specific query parameters
   //   - Show last commit messages of things?
   //   - TOP-level "most recently updated repos"?
-  //   - Links to latest dev/rc versions?
   //   - up/down keys for navigating the repo list?
   //   - Load which locales are supported(!)
   // - REST API

@@ -15,10 +15,18 @@ export type DatedVersion = {
 };
 
 export const getProductionVersions = async ( repo: Repo ): Promise<DatedVersion[]> => {
-  const response = await fetch( `https://phet.colorado.edu/sims/html/${repo}/` );
+  return getVersionListing( `https://phet.colorado.edu/sims/html/${repo}/` );
+};
+
+export const getDevVersions = async ( repo: Repo ): Promise<DatedVersion[]> => {
+  return getVersionListing( `https://phet-dev.colorado.edu/html/${repo}/` );
+};
+
+export const getVersionListing = async ( url: string ): Promise<DatedVersion[]> => {
+  const response = await fetch( url );
 
   if ( !response.ok ) {
-    throw new Error( `Failed to fetch production versions for ${repo}: ${response.status} ${response.statusText}` );
+    throw new Error( `Failed to fetch production versions for ${url}: ${response.status} ${response.statusText}` );
   }
 
   const text = await response.text();

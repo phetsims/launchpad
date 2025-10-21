@@ -11,7 +11,7 @@ import { HBox, Node } from 'scenerystack/scenery';
 import { WaitingNode } from './WaitingNode.js';
 import { ViewContext } from './ViewContext.js';
 import { UIText } from './UIText.js';
-import { getProductionVersions } from './fileListings.js';
+import { DatedVersion, getDevVersions, getProductionVersions } from './fileListings.js';
 import { UIAquaRadioButtonGroup } from './UIAquaRadioButtonGroup.js';
 import { Property } from 'scenerystack/axon';
 import moment from 'moment';
@@ -36,12 +36,21 @@ class EmptyCustomizationNode extends Node {
   }
 }
 
-class ProductionCustomizationNode extends Node {
+class VersionListingCustomizationNode extends Node {
 
-  private readonly versionProperty = new Property( 'latest' );
+  private readonly versionProperty!: Property<string>;
 
-  public constructor( public readonly repo: Repo, viewContext: ViewContext ) {
+  public constructor(
+    public readonly repo: Repo,
+    datedVersionsPromise: Promise<DatedVersion[]>,
+    private versionStringToURL: ( versionString: string ) => string,
+    defaultName: string,
+    defaultLabel: string,
+    viewContext: ViewContext
+  ) {
     super();
+
+    this.versionProperty = new Property( defaultName );
 
     const waitingNode = new WaitingNode( viewContext );
 
@@ -58,15 +67,15 @@ class ProductionCustomizationNode extends Node {
     ];
 
     ( async () => {
-      const datedVersions = await getProductionVersions( this.repo );
+      const datedVersions = await datedVersionsPromise;
 
       datedVersions.sort( ( a, b ) => -a.simVersion.compareNumber( b.simVersion ) );
 
       this.children = [
         new UIAquaRadioButtonGroup( this.versionProperty, [
           {
-            value: 'latest',
-            createNode: () => new UIText( 'latest' )
+            value: defaultName,
+            createNode: () => new UIText( defaultLabel )
           },
           ...datedVersions.map( datedVersion => {
             return {
@@ -76,13 +85,38 @@ class ProductionCustomizationNode extends Node {
           } )
         ] )
       ];
-
-      console.log( datedVersions );
     } )().catch( e => { throw e; } );
   }
 
   public getURL(): string {
-    return `https://phet.colorado.edu/sims/html/${this.repo}/${this.versionProperty.value}/${this.repo}_all.html`;
+    return this.versionStringToURL( this.versionProperty.value );
+  }
+}
+
+class ProductionCustomizationNode extends VersionListingCustomizationNode {
+  public constructor( repo: Repo, viewContext: ViewContext ) {
+    super(
+      repo,
+      getProductionVersions( repo ),
+      version => `https://phet.colorado.edu/sims/html/${repo}/${version}/${repo}_all.html`,
+      'latest',
+      'latest',
+      viewContext
+    );
+  }
+}
+
+class DevCustomizationNode extends VersionListingCustomizationNode {
+  public constructor( repo: Repo, viewContext: ViewContext ) {
+    super(
+      repo,
+      getDevVersions( repo ),
+      // TODO: Better URL for launching? or just better to show that directory?
+      version => version === 'base' ? `https://phet-dev.colorado.edu/html/${repo}/` : `https://phet-dev.colorado.edu/html/${repo}/${version}/`,
+      'base',
+      '(root directory)',
+      viewContext
+    );
   }
 }
 
@@ -206,18 +240,18 @@ export const getModes = (
       } );
 
       modes.push( {
-        name: 'dev (bayes)',
-        description: 'Loads the location on phet-dev.colorado.edu with versions for each dev deploy',
-        createCustomizationNode: () => {
-          return new EmptyCustomizationNode( `https://phet-dev.colorado.edu/html/${repo}` );
-        }
-      } );
-
-      modes.push( {
         name: 'production',
         description: 'Runs production versions (defaults to the latest)',
         createCustomizationNode: () => {
           return new ProductionCustomizationNode( repo, viewContext );
+        }
+      } );
+
+      modes.push( {
+        name: 'dev (bayes)',
+        description: 'Loads the location on phet-dev.colorado.edu with versions for each dev deploy',
+        createCustomizationNode: () => {
+          return new DevCustomizationNode( repo, viewContext );
         }
       } );
     }
