@@ -19,15 +19,38 @@ import executeImport from '../../../perennial/js/common/execute.js';
 // eslint-disable-next-line phet/default-import-match-filename
 import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
 import getFileAtBranch from '../../../perennial/js/common/getFileAtBranch.js';
-import { model, Model } from './model.js';
-import { checkClean, ROOT_DIR } from './options.js';
+import { model, Model, saveModel } from './model.js';
+import { checkClean, ROOT_DIR, useGithubAPI } from './options.js';
 import { getDirectoryBranch, getDirectorySHA, getDirectoryTimestampBranch, getPackageJSON, getRepoDirectory, isDirectoryClean } from './util.js';
 import gitCloneDirectory from '../../../perennial/js/common/gitCloneDirectory.js';
+import { npmLimit } from './globals.js';
+import npmUpdateDirectory from '../../../perennial/js/common/npmUpdateDirectory.js';
+import getRemoteBranchSHAs from '../../../perennial/js/common/getRemoteBranchSHAs.js';
+import { githubGetLatestBranchSHA } from './github-api.js';
 
 const execute = executeImport.default;
 const ReleaseBranch = ReleaseBranchImport.default;
 
-export const updateModelBranchInfo = async ( branchInfo: ModelBranchInfo, runnableDependencies: Repo[] ): Promise<void> => {
+export const updateModelBranchInfo = async (
+  branchInfo: ModelBranchInfo,
+  runnableDependencies?: Repo[]
+): Promise<void> => {
+  // If we don't provide runnableDependencies, recompute it
+  if ( runnableDependencies === undefined ) {
+    if ( getActiveRunnables().includes( branchInfo.repo ) ) {
+      const runnableDependenciesMap: Record<Repo, Repo[]> = JSON.parse( await execute(
+        tsxCommand,
+        [ 'js/scripts/print-multiple-dependencies.ts', branchInfo.repo ],
+        path.join( ROOT_DIR, 'chipper' )
+      ) );
+
+      runnableDependencies = runnableDependenciesMap[ branchInfo.repo ] || [];
+    }
+    else {
+      runnableDependencies = [];
+    }
+  }
+
   branchInfo.dependencyRepos = runnableDependencies;
 
   if ( !branchInfo.isCheckedOut ) {
@@ -134,7 +157,7 @@ export const searchForNewReleaseBranches = async (): Promise<void> => {
         buildJobID: null,
         lastBuiltTime: null,
 
-        updateCheckoutJobID: null,
+        updateJobID: null,
         lastUpdatedTime: null,
 
         npmUpdated: true // We will handle this manually
@@ -217,7 +240,7 @@ export const updateModel = async ( model: Model ): Promise<void> => {
         buildJobID: null,
         lastBuiltTime: null,
 
-        updateCheckoutJobID: null,
+        updateJobID: null,
         lastUpdatedTime: null,
 
         npmUpdated: false
@@ -243,6 +266,11 @@ export const updateModel = async ( model: Model ): Promise<void> => {
       await updateRepoInfo( newRepo, owner, repoInfo );
 
       model.repos[ newRepo ] = repoInfo;
+      saveModel();
+
+      ( async () => {
+        await updateNodeModules( model, newRepo );
+      } )().catch( e => { throw e; } );
     } ),
 
     // Update existing repos (and all of their branches)
@@ -261,4 +289,62 @@ export const updateModel = async ( model: Model ): Promise<void> => {
   ].map( pLimit( 30 ) ) );
 
   console.log( 'finished updating model' );
+};
+
+export const invalidateNodeModules = ( model: Model, repo: Repo ): void => {
+  model.repos[ repo ].branches.main.npmUpdated = false;
+};
+
+// Updates node_modules in main branch
+export const updateNodeModules = async ( model: Model, repo: Repo ): Promise<void> => {
+  return npmLimit( async () => {
+    console.log( 'npm update', repo );
+
+    const repoDirectory = getRepoDirectory( repo, 'main' );
+
+    const packageJSONFile = path.join( repoDirectory, 'package.json' );
+
+    if ( fs.existsSync( packageJSONFile ) ) {
+      await npmUpdateDirectory( getRepoDirectory( repo, 'main' ) );
+    }
+
+    model.repos[ repo ].branches.main.npmUpdated = true;
+    saveModel();
+  } );
+};
+
+export const recomputeNodeModules = async ( model: Model, repo: Repo ): Promise<void> => {
+  invalidateNodeModules( model, repo );
+
+  await updateNodeModules( model, repo );
+};
+
+export const singlePassUpdate = async (
+  model: Model,
+  updateBranch: ( branchInfo: ModelBranchInfo ) => Promise<void>
+): Promise<void> => {
+  const repos = Object.keys( model.repos );
+
+  const limit = pLimit( 10 );
+
+  await Promise.all( repos.map( repo => limit( async () => {
+    const branches = Object.keys( model.repos[ repo ].branches );
+
+    // no-op if using GitHub API. Otherwise we will... request all of these at the same time (or limit in the future?)
+    const branchSHAs = useGithubAPI ? {} : ( await getRemoteBranchSHAs( repo ) as Record<Repo, string> );
+
+    for ( const branch of branches ) {
+      // NOTE: skipping currently-updating branches
+      if ( model.repos[ repo ].branches[ branch ].updateJobID === null && model.repos[ repo ].branches[ branch ].isCheckedOut ) {
+        const localSHA = model.repos[ repo ].branches[ branch ].sha;
+        const remoteSHA = useGithubAPI ? ( await githubGetLatestBranchSHA( model.repos[ repo ].owner, repo, branch ) ) : branchSHAs[ branch ];
+
+        if ( localSHA && remoteSHA && localSHA !== remoteSHA ) {
+          console.log( repo, branch, 'is stale, updating', localSHA, remoteSHA );
+
+          updateBranch( model.repos[ repo ].branches[ branch ] ).catch( e => { throw e; } );
+        }
+      }
+    }
+  } ) ) );
 };

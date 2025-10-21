@@ -13,15 +13,15 @@ import express, { NextFunction, Request, Response } from 'express';
 import http from 'node:http';
 import serveIndex from 'serve-index';
 import crypto from 'crypto';
-import type { Branch, BranchInfo, Repo, RepoListEntry, SHA } from '../types/common-types.js';
+import type { Branch, BranchInfo, ModelBranchInfo, Repo, RepoListEntry, SHA } from '../types/common-types.js';
 // eslint-disable-next-line phet/default-import-match-filename
 import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
 import basicAuth from 'basic-auth';
 import { config } from './config.js';
 import { model, saveModel } from './model.js';
-import { checkClean, port, ROOT_DIR } from './options.js';
-import { buildMain, buildReleaseBranch, getDirectorySHA, getDirectoryTimestampBranch, getLatestSHA, getRepoDirectory, getStaleBranches, isDirectoryClean, updateReleaseBranchCheckout } from './util.js';
-import { updateModel } from './updateModel.js';
+import { autoUpdate, port, ROOT_DIR } from './options.js';
+import { buildMain, buildReleaseBranch, getLatestSHA, getNPMHash, getStaleBranches, updateMain, updateReleaseBranchCheckout } from './util.js';
+import { recomputeNodeModules, updateModel, updateModelBranchInfo, updateNodeModules, singlePassUpdate } from './updateModel.js';
 import { bundleFile, transpileTS } from './bundling.js';
 
 const ReleaseBranch = ReleaseBranchImport.default;
@@ -30,11 +30,9 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // To do list:
   //
   // -- SECURITY REVIEW/AUDIT on variables passed into the API
-  // - preview of URL?
   //
   // -- things still seemingly mangled when launching sims
   //
-  // - SHOW out of date repos
   // - SHOW latest commits? - AccordionBox? - show the "up to date" or "out of date" in the title node?
   //
   // - BAYES setup (once secure and vetted)
@@ -43,6 +41,8 @@ const ReleaseBranch = ReleaseBranchImport.default;
   //   - Simplify (combine update checkout and build?) --- since we only build?
   //
   // - remove checkout buttons, and maybe built -- "force rebuild"
+  //
+  // - Persistence and "saveModel" usage is a mess
   //
   // - Auto-modulification? --- separate service
   //
@@ -67,6 +67,8 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // - What remote operations can we speed up by just using octokit?
   //
   // - Auto-build? (per-branch option perhaps?)
+  //
+  // - GitHub WEBHOOKS - organization-wide, send updated repos (for faster updates)
   //
   // - Front-end UI off of scenerystack
   //   - Scan dev (phet-dev.colorado.edu/html/REPO/) for all runnable versions
@@ -95,6 +97,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // - Private repo handling for non-PhET members
   // - Proper a11y for lists and selection -- do group selection?
   // - Reduce file sizes --- they are pretty big, especially with the source map inline
+  // - preview of URL?
 
   // These will get stat'ed all at once
   const PREFERRED_EXTENSIONS = [ 'js', 'ts' ];
@@ -114,7 +117,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
     outputString: string; // Current output so far
     completionState: boolean | null; // null is in progress, otherwise success (true) or failure (false)
   }> = {};
-  const updateCheckoutJobs: Record<number, {
+  const updateJobs: Record<number, {
     repo: Repo;
     branch: Branch;
     onCompletedCallbacks: ( ( success: boolean ) => void )[];
@@ -124,9 +127,110 @@ const ReleaseBranch = ReleaseBranchImport.default;
   await updateModel( model );
   saveModel();
 
+  const updateBranch = async (
+    branchInfo: ModelBranchInfo,
+    updateJobID: number
+  ) => {
+    if ( branchInfo.updateJobID !== null ) {
+      throw new Error( `Branch ${branchInfo.repo}/${branchInfo.branch} is already being updated` );
+    }
+
+    const repo = branchInfo.repo;
+    const branch = branchInfo.branch;
+
+    branchInfo.updateJobID = updateJobID;
+    branchInfo.lastUpdatedTime = null;
+    if ( branch !== 'main' ) {
+      branchInfo.isCheckedOut = false;
+    }
+    saveModel();
+
+    updateJobs[ updateJobID ] = {
+      repo: repo,
+      branch: branch,
+      onCompletedCallbacks: [],
+      completionState: null
+    };
+
+    const onCompleted = ( success: boolean ) => {
+      updateJobs[ updateJobID ].completionState = success;
+      updateJobs[ updateJobID ].onCompletedCallbacks.forEach( callback => callback( success ) );
+    };
+    try {
+      console.log( `Starting update job ${updateJobID} for ${repo}/${branch}` );
+
+      let success = true;
+      try {
+        if ( branch === 'main' ) {
+          const hashBefore = getNPMHash( repo );
+
+          await updateMain( repo );
+
+          const hashAfter = getNPMHash( repo );
+
+          if ( hashBefore !== hashAfter ) {
+            ( async () => {
+              await recomputeNodeModules( model, repo );
+            } )().catch( e => { throw e; } );
+          }
+        }
+        else {
+          await updateReleaseBranchCheckout( new ReleaseBranch( repo, branch, branchInfo.brands, branchInfo.isReleased ) );
+        }
+      }
+      catch( e ) {
+        success = false;
+        console.log( `Update job ${updateJobID} for ${repo}/${branch} failed: ${e}` );
+      }
+
+      onCompleted( success );
+
+      if ( success ) {
+        await updateModelBranchInfo( branchInfo );
+
+        // eslint-disable-next-line require-atomic-updates
+        branchInfo.lastUpdatedTime = Date.now();
+
+        if ( branch !== 'main' ) {
+          // eslint-disable-next-line require-atomic-updates
+          branchInfo.isCheckedOut = true;
+        }
+
+        saveModel();
+      }
+    }
+    finally {
+      updateJobs[ updateJobID ].onCompletedCallbacks = [];
+
+      // eslint-disable-next-line require-atomic-updates
+      branchInfo.updateJobID = null;
+      saveModel();
+    }
+  };
+
+  // Kick off initial node_modules updates
   ( async () => {
-    console.log( await getStaleBranches( model ) );
+    for ( const repo of Object.keys( model.repos ) ) {
+      if ( !model.repos[ repo ].branches.main.npmUpdated ) {
+        await updateNodeModules( model, repo );
+        saveModel();
+      }
+    }
   } )().catch( e => { throw e; } );
+
+  if ( autoUpdate ) {
+    ( async () => {
+      while ( true ) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-loop-func
+          await singlePassUpdate( model, branchInfo => updateBranch( branchInfo, nextJobID++ ) );
+        }
+        catch( e ) {
+          console.error( `Auto-update iteration failed: ${e}` );
+        }
+      }
+    } )().catch( e => { throw e; } );
+  }
 
   type JSCacheEntry = {
     mtime: number;
@@ -438,78 +542,30 @@ const ReleaseBranch = ReleaseBranchImport.default;
       return;
     }
 
-    if ( branchInfo.updateCheckoutJobID !== null ) {
-      console.log( 'Already updating', repo, branch, branchInfo.updateCheckoutJobID );
+    if ( branchInfo.updateJobID !== null ) {
+      console.log( 'Already updating', repo, branch, branchInfo.updateJobID );
 
       res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
       res.send( JSON.stringify( {
-        updateCheckoutJobID: branchInfo.updateCheckoutJobID
+        updateJobID: branchInfo.updateJobID
       } ) );
     }
     else {
-      const updateCheckoutJobID = nextJobID++;
-
-      branchInfo.updateCheckoutJobID = updateCheckoutJobID;
-      branchInfo.lastUpdatedTime = null;
-      branchInfo.isCheckedOut = false;
-      saveModel();
-
-      updateCheckoutJobs[ updateCheckoutJobID ] = {
-        repo: repo,
-        branch: branch,
-        onCompletedCallbacks: [],
-        completionState: null
-      };
+      const updateJobID = nextJobID++;
 
       res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
       res.send( JSON.stringify( {
-        updateCheckoutJobID: branchInfo.updateCheckoutJobID
+        updateJobID: updateJobID
       } ) );
 
-      const onCompleted = ( success: boolean ) => {
-        updateCheckoutJobs[ updateCheckoutJobID ].completionState = success;
-        updateCheckoutJobs[ updateCheckoutJobID ].onCompletedCallbacks.forEach( callback => callback( success ) );
-      };
-      try {
-        console.log( `Starting update checkout job ${updateCheckoutJobID} for ${repo}/${branch}` );
-
-        let success = true;
-        try {
-          await updateReleaseBranchCheckout( new ReleaseBranch( repo, branch, branchInfo.brands, branchInfo.isReleased ) );
-        }
-        catch( e ) {
-          success = false;
-          console.log( `Update checkout job ${updateCheckoutJobID} for ${repo}/${branch} failed: ${e}` );
-        }
-
-        onCompleted( success );
-
-        if ( success ) {
-          const repoDirectory = getRepoDirectory( repo, branch );
-
-          branchInfo.lastUpdatedTime = Date.now();
-          branchInfo.isCheckedOut = true;
-          branchInfo.currentBranch = null; // not used for checkouts
-          branchInfo.sha = await getDirectorySHA( repoDirectory );
-          branchInfo.timestamp = await getDirectoryTimestampBranch( repoDirectory, branch );
-          branchInfo.isClean = checkClean ? await isDirectoryClean( repoDirectory ) : true;
-
-          saveModel();
-        }
-      }
-      finally {
-        updateCheckoutJobs[ updateCheckoutJobID ].onCompletedCallbacks = [];
-
-        branchInfo.updateCheckoutJobID = null;
-        saveModel();
-      }
+      await updateBranch( branchInfo, updateJobID );
     }
   } );
 
   app.get( '/api/update-events/:id', async ( req: Request, res: Response, next: NextFunction ) => {
     const id = Number.parseInt( req.params.id, 10 );
 
-    const updateCheckoutJob = updateCheckoutJobs[ id ];
+    const updateCheckoutJob = updateJobs[ id ];
     if ( !updateCheckoutJob ) {
       res.status( 404 ).send( `Unknown update checkout job: ${id}` );
       return;

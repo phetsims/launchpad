@@ -79,15 +79,15 @@ export const apiUpdate = async ( repo: Repo, branch: Branch ): Promise<boolean> 
     throw new Error( `Failed to trigger update checkout: ${repo} ${branch} ${response.status} ${response.statusText}` );
   }
 
-  const result = ( await response.json() ) as { updateCheckoutJobID: number };
+  const result = ( await response.json() ) as { updateJobID: number };
 
-  const updateCheckoutJobID = result.updateCheckoutJobID;
+  const updateJobID = result.updateJobID;
 
-  return apiUpdateEvents( updateCheckoutJobID );
+  return apiUpdateEvents( updateJobID );
 };
 
-export const apiUpdateEvents = async ( updateCheckoutJobID: number ): Promise<boolean> => {
-  const eventSource = new EventSource( `api/update-events/${updateCheckoutJobID}` );
+export const apiUpdateEvents = async ( updateJobID: number ): Promise<boolean> => {
+  const eventSource = new EventSource( `api/update-events/${updateJobID}` );
 
   return new Promise( ( resolve, reject ) => {
     eventSource.addEventListener( 'error', event => {

@@ -8,7 +8,7 @@
 
 import { Multilink, TProperty, TReadOnlyProperty } from 'scenerystack/axon';
 import { VBox } from 'scenerystack/scenery';
-import { RepoList, RepoListEntry } from '../types/common-types.js';
+import { Repo, RepoList, RepoListEntry } from '../types/common-types.js';
 import { ListItemNode } from './ListItemNode.js';
 import fuzzysort from 'fuzzysort';
 import { ViewContext } from './ViewContext.js';
@@ -31,6 +31,8 @@ export class RepoListNode extends VBox {
         minContentWidth: WIDTH
       }
     } );
+
+    let filteredRepos: Repo[] = [];
 
     const multilink = Multilink.multilink(
       [ repoListProperty,
@@ -73,6 +75,8 @@ export class RepoListNode extends VBox {
         };
       } ) : [];
 
+      filteredRepos = searchResults.map( result => result.obj.name );
+
       if ( searchResults.length === 0 ) {
         selectedRepoProperty.value = null;
       }
@@ -100,6 +104,35 @@ export class RepoListNode extends VBox {
         return new ListItemNode( result.obj.name, selectedRepoProperty, viewContext, result.highlight ? result.highlight.bind( result ) : () => result.obj.name, i, WIDTH );
       } );
       oldChildren.forEach( child => child.dispose() );
+    } );
+
+    // up/down arrow key handling TODO: could we potentially FOCUS the list, and have them be traversed as a group? https://github.com/phetsims/phettest/issues/20
+    document.body.addEventListener( 'keydown', e => {
+      if ( e.keyCode === 38 || e.keyCode === 40 ) {
+        const selectedRepo = selectedRepoProperty.value;
+        if ( !filteredRepos || filteredRepos.length === 0 || !selectedRepo ) {
+          return;
+        }
+
+        const currentIndex = filteredRepos.findIndex( repo => repo === selectedRepo );
+        if ( currentIndex < 0 ) {
+          return;
+        }
+
+        // TODO: these preventDefaults might be annoying to a11y? https://github.com/phetsims/phettest/issues/20
+        // if 'up' is pressed
+        if ( e.keyCode === 38 ) {
+          const newIndex = ( currentIndex - 1 + filteredRepos.length ) % filteredRepos.length;
+          selectedRepoProperty.value = filteredRepos[ newIndex ];
+          e.preventDefault();
+        }
+        // if 'down' is pressed
+        if ( e.keyCode === 40 ) {
+          const newIndex = ( currentIndex + 1 ) % filteredRepos.length;
+          selectedRepoProperty.value = filteredRepos[ newIndex ];
+          e.preventDefault();
+        }
+      }
     } );
 
     this.disposeEmitter.addListener( () => multilink.dispose() );

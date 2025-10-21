@@ -230,11 +230,11 @@ export class BranchNode extends VBox {
       infoChildren.push( updateContainer );
       infoChildren.push( updateStatusNode );
 
-      if ( branchInfo.updateCheckoutJobID !== null ) {
+      if ( branchInfo.updateJobID !== null ) {
         showUpdating();
 
         ( async () => {
-          await apiUpdateEvents( branchInfo.updateCheckoutJobID! );
+          await apiUpdateEvents( branchInfo.updateJobID! );
           requestNewBranchInfo();
         } )().catch( e => { throw e; } );
       }

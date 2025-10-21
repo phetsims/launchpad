@@ -37,7 +37,7 @@ export const model = fs.existsSync( '.model.json' ) ? JSON.parse( fs.readFileSyn
 for ( const repo of Object.keys( model.repos ) ) {
   for ( const branch of Object.keys( model.repos[ repo ].branches ) ) {
     model.repos[ repo ].branches[ branch ].buildJobID = null; // reset any in-progress builds
-    model.repos[ repo ].branches[ branch ].updateCheckoutJobID = null; // reset any in-progress updates
+    model.repos[ repo ].branches[ branch ].updateJobID = null; // reset any in-progress updates
   }
 }
 

@@ -25,6 +25,8 @@ import { Model } from './model.js';
 import { ROOT_DIR, useGithubAPI } from './options.js';
 import { npmLimit } from './globals.js';
 import getRemoteBranchSHAs from '../../../perennial/js/common/getRemoteBranchSHAs.js';
+import gitPullRebase from '../../../perennial/js/common/gitPullRebase.js';
+import crypto from 'crypto';
 
 const execute = executeImport.default;
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -75,6 +77,10 @@ export const isDirectoryClean = async ( directory: string ): Promise<boolean> =>
   return execute( 'git', [ 'status', '--porcelain' ], directory ).then( stdout => Promise.resolve( stdout.length === 0 ) );
 };
 
+export const updateMain = async ( repo: Repo ): Promise<void> => {
+  await gitPullRebase( repo );
+};
+
 export const updateReleaseBranchCheckout = async ( releaseBranch: ReleaseBranch ): Promise<void> => {
   return npmLimit( async () => {
     return releaseBranch.updateCheckout();
@@ -111,12 +117,7 @@ export const buildMain = async ( branchInfo: ModelBranchInfo, onOutput: ( str: s
   } );
 };
 
-export const updateNodeModules = async ( directory: string ): Promise<void> => {
-  return npmLimit( async () => {
-    return npmUpdateDirectory( directory );
-  } );
-};
-
+// Omits branches that are currently updating
 export const getStaleBranches = async ( model: Model ): Promise<RepoBranch[]> => {
   const repos = Object.keys( model.repos );
 
@@ -129,7 +130,8 @@ export const getStaleBranches = async ( model: Model ): Promise<RepoBranch[]> =>
     const branchSHAs = useGithubAPI ? {} : ( await getRemoteBranchSHAs( repo ) as Record<Repo, string> );
 
     for ( const branch of branches ) {
-      if ( model.repos[ repo ].branches[ branch ].isCheckedOut ) {
+      // NOTE: skipping currently-updating branches
+      if ( model.repos[ repo ].branches[ branch ].updateJobID === null && model.repos[ repo ].branches[ branch ].isCheckedOut ) {
         const localSHA = model.repos[ repo ].branches[ branch ].sha;
         const remoteSHA = useGithubAPI ? ( await githubGetLatestBranchSHA( model.repos[ repo ].owner, repo, branch ) ) : branchSHAs[ branch ];
 
@@ -151,4 +153,18 @@ export const getLatestSHA = async ( model: Model, repo: Repo, branch: Branch ): 
   else {
     return ( await getRemoteBranchSHAs( repo ) as Record<Repo, string> )[ branch ];
   }
+};
+
+// for main
+export const getNPMHash = async ( repo: Repo ): Promise<string> => {
+  const packageJSONFile = path.join( ROOT_DIR, repo, 'package.json' );
+  const packageLockFile = path.join( ROOT_DIR, repo, 'package-lock.json' );
+
+  const packageJSONContents = fs.existsSync( packageJSONFile ) ? await fsPromises.readFile( packageJSONFile, 'utf-8' ) : '';
+  const packageLockContents = fs.existsSync( packageLockFile ) ? await fsPromises.readFile( packageLockFile, 'utf-8' ) : '';
+
+  const hash = crypto.createHash( 'sha256' );
+  hash.update( packageJSONContents );
+  hash.update( packageLockContents );
+  return hash.digest( 'hex' );
 };
