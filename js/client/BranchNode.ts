@@ -162,7 +162,7 @@ export class BranchNode extends VBox {
 
     const customizationContainerNode = new Node();
     let customizationNode: CustomizationNode | null = null;
-    const availableModes = getModes( repoListEntry, branchInfo );
+    const availableModes = getModes( repoListEntry, branchInfo, viewContext );
 
     // Some logic to select the same mode on startup (load)
     const lastModeName = localStorage.getItem( 'lastModeName' ) ?? null;
@@ -185,6 +185,11 @@ export class BranchNode extends VBox {
         customizationNode = mode.createCustomizationNode();
         customizationContainerNode.children = [ customizationNode ];
       }
+    } );
+
+    disposeCallbacks.push( () => {
+      customizationNode && customizationNode.dispose();
+      customizationNode = null;
     } );
 
     const launch = () => {

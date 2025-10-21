@@ -6,8 +6,15 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import { BranchInfo, RepoListEntry } from '../types/common-types.js';
-import { Node } from 'scenerystack/scenery';
+import { BranchInfo, Repo, RepoListEntry } from '../types/common-types.js';
+import { HBox, Node } from 'scenerystack/scenery';
+import { WaitingNode } from './WaitingNode.js';
+import { ViewContext } from './ViewContext.js';
+import { UIText } from './UIText.js';
+import { getProductionVersions } from './fileListings.js';
+import { UIAquaRadioButtonGroup } from './UIAquaRadioButtonGroup.js';
+import { Property } from 'scenerystack/axon';
+import moment from 'moment';
 
 export type CustomizationNode = Node & { getURL: () => string };
 
@@ -29,9 +36,60 @@ class EmptyCustomizationNode extends Node {
   }
 }
 
+class ProductionCustomizationNode extends Node {
+
+  private readonly versionProperty = new Property( 'latest' );
+
+  public constructor( public readonly repo: Repo, viewContext: ViewContext ) {
+    super();
+
+    const waitingNode = new WaitingNode( viewContext );
+
+    this.addDisposable( waitingNode );
+
+    this.children = [
+      new HBox( {
+        spacing: 10,
+        children: [
+          new UIText( 'Loading versions...' ),
+          waitingNode
+        ]
+      } )
+    ];
+
+    ( async () => {
+      const datedVersions = await getProductionVersions( this.repo );
+
+      datedVersions.sort( ( a, b ) => -a.simVersion.compareNumber( b.simVersion ) );
+
+      this.children = [
+        new UIAquaRadioButtonGroup( this.versionProperty, [
+          {
+            value: 'latest',
+            createNode: () => new UIText( 'latest' )
+          },
+          ...datedVersions.map( datedVersion => {
+            return {
+              value: datedVersion.simVersion.toString(),
+              createNode: () => new UIText( `${datedVersion.simVersion.toString()} (${moment( datedVersion.date ).calendar()})` )
+            };
+          } )
+        ] )
+      ];
+
+      console.log( datedVersions );
+    } )().catch( e => { throw e; } );
+  }
+
+  public getURL(): string {
+    return `https://phet.colorado.edu/sims/html/${this.repo}/${this.versionProperty.value}/${this.repo}_all.html`;
+  }
+}
+
 export const getModes = (
   repoListEntry: RepoListEntry,
-  branchInfo: BranchInfo
+  branchInfo: BranchInfo,
+  viewContext: ViewContext
 ): ModeData[] => {
 
   const repo = branchInfo.repo;
@@ -156,10 +214,10 @@ export const getModes = (
       } );
 
       modes.push( {
-        name: 'production latest',
-        description: 'Runs latest production version',
+        name: 'production',
+        description: 'Runs production versions (defaults to the latest)',
         createCustomizationNode: () => {
-          return new EmptyCustomizationNode( `https://phet.colorado.edu/sims/html/${repo}/latest/${repo}_all.html` );
+          return new ProductionCustomizationNode( repo, viewContext );
         }
       } );
     }
