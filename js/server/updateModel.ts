@@ -92,6 +92,8 @@ export const updateModelBranchInfo = async (
       }
     } )()
   ] );
+
+  console.log( repoDirectory, branchInfo.sha );
 };
 
 export const updateRepoInfo = async ( repo: Repo, owner: string, repoInfo: {

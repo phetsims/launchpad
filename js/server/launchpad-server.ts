@@ -30,10 +30,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // To do list:
   //
   // -- SECURITY REVIEW/AUDIT on variables passed into the API
-  //
-  // -- things still seemingly mangled when launching sims
-  //
-  // - SHOW latest commits? - AccordionBox? - show the "up to date" or "out of date" in the title node?
+  // -- HARDEN error handling
   //
   // - BAYES setup (once secure and vetted)
   //
@@ -98,6 +95,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // - Proper a11y for lists and selection -- do group selection?
   // - Reduce file sizes --- they are pretty big, especially with the source map inline
   // - preview of URL?
+  // - How to handle pulls of launchpad itself??? (could also auto-rebuild launchpad after pull, and restart)
 
   // These will get stat'ed all at once
   const PREFERRED_EXTENSIONS = [ 'js', 'ts' ];
@@ -177,17 +175,15 @@ const ReleaseBranch = ReleaseBranchImport.default;
         else {
           await updateReleaseBranchCheckout( new ReleaseBranch( repo, branch, branchInfo.brands, branchInfo.isReleased ) );
         }
+
+        console.log( `Update job ${updateJobID} for ${repo}/${branch} completed successfully` );
       }
       catch( e ) {
         success = false;
         console.log( `Update job ${updateJobID} for ${repo}/${branch} failed: ${e}` );
       }
 
-      onCompleted( success );
-
       if ( success ) {
-        await updateModelBranchInfo( branchInfo );
-
         // eslint-disable-next-line require-atomic-updates
         branchInfo.lastUpdatedTime = Date.now();
 
@@ -196,8 +192,12 @@ const ReleaseBranch = ReleaseBranchImport.default;
           branchInfo.isCheckedOut = true;
         }
 
+        await updateModelBranchInfo( branchInfo );
+
         saveModel();
       }
+
+      onCompleted( success );
     }
     finally {
       updateJobs[ updateJobID ].onCompletedCallbacks = [];
