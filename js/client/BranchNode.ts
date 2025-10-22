@@ -17,7 +17,7 @@ import { ViewContext } from './ViewContext.js';
 import { apiBuild, apiBuildEvents, apiUpdate, apiUpdateEvents, getLatestSHA, getLatestSHAs } from './client-api.js';
 import { UIText } from './UIText.js';
 import { UITextPushButton } from './UITextPushButton.js';
-import { buildOutputFont, uiButtonBaseColorProperty, uiForegroundColorProperty, uiHeaderFont } from './theme.js';
+import { buildOutputFont, uiForegroundColorProperty, uiHeaderFont } from './theme.js';
 import { WaitingNode } from './WaitingNode.js';
 import { UIAccordionBox } from './UIAccordionBox.js';
 import { OutOfDateIcon, UpToDateIcon } from './icons.js';
@@ -48,23 +48,36 @@ export class BranchNode extends VBox {
     const latestSHAPromise: Promise<SHA | null> = branchInfo.isCheckedOut ? getLatestSHA( branchInfo.repo, branchInfo.branch ) : Promise.resolve( null );
     const latestSHAsPromise: Promise<Record<Repo, SHA>> = ( branchInfo.isCheckedOut && branchInfo.branch === 'main' && branchInfo.dependencyRepos.length )
       ? getLatestSHAs( branchInfo.dependencyRepos )
-      : Promise.resolve( {} );
+      : latestSHAPromise.then( sha => {
+        // If we are a non-main branch, just include the main SHA.
+        return { [ branchInfo.repo ]: sha! };
+      } );
     const areDependenciesUpToDatePromise: Promise<boolean> = latestSHAsPromise.then( shaMap => {
       let allUpToDate = true;
 
-      for ( const dependencyRepo of branchInfo.dependencyRepos ) {
-        const localSHA = branchInfo.dependencySHAMap[ dependencyRepo ];
-        const latestSHA = shaMap[ dependencyRepo ];
+      if ( branchInfo.branch !== 'main' ) {
+        const localSHA = branchInfo.sha;
+        const latestSHA = shaMap[ branchInfo.repo ];
 
         if ( localSHA !== latestSHA ) {
           allUpToDate = false;
+        }
+      }
+      else {
+        for ( const dependencyRepo of branchInfo.dependencyRepos ) {
+          const localSHA = branchInfo.dependencySHAMap[ dependencyRepo ];
+          const latestSHA = shaMap[ dependencyRepo ];
+
+          if ( localSHA !== latestSHA ) {
+            allUpToDate = false;
+          }
         }
       }
 
       return allUpToDate;
     } );
 
-    if ( branchInfo.version && branchInfo.brands ) {
+    if ( branchInfo.version && branchInfo.brands && repoListEntry.isRunnable ) {
       infoChildren.push( new UIText( `${branchInfo.version} (${branchInfo.brands.join( ', ' )})` ) );
     }
 
@@ -72,7 +85,7 @@ export class BranchNode extends VBox {
       const selfDependencyNode = new HBox( {
         spacing: 10,
         children: [
-          new UIText( `Last Commit: ${moment( branchInfo.timestamp ).calendar()} (${branchInfo?.sha?.slice( 0, 7 ) ?? ''})`, {
+          new UIText( `Last Updated Commit: ${moment( branchInfo.timestamp ).calendar()} (${branchInfo?.sha?.slice( 0, 7 ) ?? ''})`, {
             cursor: 'pointer',
             inputListeners: [
               new FireListener( {
@@ -238,19 +251,35 @@ export class BranchNode extends VBox {
       };
 
       const updateStatusNode = new HBox( {
-        spacing: 10,
-        children: [
-          new UIText( branchInfo.isCheckedOut && branchInfo.lastUpdatedTime ? `Checkout updated: ${moment( branchInfo.lastUpdatedTime ).calendar()}` : 'Not checked out' ),
-          new UITextPushButton( branchInfo.isCheckedOut && branchInfo.lastUpdatedTime ? 'Update Checkout' : 'Check Out', {
-            listener: async () => {
-              showUpdating();
-
-              await apiUpdate( branchInfo.repo, branchInfo.branch );
-              requestNewBranchInfo();
-            }
-          } )
-        ]
+        spacing: 10
+        // children: [
+        //   new UIText( branchInfo.isCheckedOut && branchInfo.lastUpdatedTime ? `Checkout updated: ${moment( branchInfo.lastUpdatedTime ).calendar()}` : 'Not checked out' ),
+        //   new UITextPushButton( branchInfo.isCheckedOut && branchInfo.lastUpdatedTime ? 'Update Checkout' : 'Check Out', {
+        //     listener: async () => {
+        //       showUpdating();
+        //
+        //       await apiUpdate( branchInfo.repo, branchInfo.branch );
+        //       requestNewBranchInfo();
+        //     }
+        //   } )
+        // ]
       } );
+
+      areDependenciesUpToDatePromise.then( areUpToDate => {
+        if ( !areUpToDate ) {
+          updateStatusNode.children = [
+            new UIText( branchInfo.isCheckedOut && branchInfo.lastUpdatedTime ? `Checkout updated: ${moment( branchInfo.lastUpdatedTime ).calendar()}` : 'Not checked out' ),
+            new UITextPushButton( branchInfo.isCheckedOut && branchInfo.lastUpdatedTime ? 'Update Checkout' : 'Check Out', {
+              listener: async () => {
+                showUpdating();
+
+                await apiUpdate( branchInfo.repo, branchInfo.branch );
+                requestNewBranchInfo();
+              }
+            } )
+          ];
+        }
+      } ).catch( e => { throw e; } );
 
       infoChildren.push( updateContainer );
       infoChildren.push( updateStatusNode );
@@ -288,9 +317,9 @@ export class BranchNode extends VBox {
         isBuildableWithNewSHAs = branchInfo.sha !== branchInfo.lastBuildSHAs[ branchInfo.repo ];
       }
 
-      // TODO: areDependenciesUpToDatePromise --- if we are out-of-date, don't recommend or highlight build?
-
-      const buildStatusText = new UIText( branchInfo.lastBuiltTime === null ? 'No build available' : `Last successful build: ${moment( branchInfo.lastBuiltTime ).calendar()}` );
+      const buildStatusText = new UIText( branchInfo.lastBuiltTime === null ? 'No build available' : (
+        isBuildableWithNewSHAs ? `Out Of Date Build: ${moment( branchInfo.lastBuiltTime ).calendar()}` : `Built: ${moment( branchInfo.lastBuiltTime ).calendar()}`
+      ) );
 
       const buildOutputContainer = new Node();
 
@@ -313,7 +342,7 @@ export class BranchNode extends VBox {
             titleNode: new HBox( {
               spacing: 5,
               children: [
-                new UIText( 'Build Running...' ),
+                new UIText( 'Building...' ),
                 waitingNode
               ],
               justify: 'left'

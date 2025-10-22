@@ -36,14 +36,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // - SHOW whether Checkout is up-to-date
   //   - Actually, why have an "update checkout" button if it is up-to-date! Get rid of that bit completely
   //
-  // - SHOW WHETHER SHAS ARE UP-TO-DATE
-  //   - A: IF shas differ from server-side, make build button different
-  //   - B: IF shas differ from GITHUB, show the out-of-date status
-  // - Auto-build? (per-branch option perhaps?)
-  //   - RECORD SHAS for each build ---- oh wait, we have dependencies.json
-  //     - NO dependencies.json - that will be generated potentially AFTER a pull
-  // - SHOW whether the build is for the latest SHAs
-  //
   // - BAYES setup (once secure and vetted)
   //
   // - Release Branch Pages
@@ -82,13 +74,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
   //   - TOP-level "most recently updated repos"?
   //   - up/down keys for navigating the repo list?
   //   - Load which locales are supported(!)
-  // - REST API
-  //   - status, repo-status, perhaps others?
-  //   - Build:
-  //     - Allow toggling of "auto build"
-  //     - No concurrent builds for the same repo (building multiple sims at a time is fine)
-  //     - All brands except for adapted-from-phet (from simPackage.phet?.supportedBrands)
-  //     - (and do we skip linting and type-checking?) --- what about uglify?
   // - Test on Windows
   // - Get release branch unbuilt running
   // - Complete package-lock items
@@ -153,7 +138,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
     };
 
     const onOutput = ( str: string ) => {
-      console.log( str.split( '\n' ).map( line => `  [build job ${buildJobID}] ${line}` ).join( '\n' ) );
+      console.log( str.split( '\n' ).map( line => `  [build job ${buildJobID} ${repo} ${branch}] ${line}` ).join( '\n' ) );
       buildJobs[ buildJobID ].outputString += str;
       buildJobs[ buildJobID ].onOutputCallbacks.forEach( callback => callback( str ) );
     };
@@ -312,14 +297,37 @@ const ReleaseBranch = ReleaseBranchImport.default;
     } )().catch( e => { throw e; } );
   }
 
-  // TODO: allow a certain amount of build workers(!)
   if ( autoBuild ) {
     for ( let i = 0; i < numAutoBuildThreads; i++ ) {
+      // eslint-disable-next-line @typescript-eslint/no-loop-func
       ( async () => {
         while ( true ) {
-          // TODO
 
-          //runBuildJob
+          for ( const repo of Object.keys( model.repos ) ) {
+            if ( model.repos[ repo ].isRunnable ) {
+              for ( const branch of Object.keys( model.repos[ repo ].branches ) ) {
+                const branchInfo = model.repos[ repo ].branches[ branch ];
+
+                if ( branchInfo.isCheckedOut && branchInfo.buildJobID === null && branchInfo.npmUpdated ) {
+                  let outOfDate = branchInfo.lastBuiltTime === null;
+
+                  for ( const dependencyRepo of branchInfo.dependencyRepos ) {
+                    const dependencySHA = model.repos[ dependencyRepo ].branches.main.sha;
+                    const lastBuildSHA = branchInfo.lastBuildSHAs[ dependencyRepo ];
+
+                    if ( dependencySHA !== lastBuildSHA ) {
+                      outOfDate = true;
+                    }
+                  }
+
+                  if ( outOfDate ) {
+                    await runBuildJob( branchInfo, nextJobID++ );
+                  }
+                }
+              }
+            }
+          }
+
           await sleep( 3000 ); // prevent tight loop if there is nothing to build
         }
       } )().catch( e => { throw e; } );
