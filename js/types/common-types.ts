@@ -43,7 +43,7 @@ export type ModelBranchInfo = {
   timestamp: number | null;
   isClean: boolean;
 
-  // Feature detection for links
+  // Feature detection for links (for release branches)
   isChipper2: boolean;
   usesOldPhetioStandalone: boolean;
   usesRelativeSimPath: boolean;

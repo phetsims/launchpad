@@ -30,13 +30,15 @@ const ReleaseBranch = ReleaseBranchImport.default;
 ( async () => {
   // To do list:
   //
+  // -- per-main-repo LOCKS for git mutating commands (includes getFileAtBranch... unfortunately)
+  //  - done in search for new release branches, can we find a slower but safer way to do this?
+  //
   // -- SECURITY REVIEW/AUDIT on variables passed into the API
   // -- HARDEN error handling
   //
-  // - SHOW whether Checkout is up-to-date
-  //   - Actually, why have an "update checkout" button if it is up-to-date! Get rid of that bit completely
-  //
   // - BAYES setup (once secure and vetted)
+  //
+  // - Run updateModel after... MORE. Especially since it might change what repos we should handle
   //
   // - Release Branch Pages
   //   - Simplify (combine update checkout and build?) --- since we only build?
@@ -65,7 +67,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // - GitHub WEBHOOKS - organization-wide, send updated repos (for faster updates)
   //
   // - Front-end UI off of scenerystack
-  //   - Show BRANCH separation dates for release branches?
   //   - Query parameters: do we scan ALL locations (for dependencies) for query parameters? (initialize-globals, and *QueryParameters?)
   //     -- HAVE a search box for query parameters!
   //     -- BUILD: SHOW whether the sim SHOULD be up-to-date (note that doesn't include babel, so allow builds even if it looks up-to-date)

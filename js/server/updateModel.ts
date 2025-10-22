@@ -128,7 +128,8 @@ export const searchForNewReleaseBranches = async (): Promise<void> => {
     }
 
     if ( !model.repos[ repo ].branches[ branch ] ) {
-      const packageJSON = JSON.parse( await getFileAtBranch( repo, branch, 'package.json' ) );
+      // const packageJSON = JSON.parse( await getFileAtBranch( repo, branch, 'package.json' ) );
+      const packageJSON = JSON.parse( await execute( 'git', [ 'show', `origin/${branch}:./package.json` ], `../${repo}` ) );
 
       // eslint-disable-next-line require-atomic-updates
       model.repos[ repo ].branches[ branch ] = {
@@ -193,6 +194,14 @@ export const updateModel = async ( model: Model ): Promise<void> => {
     delete model.repos[ oldRepo ];
   }
 
+  // Ensure we are fully cloned first
+  await Promise.all( newRepos.map( async newRepo => {
+    // TODO: how do we skip private repos in the future?
+    if ( !fs.existsSync( path.join( ROOT_DIR, newRepo ) ) ) {
+      await gitCloneDirectory( newRepo, ROOT_DIR );
+    }
+  } ) );
+
   // Determine the repo dependencies for each runnable
   const runnableDependenciesMap: Record<Repo, Repo[]> = JSON.parse( await execute(
     tsxCommand,
@@ -208,10 +217,6 @@ export const updateModel = async ( model: Model ): Promise<void> => {
 
     // Initialize new repos
     ...newRepos.map( newRepo => async () => {
-      // TODO: how do we skip private repos in the future?
-      if ( !fs.existsSync( path.join( ROOT_DIR, newRepo ) ) ) {
-        await gitCloneDirectory( newRepo, ROOT_DIR );
-      }
 
       const packageJSON = await getPackageJSON( getRepoDirectory( newRepo, 'main' ) );
 
