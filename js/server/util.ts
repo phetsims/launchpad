@@ -10,11 +10,9 @@ import path from 'path';
 import fs from 'fs';
 // eslint-disable-next-line phet/default-import-match-filename
 import fsPromises from 'fs/promises';
-import type { Branch, ModelBranchInfo, PackageJSON, Repo, RepoBranch, SHA } from '../types/common-types.js';
+import type { Branch, ModelBranchInfo, PackageJSON, Repo, SHA } from '../types/common-types.js';
 // eslint-disable-next-line phet/default-import-match-filename
 import executeImport from '../../../perennial/js/common/execute.js';
-// eslint-disable-next-line phet/default-import-match-filename
-import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
 import ChipperVersion from '../../../perennial/js/common/ChipperVersion.js';
 // eslint-disable-next-line phet/default-import-match-filename
 import getBuildArgumentsImport from '../../../perennial/js/common/getBuildArguments.js';
@@ -28,8 +26,6 @@ import gitPullRebase from '../../../perennial/js/common/gitPullRebase.js';
 import crypto from 'crypto';
 
 const execute = executeImport.default;
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const ReleaseBranch = ReleaseBranchImport.default;
 const getBuildArguments = getBuildArgumentsImport.default;
 
 export const getRepoDirectory = ( repo: Repo, branch: Branch ): string => {
@@ -114,35 +110,6 @@ export const buildMain = async ( branchInfo: ModelBranchInfo, onOutput: ( str: s
     onStdout: onOutput,
     onStderr: onOutput
   } );
-};
-
-// Omits branches that are currently updating
-export const getStaleBranches = async ( model: Model ): Promise<RepoBranch[]> => {
-  const repos = Object.keys( model.repos );
-
-  const results: RepoBranch[] = [];
-
-  await Promise.all( repos.map( async repo => {
-    const branches = Object.keys( model.repos[ repo ].branches );
-
-    // no-op if using GitHub API. Otherwise we will... request all of these at the same time (or limit in the future?)
-    const branchSHAs = useGithubAPI ? {} : ( await getRemoteBranchSHAs( repo ) as Record<Repo, string> );
-
-    for ( const branch of branches ) {
-      // NOTE: skipping currently-updating branches
-      if ( model.repos[ repo ].branches[ branch ].updateJobID === null && model.repos[ repo ].branches[ branch ].isCheckedOut ) {
-        const localSHA = model.repos[ repo ].branches[ branch ].sha;
-        const remoteSHA = useGithubAPI ? ( await githubGetLatestBranchSHA( model.repos[ repo ].owner, repo, branch ) ) : branchSHAs[ branch ];
-
-        if ( localSHA && remoteSHA && localSHA !== remoteSHA ) {
-          console.log( repo, branch, 'is stale', localSHA, remoteSHA );
-          results.push( { repo: repo, branch: branch } );
-        }
-      }
-    }
-  } ) );
-
-  return results;
 };
 
 export const getLatestSHA = async ( model: Model, repo: Repo, branch: Branch ): Promise<SHA> => {

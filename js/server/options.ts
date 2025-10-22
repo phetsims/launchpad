@@ -28,14 +28,12 @@ export const options = {
   numAutoBuildThreads: getOptionIfProvided( 'numAutoBuildThreads', 2 ),
   checkClean: getOptionIfProvided( 'checkClean', false ),
 
+  // Logging level: silly, debug, verbose, info, warn, error
+  logLevel: getOptionIfProvided( 'logLevel', 'verbose' ),
+
   // NOTE: this might run through rate limits very quickly if using the API, but it is faster for many things
   useGithubAPI: getOptionIfProvided( 'useGithubAPI', false )
 };
-
-console.log( 'options:' );
-console.log( ` - port: ${options.port}` );
-console.log( ` - rootDirectory: ${options.rootDirectory}` );
-console.log( ` - autoUpdate: ${options.autoUpdate}` );
 
 export const port = parseInt( options.port, 10 );
 if ( typeof port !== 'number' || isNaN( port ) || port < 0 || port > 65535 ) {
@@ -65,6 +63,11 @@ if ( typeof numAutoBuildThreads !== 'number' || isNaN( numAutoBuildThreads ) || 
 export const checkClean = options.checkClean;
 if ( typeof checkClean !== 'boolean' ) {
   throw new Error( `Invalid checkClean: ${checkClean}` );
+}
+
+export const logLevel = options.logLevel;
+if ( typeof logLevel !== 'string' || ![ 'silly', 'debug', 'verbose', 'info', 'warn', 'error' ].includes( logLevel ) ) {
+  throw new Error( `Invalid logLevel: ${logLevel}` );
 }
 
 export const useGithubAPI = options.useGithubAPI;

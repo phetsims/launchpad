@@ -9,6 +9,7 @@
 import { fileURLToPath } from 'url';
 import path, { dirname, resolve } from 'path';
 import fs from 'fs';
+import { logger } from './logging.js';
 
 export type Config = {
   basicAuthUser?: string;
@@ -26,5 +27,5 @@ if ( fs.existsSync( configFile ) ) {
   config = JSON.parse( fs.readFileSync( configFile, 'utf8' ) );
 }
 else {
-  console.log( `No config file found at ${configFile}, proceeding with defaults.` );
+  logger.warn( `No config file found at ${configFile}, proceeding with defaults.` );
 }

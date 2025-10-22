@@ -10,6 +10,7 @@ import fsPromises from 'fs/promises'; // eslint-disable-line phet/default-import
 import esbuild from 'esbuild';
 import os from 'os';
 import { ROOT_DIR } from './options.js';
+import { logger } from './logging.js';
 
 // --- esbuild Plugins (Hacks) ---
 const simLauncherRewrite: esbuild.Plugin = {
@@ -74,7 +75,7 @@ export const bundleFile = async ( filePath: string, originalPathname: string ): 
     return output.text;
   }
   catch( err: unknown ) {
-    console.error( 'Esbuild bundling error:', err );
+    logger.error( 'Esbuild bundling error:', err );
     throw err;
   }
 };
@@ -95,7 +96,7 @@ export const transpileTS = async ( tsCode: string, filePath: string, originalPat
     return result.code;
   }
   catch( err: unknown ) {
-    console.error( 'Esbuild transform error:', err );
+    logger.error( 'Esbuild transform error:', err );
     throw err;
   }
 };

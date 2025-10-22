@@ -29,6 +29,7 @@
     "p-limit": "^7.1.1",
     "serve-index": "^1.9.1",
     "typescript": "~5.7.2",
+    "winston": "^3.18.3",
     "@types/basic-auth": "^1.1.8",
     "@types/express": "~5.0.1",
     "@types/node": "^24.7.1",

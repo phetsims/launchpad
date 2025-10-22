@@ -24,11 +24,16 @@ import { buildMain, buildReleaseBranch, getLatestSHA, getNPMHash, updateMain, up
 import { recomputeNodeModules, singlePassUpdate, updateModel, updateModelBranchInfo, updateNodeModules } from './updateModel.js';
 import { bundleFile, transpileTS } from './bundling.js';
 import sleep from '../../../perennial/js/common/sleep.js';
+import { logger } from './logging.js';
 
 const ReleaseBranch = ReleaseBranchImport.default;
 
 ( async () => {
   // To do list:
+  //
+  // timestamps for logging (winston?)
+  //
+  // -- NOTE or fail if non-main branches are checked out when starting launchpad (or updateModel?)
   //
   // -- per-main-repo LOCKS for git mutating commands (includes getFileAtBranch... unfortunately)
   //  - done in search for new release branches, can we find a slower but safer way to do this?
@@ -113,6 +118,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
   await updateModel( model );
   saveModel();
 
+  // TODO: move the build job logic to another file https://github.com/phetsims/phettest/issues/20
   const runBuildJob = async (
     branchInfo: ModelBranchInfo,
     buildJobID: number
@@ -139,7 +145,9 @@ const ReleaseBranch = ReleaseBranchImport.default;
     };
 
     const onOutput = ( str: string ) => {
-      console.log( str.split( '\n' ).map( line => `  [build job ${buildJobID} ${repo} ${branch}] ${line}` ).join( '\n' ) );
+      str.split( '\n' ).forEach( line => {
+        logger.verbose( `  [build job ${buildJobID} ${repo} ${branch}] ${line}` );
+      } );
       buildJobs[ buildJobID ].outputString += str;
       buildJobs[ buildJobID ].onOutputCallbacks.forEach( callback => callback( str ) );
     };
@@ -148,7 +156,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
       buildJobs[ buildJobID ].onCompletedCallbacks.forEach( callback => callback( success ) );
     };
     try {
-      console.log( `Starting build job ${buildJobID} for ${repo}/${branch}` );
+      logger.verbose( `Starting build job ${buildJobID} for ${repo}/${branch}` );
 
       const lastBuildSHAs: Record<Repo, SHA> = {};
 
@@ -163,7 +171,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
         await buildReleaseBranch( new ReleaseBranch( repo, branch, branchInfo.brands, branchInfo.isReleased ), onOutput );
       }
 
-      console.log( `Build job ${buildJobID} for ${repo}/${branch} completed successfully` );
+      logger.verbose( `Build job ${buildJobID} for ${repo}/${branch} completed successfully` );
 
       onCompleted( true );
 
@@ -176,7 +184,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
       saveModel();
     }
     catch( e ) {
-      console.log( `Build job ${buildJobID} for ${repo}/${branch} failed: ${e}` );
+      logger.warn( `Build job ${buildJobID} for ${repo}/${branch} failed: ${e}` );
 
       onOutput( `Build error: ${e}\n` );
       onCompleted( false );
@@ -221,7 +229,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
       updateJobs[ updateJobID ].onCompletedCallbacks.forEach( callback => callback( success ) );
     };
     try {
-      console.log( `Starting update job ${updateJobID} for ${repo}/${branch}` );
+      logger.info( `Starting update job ${updateJobID} for ${repo}/${branch}` );
 
       let success = true;
       try {
@@ -235,18 +243,18 @@ const ReleaseBranch = ReleaseBranchImport.default;
           if ( hashBefore !== hashAfter ) {
             ( async () => {
               await recomputeNodeModules( model, repo );
-            } )().catch( e => { throw e; } );
+            } )().catch( e => logger.error( `async recomputeNodeModules error ${repo}: ${e}` ) );
           }
         }
         else {
           await updateReleaseBranchCheckout( new ReleaseBranch( repo, branch, branchInfo.brands, branchInfo.isReleased ) );
         }
 
-        console.log( `Update job ${updateJobID} for ${repo}/${branch} completed successfully` );
+        logger.info( `Update job ${updateJobID} for ${repo}/${branch} completed successfully` );
       }
       catch( e ) {
         success = false;
-        console.log( `Update job ${updateJobID} for ${repo}/${branch} failed: ${e}` );
+        logger.info( `Update job ${updateJobID} for ${repo}/${branch} failed: ${e}` );
       }
 
       if ( success ) {
@@ -282,7 +290,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
         saveModel();
       }
     }
-  } )().catch( e => { throw e; } );
+  } )().catch( e => logger.error( `initial nodeModules update error: ${e}` ) );
 
   if ( autoUpdate ) {
     ( async () => {
@@ -292,10 +300,10 @@ const ReleaseBranch = ReleaseBranchImport.default;
           await singlePassUpdate( model, branchInfo => updateBranch( branchInfo, nextJobID++ ) );
         }
         catch( e ) {
-          console.error( `Auto-update iteration failed: ${e}` );
+          logger.error( `Auto-update iteration failed: ${e}` );
         }
       }
-    } )().catch( e => { throw e; } );
+    } )().catch( e => logger.error( `auto update failure: ${e}` ) );
   }
 
   if ( autoBuild ) {
@@ -307,23 +315,28 @@ const ReleaseBranch = ReleaseBranchImport.default;
           for ( const repo of Object.keys( model.repos ) ) {
             if ( model.repos[ repo ].isRunnable ) {
               for ( const branch of Object.keys( model.repos[ repo ].branches ) ) {
-                const branchInfo = model.repos[ repo ].branches[ branch ];
+                try {
+                  const branchInfo = model.repos[ repo ].branches[ branch ];
 
-                if ( branchInfo.isCheckedOut && branchInfo.buildJobID === null && branchInfo.npmUpdated ) {
-                  let outOfDate = branchInfo.lastBuiltTime === null;
+                  if ( branchInfo.isCheckedOut && branchInfo.buildJobID === null && branchInfo.npmUpdated ) {
+                    let outOfDate = branchInfo.lastBuiltTime === null;
 
-                  for ( const dependencyRepo of branchInfo.dependencyRepos ) {
-                    const dependencySHA = model.repos[ dependencyRepo ].branches.main.sha;
-                    const lastBuildSHA = branchInfo.lastBuildSHAs[ dependencyRepo ];
+                    for ( const dependencyRepo of branchInfo.dependencyRepos ) {
+                      const dependencySHA = model.repos[ dependencyRepo ].branches.main.sha;
+                      const lastBuildSHA = branchInfo.lastBuildSHAs[ dependencyRepo ];
 
-                    if ( dependencySHA !== lastBuildSHA ) {
-                      outOfDate = true;
+                      if ( dependencySHA !== lastBuildSHA ) {
+                        outOfDate = true;
+                      }
+                    }
+
+                    if ( outOfDate ) {
+                      await runBuildJob( branchInfo, nextJobID++ );
                     }
                   }
-
-                  if ( outOfDate ) {
-                    await runBuildJob( branchInfo, nextJobID++ );
-                  }
+                }
+                catch( e ) {
+                  logger.error( `autoBuild error for ${repo}/${branch}: ${e}` );
                 }
               }
             }
@@ -331,7 +344,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
 
           await sleep( 3000 ); // prevent tight loop if there is nothing to build
         }
-      } )().catch( e => { throw e; } );
+      } )().catch( e => logger.error( `async autoBuild error: ${e}` ) );
     }
   }
 
@@ -397,257 +410,310 @@ const ReleaseBranch = ReleaseBranchImport.default;
 
   // Global cache-control and authentication
   app.use( ( req: Request, res: Response, next: NextFunction ) => {
+    try {
+      if ( config.basicAuthUser && config.basicAuthPassword ) {
+        const credentials = basicAuth( req );
 
-    if ( config.basicAuthUser && config.basicAuthPassword ) {
-      const credentials = basicAuth( req );
-
-      if ( !credentials || credentials.name !== config.basicAuthUser || credentials.pass !== config.basicAuthPassword ) {
-        res.statusCode = 401;
-        res.setHeader( 'WWW-Authenticate', 'Basic realm="launchpad"' );
-        res.end( 'Access denied' );
-        return;
+        if ( !credentials || credentials.name !== config.basicAuthUser || credentials.pass !== config.basicAuthPassword ) {
+          res.statusCode = 401;
+          res.setHeader( 'WWW-Authenticate', 'Basic realm="launchpad"' );
+          res.end( 'Access denied' );
+          return;
+        }
       }
+
+      res.setHeader( 'Cache-Control', 'public, max-age=0, must-revalidate' );
+
+      if ( INCLUDE_CORS_ALL_ORIGINS ) {
+        res.setHeader( 'Access-Control-Allow-Origin', '*' );
+      }
+
+      next();
     }
-
-    res.setHeader( 'Cache-Control', 'public, max-age=0, must-revalidate' );
-
-    if ( INCLUDE_CORS_ALL_ORIGINS ) {
-      res.setHeader( 'Access-Control-Allow-Origin', '*' );
+    catch( e ) {
+      console.error( `Error in global middleware: ${e}` );
+      next( e );
     }
-
-    next();
   } );
 
   app.get( '/api/repo-list', async ( req: Request, res: Response, next: NextFunction ) => {
-    res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
+    try {
+      res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
 
-    res.send( JSON.stringify( {
-      repoList: Object.keys( model.repos ).sort().map( repo => {
-        const repoListEntry: RepoListEntry = {
-          name: repo,
-          owner: model.repos[ repo ].owner,
-          isSim: model.repos[ repo ].isSim,
-          isRunnable: model.repos[ repo ].isRunnable,
-          supportsInteractiveDescription: model.repos[ repo ].supportsInteractiveDescription,
-          supportsVoicing: model.repos[ repo ].supportsVoicing,
-          hasUnitTests: model.repos[ repo ].hasUnitTests,
-          branches: Object.keys( model.repos[ repo ].branches )
-        };
+      res.send( JSON.stringify( {
+        repoList: Object.keys( model.repos ).sort().map( repo => {
+          const repoListEntry: RepoListEntry = {
+            name: repo,
+            owner: model.repos[ repo ].owner,
+            isSim: model.repos[ repo ].isSim,
+            isRunnable: model.repos[ repo ].isRunnable,
+            supportsInteractiveDescription: model.repos[ repo ].supportsInteractiveDescription,
+            supportsVoicing: model.repos[ repo ].supportsVoicing,
+            hasUnitTests: model.repos[ repo ].hasUnitTests,
+            branches: Object.keys( model.repos[ repo ].branches )
+          };
 
-        return repoListEntry;
-      } )
-    } ) );
+          return repoListEntry;
+        } )
+      } ) );
+    }
+    catch( e ) {
+      console.error( `Error in /api/repo-list: ${e}` );
+      next( e );
+    }
   } );
 
   app.get( /\/api\/branch-info\/([^/]+)\/([^/]+)$/, async ( req: Request, res: Response, next: NextFunction ) => {
-    const repo = req.params[ 0 ];
-    const branch = req.params[ 1 ];
+    try {
+      const repo = req.params[ 0 ];
+      const branch = req.params[ 1 ];
 
-    if ( !model.repos[ repo ] ) {
-      res.status( 404 ).send( `Unknown repo: ${repo}` );
-    }
-    else if ( !model.repos[ repo ].branches[ branch ] ) {
-      res.status( 404 ).send( `Unknown branch: ${branch} for repo ${repo}` );
-    }
-    else {
-      res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
-
-      const dependencySHAMap: Record<Repo, SHA> = {};
-      const dependencyTimestampMap: Record<Repo, number> = {};
-
-      for ( const dependencyRepo of model.repos[ repo ].branches[ branch ].dependencyRepos ) {
-        dependencySHAMap[ dependencyRepo ] = model.repos[ dependencyRepo ].branches.main.sha!;
-        dependencyTimestampMap[ dependencyRepo ] = model.repos[ dependencyRepo ].branches.main.timestamp!;
+      if ( !model.repos[ repo ] ) {
+        res.status( 404 ).send( `Unknown repo: ${repo}` );
       }
+      else if ( !model.repos[ repo ].branches[ branch ] ) {
+        res.status( 404 ).send( `Unknown branch: ${branch} for repo ${repo}` );
+      }
+      else {
+        res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
 
-      const result: BranchInfo = {
-        // eslint-disable-next-line phet/no-object-spread-on-non-literals
-        ...model.repos[ repo ].branches[ branch ],
-        dependencySHAMap: dependencySHAMap,
-        dependencyTimestampMap: dependencyTimestampMap
-      };
+        const dependencySHAMap: Record<Repo, SHA> = {};
+        const dependencyTimestampMap: Record<Repo, number> = {};
 
-      res.send( JSON.stringify( result ) );
+        for ( const dependencyRepo of model.repos[ repo ].branches[ branch ].dependencyRepos ) {
+          dependencySHAMap[ dependencyRepo ] = model.repos[ dependencyRepo ].branches.main.sha!;
+          dependencyTimestampMap[ dependencyRepo ] = model.repos[ dependencyRepo ].branches.main.timestamp!;
+        }
+
+        const result: BranchInfo = {
+          // eslint-disable-next-line phet/no-object-spread-on-non-literals
+          ...model.repos[ repo ].branches[ branch ],
+          dependencySHAMap: dependencySHAMap,
+          dependencyTimestampMap: dependencyTimestampMap
+        };
+
+        res.send( JSON.stringify( result ) );
+      }
+    }
+    catch( e ) {
+      console.error( `Error in /api/branch-info: ${e}` );
+      next( e );
     }
   } );
 
   // Get latest SHAs from a comma-separated list of repos (on the main branches)
   // Returns { repo1: sha1, repo2: sha2, ... }
   app.get( '/api/latest-shas/:repos', async ( req: Request, res: Response, next: NextFunction ) => {
-    // Filter by valid repos
-    const repos = req.params.repos.split( ',' ).filter( repo => !!model.repos[ repo ] );
+    try {
+      // Filter by valid repos
+      const repos = req.params.repos.split( ',' ).filter( repo => !!model.repos[ repo ] );
 
-    const result: Record<Repo, SHA> = {};
+      const result: Record<Repo, SHA> = {};
 
-    await Promise.all( repos.map( repo => ( async () => {
-      result[ repo ] = await getLatestSHA( model, repo, 'main' );
-    } )() ) );
+      await Promise.all( repos.map( repo => ( async () => {
+        result[ repo ] = await getLatestSHA( model, repo, 'main' );
+      } )() ) );
 
-    res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
-    res.send( JSON.stringify( result ) );
+      res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
+      res.send( JSON.stringify( result ) );
+    }
+    catch( e ) {
+      console.error( `Error in /api/latest-shas: ${e}` );
+      next( e );
+    }
   } );
 
   // Get the latest SHA for a repo and branch, returns { sha: string }
   app.get( '/api/latest-sha/:repo/:branch', async ( req: Request, res: Response, next: NextFunction ) => {
-    const repo = req.params.repo;
-    const branch = req.params.branch;
+    try {
+      const repo = req.params.repo;
+      const branch = req.params.branch;
 
-    const result = {
-      sha: await getLatestSHA( model, repo, branch )
-    };
+      const result = {
+        sha: await getLatestSHA( model, repo, branch )
+      };
 
-    res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
-    res.send( JSON.stringify( result ) );
+      res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
+      res.send( JSON.stringify( result ) );
+    }
+    catch( e ) {
+      console.error( `Error in /api/latest-sha: ${e}` );
+      next( e );
+    }
   } );
 
-  // TODO: move the build job logic to another file https://github.com/phetsims/phettest/issues/20
   app.post( '/api/build/:repo/:branch', async ( req: Request, res: Response, next: NextFunction ) => {
-    const repo = req.params.repo;
-    const branch = req.params.branch;
+    try {
+      const repo = req.params.repo;
+      const branch = req.params.branch;
 
-    const branchInfo = model.repos[ repo ]?.branches[ branch ];
-    if ( !branchInfo || !repo || !branch ) {
-      res.status( 404 ).send( `Unknown repo/branch: ${repo}/${branch}` );
-      return;
+      const branchInfo = model.repos[ repo ]?.branches[ branch ];
+      if ( !branchInfo || !repo || !branch ) {
+        res.status( 404 ).send( `Unknown repo/branch: ${repo}/${branch}` );
+        return;
+      }
+
+      if ( branchInfo.buildJobID !== null ) {
+        logger.info( 'Already building', repo, branch, branchInfo.buildJobID );
+
+        res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
+        res.send( JSON.stringify( {
+          buildJobID: branchInfo.buildJobID
+        } ) );
+      }
+      else {
+        const buildJobID = nextJobID++;
+
+        res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
+        res.send( JSON.stringify( {
+          buildJobID: buildJobID
+        } ) );
+
+        await runBuildJob( branchInfo, buildJobID );
+      }
     }
-
-    if ( branchInfo.buildJobID !== null ) {
-      console.log( 'Already building', repo, branch, branchInfo.buildJobID );
-
-      res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
-      res.send( JSON.stringify( {
-        buildJobID: branchInfo.buildJobID
-      } ) );
-    }
-    else {
-      const buildJobID = nextJobID++;
-
-      res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
-      res.send( JSON.stringify( {
-        buildJobID: buildJobID
-      } ) );
-
-      await runBuildJob( branchInfo, buildJobID );
+    catch( e ) {
+      console.error( `Error in /api/build: ${e}` );
+      next( e );
     }
   } );
 
   app.get( '/api/build-events/:id', async ( req: Request, res: Response, next: NextFunction ) => {
-    const id = Number.parseInt( req.params.id, 10 );
+    try {
 
-    const buildJob = buildJobs[ id ];
-    if ( !buildJob ) {
-      res.status( 404 ).send( `Unknown build job: ${id}` );
-      return;
+      const id = Number.parseInt( req.params.id, 10 );
+
+      const buildJob = buildJobs[ id ];
+      if ( !buildJob ) {
+        res.status( 404 ).send( `Unknown build job: ${id}` );
+        return;
+      }
+
+      req.socket.setTimeout( 0 ); // Keep connection open
+      res.writeHead( 200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no' // for nginx
+      } );
+
+      const outputCallback = ( str: string ) => {
+        res.write( `data: ${JSON.stringify( {
+          type: 'output',
+          text: str
+        } )}\n\n` );
+      };
+      const completedCallback = ( success: boolean ) => {
+        res.write( `data: ${JSON.stringify( {
+          type: 'completed',
+          success: success
+        } )}\n\n` );
+        res.end();
+      };
+
+      buildJob.onOutputCallbacks.push( outputCallback );
+      buildJob.onCompletedCallbacks.push( completedCallback );
+
+      const ping = setInterval( () => res.write( ': ping\n\n' ), 15000 );
+
+      req.on( 'close', () => {
+        clearInterval( ping );
+        buildJob.onOutputCallbacks = buildJob.onOutputCallbacks.filter( callback => callback !== outputCallback );
+        buildJob.onCompletedCallbacks = buildJob.onCompletedCallbacks.filter( callback => callback !== completedCallback );
+      } );
+
+      if ( buildJob.outputString.length > 0 ) {
+        outputCallback( buildJob.outputString );
+      }
+      if ( buildJob.completionState !== null ) {
+        completedCallback( buildJob.completionState );
+      }
     }
-
-    req.socket.setTimeout( 0 ); // Keep connection open
-    res.writeHead( 200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache, no-transform',
-      Connection: 'keep-alive',
-      'X-Accel-Buffering': 'no' // for nginx
-    } );
-
-    const outputCallback = ( str: string ) => {
-      res.write( `data: ${JSON.stringify( {
-        type: 'output',
-        text: str
-      } )}\n\n` );
-    };
-    const completedCallback = ( success: boolean ) => {
-      res.write( `data: ${JSON.stringify( {
-        type: 'completed',
-        success: success
-      } )}\n\n` );
-      res.end();
-    };
-
-    buildJob.onOutputCallbacks.push( outputCallback );
-    buildJob.onCompletedCallbacks.push( completedCallback );
-
-    const ping = setInterval( () => res.write( ': ping\n\n' ), 15000 );
-
-    req.on( 'close', () => {
-      clearInterval( ping );
-      buildJob.onOutputCallbacks = buildJob.onOutputCallbacks.filter( callback => callback !== outputCallback );
-      buildJob.onCompletedCallbacks = buildJob.onCompletedCallbacks.filter( callback => callback !== completedCallback );
-    } );
-
-    if ( buildJob.outputString.length > 0 ) {
-      outputCallback( buildJob.outputString );
-    }
-    if ( buildJob.completionState !== null ) {
-      completedCallback( buildJob.completionState );
+    catch( e ) {
+      console.error( `Error in /api/build-events: ${e}` );
+      next( e );
     }
   } );
 
   // For updating checkouts
   app.post( '/api/update/:repo/:branch', async ( req: Request, res: Response, next: NextFunction ) => {
-    const repo = req.params.repo;
-    const branch = req.params.branch;
+    try {
+      const repo = req.params.repo;
+      const branch = req.params.branch;
 
-    const branchInfo = model.repos[ repo ]?.branches[ branch ];
-    if ( !branchInfo ) {
-      res.status( 404 ).send( `Unknown repo/branch: ${repo}/${branch}` );
-      return;
+      const branchInfo = model.repos[ repo ]?.branches[ branch ];
+      if ( !branchInfo ) {
+        res.status( 404 ).send( `Unknown repo/branch: ${repo}/${branch}` );
+        return;
+      }
+
+      if ( branchInfo.updateJobID !== null ) {
+        logger.info( 'Already updating', repo, branch, branchInfo.updateJobID );
+
+        res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
+        res.send( JSON.stringify( {
+          updateJobID: branchInfo.updateJobID
+        } ) );
+      }
+      else {
+        const updateJobID = nextJobID++;
+
+        res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
+        res.send( JSON.stringify( {
+          updateJobID: updateJobID
+        } ) );
+
+        await updateBranch( branchInfo, updateJobID );
+      }
     }
-
-    if ( branchInfo.updateJobID !== null ) {
-      console.log( 'Already updating', repo, branch, branchInfo.updateJobID );
-
-      res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
-      res.send( JSON.stringify( {
-        updateJobID: branchInfo.updateJobID
-      } ) );
-    }
-    else {
-      const updateJobID = nextJobID++;
-
-      res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
-      res.send( JSON.stringify( {
-        updateJobID: updateJobID
-      } ) );
-
-      await updateBranch( branchInfo, updateJobID );
+    catch( e ) {
+      console.error( `Error in /api/update: ${e}` );
+      next( e );
     }
   } );
 
   app.get( '/api/update-events/:id', async ( req: Request, res: Response, next: NextFunction ) => {
-    const id = Number.parseInt( req.params.id, 10 );
+    try {
+      const id = Number.parseInt( req.params.id, 10 );
 
-    const updateCheckoutJob = updateJobs[ id ];
-    if ( !updateCheckoutJob ) {
-      res.status( 404 ).send( `Unknown update checkout job: ${id}` );
-      return;
+      const updateCheckoutJob = updateJobs[ id ];
+      if ( !updateCheckoutJob ) {
+        res.status( 404 ).send( `Unknown update checkout job: ${id}` );
+        return;
+      }
+
+      req.socket.setTimeout( 0 ); // Keep connection open
+      res.writeHead( 200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no' // for nginx
+      } );
+
+      const completedCallback = ( success: boolean ) => {
+        res.write( `data: ${JSON.stringify( {
+          type: 'completed',
+          success: success
+        } )}\n\n` );
+        res.end();
+      };
+
+      updateCheckoutJob.onCompletedCallbacks.push( completedCallback );
+
+      const ping = setInterval( () => res.write( ': ping\n\n' ), 15000 );
+
+      req.on( 'close', () => {
+        clearInterval( ping );
+        updateCheckoutJob.onCompletedCallbacks = updateCheckoutJob.onCompletedCallbacks.filter( callback => callback !== completedCallback );
+      } );
+
+      if ( updateCheckoutJob.completionState !== null ) {
+        completedCallback( updateCheckoutJob.completionState );
+      }
     }
-
-    req.socket.setTimeout( 0 ); // Keep connection open
-    res.writeHead( 200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache, no-transform',
-      Connection: 'keep-alive',
-      'X-Accel-Buffering': 'no' // for nginx
-    } );
-
-    const completedCallback = ( success: boolean ) => {
-      res.write( `data: ${JSON.stringify( {
-        type: 'completed',
-        success: success
-      } )}\n\n` );
-      res.end();
-    };
-
-    updateCheckoutJob.onCompletedCallbacks.push( completedCallback );
-
-    const ping = setInterval( () => res.write( ': ping\n\n' ), 15000 );
-
-    req.on( 'close', () => {
-      clearInterval( ping );
-      updateCheckoutJob.onCompletedCallbacks = updateCheckoutJob.onCompletedCallbacks.filter( callback => callback !== completedCallback );
-    } );
-
-    if ( updateCheckoutJob.completionState !== null ) {
-      completedCallback( updateCheckoutJob.completionState );
+    catch( e ) {
+      console.error( `Error in /api/update-events: ${e}` );
+      next( e );
     }
   } );
 
@@ -720,6 +786,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
       }
     }
     catch( e ) {
+      console.error( `Error in JS/TS handler for ${req.path}: ${e}` );
       next( e );
     }
   } );
@@ -742,24 +809,24 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // Handle server errors (e.g., port already in use)
   server.on( 'error', ( err: Error ) => {
     if ( err.message.includes( 'EADDRINUSE' ) ) {
-      console.error( `Error: Port ${port} is already in use. Try specifying a different port with --port=NUMBER` );
+      logger.error( `Error: Port ${port} is already in use. Try specifying a different port with --port=NUMBER` );
     }
     else {
-      console.error( 'Server startup error:', err );
+      logger.error( 'Server startup error:', err );
     }
     process.exit( 1 );
   } );
 
   server.listen( port, () => {
-    console.log( `Phettest Server listening at http://localhost:${port}/` );
-    console.log( `Serving files from: ${ROOT_DIR}` );
+    logger.info( `Phettest Server listening at http://localhost:${port}/` );
+    logger.info( `Serving files from: ${ROOT_DIR}` );
   } );
 
   // catching signals for log before exiting (useful for pm2 restarting)
   [ 'SIGINT', 'SIGHUP', 'SIGQUIT', 'SIGILL', 'SIGTRAP', 'SIGABRT', 'SIGBUS', 'SIGFPE', 'SIGUSR1',
     'SIGSEGV', 'SIGUSR2', 'SIGTERM', 'beforeExit', 'uncaughtException', 'unhandledRejection'
   ].forEach( sig => process.on( sig, ( error: Error ) => {
-    console.log( `exiting from ${sig}`, error );
+    logger.info( `exiting from ${sig}`, error );
     process.exit( 1 );
   } ) );
 } )().catch( e => { throw e; } );

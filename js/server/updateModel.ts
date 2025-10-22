@@ -18,7 +18,6 @@ import pLimit from 'p-limit';
 import executeImport from '../../../perennial/js/common/execute.js';
 // eslint-disable-next-line phet/default-import-match-filename
 import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
-import getFileAtBranch from '../../../perennial/js/common/getFileAtBranch.js';
 import { model, Model, saveModel } from './model.js';
 import { checkClean, ROOT_DIR, useGithubAPI } from './options.js';
 import { getDirectoryBranch, getDirectorySHA, getDirectoryTimestampBranch, getPackageJSON, getRepoDirectory, isDirectoryClean } from './util.js';
@@ -27,6 +26,7 @@ import { npmLimit } from './globals.js';
 import npmUpdateDirectory from '../../../perennial/js/common/npmUpdateDirectory.js';
 import getRemoteBranchSHAs from '../../../perennial/js/common/getRemoteBranchSHAs.js';
 import { githubGetLatestBranchSHA } from './github-api.js';
+import { logger } from './logging.js';
 
 const execute = executeImport.default;
 const ReleaseBranch = ReleaseBranchImport.default;
@@ -35,23 +35,29 @@ export const updateModelBranchInfo = async (
   branchInfo: ModelBranchInfo,
   runnableDependencies?: Repo[]
 ): Promise<void> => {
-  // If we don't provide runnableDependencies, recompute it
-  if ( runnableDependencies === undefined ) {
-    if ( getActiveRunnables().includes( branchInfo.repo ) ) {
-      const runnableDependenciesMap: Record<Repo, Repo[]> = JSON.parse( await execute(
-        tsxCommand,
-        [ 'js/scripts/print-multiple-dependencies.ts', branchInfo.repo ],
-        path.join( ROOT_DIR, 'chipper' )
-      ) );
+  // If we don't provide runnableDependencies, recompute it (in a separate try-catch for error handling)
+  try {
+    if ( runnableDependencies === undefined ) {
+      if ( getActiveRunnables().includes( branchInfo.repo ) ) {
+        const runnableDependenciesMap: Record<Repo, Repo[]> = JSON.parse( await execute(
+          tsxCommand,
+          [ 'js/scripts/print-multiple-dependencies.ts', branchInfo.repo ],
+          path.join( ROOT_DIR, 'chipper' )
+        ) );
 
-      runnableDependencies = runnableDependenciesMap[ branchInfo.repo ] || [];
+        runnableDependencies = runnableDependenciesMap[ branchInfo.repo ] || [];
+      }
+      else {
+        runnableDependencies = [];
+      }
     }
-    else {
-      runnableDependencies = [];
-    }
+
+    branchInfo.dependencyRepos = runnableDependencies;
   }
-
-  branchInfo.dependencyRepos = runnableDependencies;
+  catch( e ) {
+    logger.error( 'unable to compute runnable dependencies for', branchInfo.repo, e );
+    logger.error( e );
+  }
 
   if ( !branchInfo.isCheckedOut ) {
     return;
@@ -63,32 +69,57 @@ export const updateModelBranchInfo = async (
 
   await Promise.all( [
     ( async () => {
-      branchInfo.currentBranch = branch === 'main' ? await getDirectoryBranch( repoDirectory ) : null;
+      try {
+        branchInfo.currentBranch = branch === 'main' ? await getDirectoryBranch( repoDirectory ) : null;
+      }
+      catch( e ) {
+        logger.error( `unable to get current branch for ${repo} ${branch}: ${e}` );
+      }
     } )(),
     ( async () => {
-      branchInfo.sha = await getDirectorySHA( repoDirectory );
+      try {
+        branchInfo.sha = await getDirectorySHA( repoDirectory );
+      }
+      catch( e ) {
+        logger.error( `unable to get SHA for ${repo} ${branch}: ${e}` );
+      }
     } )(),
     ( async () => {
-      branchInfo.timestamp = await getDirectoryTimestampBranch( repoDirectory, branch );
+      try {
+        branchInfo.timestamp = await getDirectoryTimestampBranch( repoDirectory, branch );
+      }
+      catch( e ) {
+        logger.error( `unable to get timestamp for ${repo} ${branch}: ${e}` );
+      }
     } )(),
     ( async () => {
-      branchInfo.isClean = checkClean ? await isDirectoryClean( repoDirectory ) : true;
+      try {
+        branchInfo.isClean = checkClean ? await isDirectoryClean( repoDirectory ) : true;
+      }
+      catch( e ) {
+        logger.error( `unable to get clean status for ${repo} ${branch}: ${e}` );
+      }
     } )(),
     ( async () => {
       if ( branch === 'main' ) {
-        let brands: string[] = [];
-        if ( fs.existsSync( path.join( ROOT_DIR, repo, 'package.json' ) ) ) {
-          try {
-            const packageJSON = JSON.parse( fs.readFileSync( path.join( ROOT_DIR, repo, 'package.json' ), 'utf8' ) );
-            if ( packageJSON.phet && Array.isArray( packageJSON.phet.supportedBrands ) ) {
-              brands = packageJSON.phet.supportedBrands.filter( ( brand: string ) => brand !== 'adapted-from-phet' );
+        try {
+          let brands: string[] = [];
+          if ( fs.existsSync( path.join( ROOT_DIR, repo, 'package.json' ) ) ) {
+            try {
+              const packageJSON = JSON.parse( fs.readFileSync( path.join( ROOT_DIR, repo, 'package.json' ), 'utf8' ) );
+              if ( packageJSON.phet && Array.isArray( packageJSON.phet.supportedBrands ) ) {
+                brands = packageJSON.phet.supportedBrands.filter( ( brand: string ) => brand !== 'adapted-from-phet' );
+              }
+            }
+            catch( err ) {
+              console.warn( `Error reading/parsing package.json for ${repo}: ${err}` );
             }
           }
-          catch( err ) {
-            console.warn( `Error reading/parsing package.json for ${repo}: ${err}` );
-          }
+          branchInfo.brands = brands;
         }
-        branchInfo.brands = brands;
+        catch( e ) {
+          logger.error( `unable to get brands for ${repo} ${branch}: ${e}` );
+        }
       }
     } )()
   ] );
@@ -116,7 +147,14 @@ export const updateRepoInfo = async ( repo: Repo, owner: string, repoInfo: {
 export const searchForNewReleaseBranches = async (): Promise<void> => {
   const limit = pLimit( 30 );
 
-  const releaseBranches = await ReleaseBranch.getAllMaintenanceBranches();
+  let releaseBranches: ReleaseBranch[] = [];
+  try {
+    releaseBranches = await ReleaseBranch.getAllMaintenanceBranches();
+  }
+  catch( e ) {
+    logger.error( `unable to get release branches: ${e}` );
+    return;
+  }
 
   await Promise.all( releaseBranches.map( releaseBranch => limit( async () => {
     const repo = releaseBranch.repo;
@@ -128,48 +166,53 @@ export const searchForNewReleaseBranches = async (): Promise<void> => {
     }
 
     if ( !model.repos[ repo ].branches[ branch ] ) {
-      // const packageJSON = JSON.parse( await getFileAtBranch( repo, branch, 'package.json' ) );
-      const packageJSON = JSON.parse( await execute( 'git', [ 'show', `origin/${branch}:./package.json` ], `../${repo}` ) );
+      try {
+        // const packageJSON = JSON.parse( await getFileAtBranch( repo, branch, 'package.json' ) );
+        const packageJSON = JSON.parse( await execute( 'git', [ 'show', `origin/${branch}:./package.json` ], `../${repo}` ) );
 
-      // eslint-disable-next-line require-atomic-updates
-      model.repos[ repo ].branches[ branch ] = {
-        repo: repo,
-        branch: branch,
+        // eslint-disable-next-line require-atomic-updates
+        model.repos[ repo ].branches[ branch ] = {
+          repo: repo,
+          branch: branch,
 
-        version: packageJSON.version ?? null,
-        phetPackageJSON: packageJSON.phet ?? null,
-        brands: releaseBranch.brands,
-        isReleased: releaseBranch.isReleased,
-        dependencyRepos: Object.keys( await releaseBranch.getDependencies() ).filter( name => name !== 'comment' ),
+          version: packageJSON.version ?? null,
+          phetPackageJSON: packageJSON.phet ?? null,
+          brands: releaseBranch.brands,
+          isReleased: releaseBranch.isReleased,
+          dependencyRepos: Object.keys( await releaseBranch.getDependencies() ).filter( name => name !== 'comment' ),
 
-        isCheckedOut: false,
-        currentBranch: null,
-        sha: null,
-        timestamp: null,
-        isClean: true,
+          isCheckedOut: false,
+          currentBranch: null,
+          sha: null,
+          timestamp: null,
+          isClean: true,
 
-        // TODO: update these bits (just in case) on release branch updates https://github.com/phetsims/phettest/issues/20
-        isChipper2: await releaseBranch.usesChipper2(),
-        usesOldPhetioStandalone: await releaseBranch.usesOldPhetioStandalone(),
-        usesRelativeSimPath: await releaseBranch.usesRelativeSimPath(),
-        usesPhetioStudio: await releaseBranch.usesPhetioStudio(),
-        usesPhetioStudioIndex: await releaseBranch.usesPhetioStudioIndex(),
+          // TODO: update these bits (just in case) on release branch updates https://github.com/phetsims/phettest/issues/20
+          isChipper2: await releaseBranch.usesChipper2(),
+          usesOldPhetioStandalone: await releaseBranch.usesOldPhetioStandalone(),
+          usesRelativeSimPath: await releaseBranch.usesRelativeSimPath(),
+          usesPhetioStudio: await releaseBranch.usesPhetioStudio(),
+          usesPhetioStudioIndex: await releaseBranch.usesPhetioStudioIndex(),
 
-        buildJobID: null,
-        lastBuiltTime: null,
-        lastBuildSHAs: {},
+          buildJobID: null,
+          lastBuiltTime: null,
+          lastBuildSHAs: {},
 
-        updateJobID: null,
-        lastUpdatedTime: null,
+          updateJobID: null,
+          lastUpdatedTime: null,
 
-        npmUpdated: true // We will handle this manually
-      };
+          npmUpdated: true // We will handle this manually
+        };
+      }
+      catch( e ) {
+        logger.error( `unable to initialize release branch ${repo} ${branch}: ${e}` );
+      }
     }
   } ) ) );
 };
 
 export const updateModel = async ( model: Model ): Promise<void> => {
-  console.log( 'updating model' );
+  logger.info( 'updating model' );
 
   const activeRepos = getActiveRepos();
   const activeRunnables = getActiveRunnables();
@@ -197,10 +240,17 @@ export const updateModel = async ( model: Model ): Promise<void> => {
   // Ensure we are fully cloned first
   await Promise.all( newRepos.map( async newRepo => {
     // TODO: how do we skip private repos in the future?
-    if ( !fs.existsSync( path.join( ROOT_DIR, newRepo ) ) ) {
-      await gitCloneDirectory( newRepo, ROOT_DIR );
+    try {
+      if ( !fs.existsSync( path.join( ROOT_DIR, newRepo ) ) ) {
+        await gitCloneDirectory( newRepo, ROOT_DIR );
+      }
+    }
+    catch( e ) {
+      logger.error( `unable to clone new repo ${newRepo}: ${e}` );
     }
   } ) );
+
+  // TODO: remove newRepos that we were not able to clone?
 
   // Determine the repo dependencies for each runnable
   const runnableDependenciesMap: Record<Repo, Repo[]> = JSON.parse( await execute(
@@ -209,93 +259,103 @@ export const updateModel = async ( model: Model ): Promise<void> => {
     path.join( ROOT_DIR, 'chipper' )
   ) );
 
-  await Promise.all( [
-    // Search for new release branches (ensure this is kicked off at the start, since it will take a bit)
-    async () => {
-      await searchForNewReleaseBranches();
-    },
+  try {
+    await Promise.all( [
+      // Search for new release branches (ensure this is kicked off at the start, since it will take a bit)
+      async () => {
+        await searchForNewReleaseBranches();
+      },
 
-    // Initialize new repos
-    ...newRepos.map( newRepo => async () => {
+      // Initialize new repos
+      ...newRepos.map( newRepo => async () => {
+        try {
 
-      const packageJSON = await getPackageJSON( getRepoDirectory( newRepo, 'main' ) );
+          const packageJSON = await getPackageJSON( getRepoDirectory( newRepo, 'main' ) );
 
-      const mainBranchInfo: ModelBranchInfo = {
-        repo: newRepo,
-        branch: 'main',
+          const mainBranchInfo: ModelBranchInfo = {
+            repo: newRepo,
+            branch: 'main',
 
-        version: packageJSON?.version ?? null,
-        phetPackageJSON: packageJSON?.phet ?? null,
-        brands: [], // filled in by updateModelBranchInfo
-        isReleased: false, // main is never released
-        dependencyRepos: [], // filled in by updateModelBranchInfo
+            version: packageJSON?.version ?? null,
+            phetPackageJSON: packageJSON?.phet ?? null,
+            brands: [], // filled in by updateModelBranchInfo
+            isReleased: false, // main is never released
+            dependencyRepos: [], // filled in by updateModelBranchInfo
 
-        isCheckedOut: true,
-        currentBranch: null, // filled in by updateModelBranchInfo
-        sha: null, // filled in by updateModelBranchInfo
-        timestamp: null, // filled in by updateModelBranchInfo
-        isClean: true, // filled in by updateModelBranchInfo
+            isCheckedOut: true,
+            currentBranch: null, // filled in by updateModelBranchInfo
+            sha: null, // filled in by updateModelBranchInfo
+            timestamp: null, // filled in by updateModelBranchInfo
+            isClean: true, // filled in by updateModelBranchInfo
 
-        // TODO: update these bits (just in case) on release branch updates https://github.com/phetsims/phettest/issues/20
-        isChipper2: true,
-        usesOldPhetioStandalone: false,
-        usesRelativeSimPath: true,
-        usesPhetioStudio: true,
-        usesPhetioStudioIndex: true,
+            // TODO: update these bits (just in case) on release branch updates https://github.com/phetsims/phettest/issues/20
+            isChipper2: true,
+            usesOldPhetioStandalone: false,
+            usesRelativeSimPath: true,
+            usesPhetioStudio: true,
+            usesPhetioStudioIndex: true,
 
-        buildJobID: null,
-        lastBuiltTime: null,
-        lastBuildSHAs: {},
+            buildJobID: null,
+            lastBuiltTime: null,
+            lastBuildSHAs: {},
 
-        updateJobID: null,
-        lastUpdatedTime: null,
+            updateJobID: null,
+            lastUpdatedTime: null,
 
-        npmUpdated: false
-      };
+            npmUpdated: false
+          };
 
-      await updateModelBranchInfo( mainBranchInfo, runnableDependenciesMap[ newRepo ] || [] );
+          await updateModelBranchInfo( mainBranchInfo, runnableDependenciesMap[ newRepo ] || [] );
 
-      const owner = getOwner( newRepo );
+          const owner = getOwner( newRepo );
 
-      const repoInfo = {
-        name: newRepo,
-        owner: owner,
-        isSim: false, // updated below
-        isRunnable: false, // updated below
-        supportsInteractiveDescription: false, // updated below
-        supportsVoicing: false, // updated below
-        hasUnitTests: false, // updated below
-        branches: {
-          main: mainBranchInfo
+          const repoInfo = {
+            name: newRepo,
+            owner: owner,
+            isSim: false, // updated below
+            isRunnable: false, // updated below
+            supportsInteractiveDescription: false, // updated below
+            supportsVoicing: false, // updated below
+            hasUnitTests: false, // updated below
+            branches: {
+              main: mainBranchInfo
+            }
+          };
+
+          await updateRepoInfo( newRepo, owner, repoInfo );
+
+          model.repos[ newRepo ] = repoInfo;
+          saveModel();
+
+          ( async () => {
+            await updateNodeModules( model, newRepo );
+          } )().catch( e => logger.error( `async updateNodeModules error ${newRepo}: ${e}` ) );
         }
-      };
+        catch( e ) {
+          logger.error( `unable to initialize new repo ${newRepo}: ${e}` );
+        }
+      } ),
 
-      await updateRepoInfo( newRepo, owner, repoInfo );
+      // Update existing repos (and all of their branches)
+      ...existingRepos.flatMap( repo => {
+        const branches = Object.keys( model.repos[ repo ].branches );
 
-      model.repos[ newRepo ] = repoInfo;
-      saveModel();
+        return [
+          async () => {
+            await updateRepoInfo( repo, getOwner( repo ), model.repos[ repo ] );
+          },
+          ...branches.map( branch => async () => {
+            await updateModelBranchInfo( model.repos[ repo ].branches[ branch ], branch === 'main' ? runnableDependenciesMap[ repo ] || [] : [] );
+          } )
+        ];
+      } )
+    ].map( pLimit( 30 ) ) );
+  }
+  catch( e ) {
+    logger.error( `error while updating model: ${e}` );
+  }
 
-      ( async () => {
-        await updateNodeModules( model, newRepo );
-      } )().catch( e => { throw e; } );
-    } ),
-
-    // Update existing repos (and all of their branches)
-    ...existingRepos.flatMap( repo => {
-      const branches = Object.keys( model.repos[ repo ].branches );
-
-      return [
-        async () => {
-          await updateRepoInfo( repo, getOwner( repo ), model.repos[ repo ] );
-        },
-        ...branches.map( branch => async () => {
-          await updateModelBranchInfo( model.repos[ repo ].branches[ branch ], branch === 'main' ? runnableDependenciesMap[ repo ] || [] : [] );
-        } )
-      ];
-    } )
-  ].map( pLimit( 30 ) ) );
-
-  console.log( 'finished updating model' );
+  logger.info( 'finished updating model' );
 };
 
 export const invalidateNodeModules = ( model: Model, repo: Repo ): void => {
@@ -305,18 +365,23 @@ export const invalidateNodeModules = ( model: Model, repo: Repo ): void => {
 // Updates node_modules in main branch
 export const updateNodeModules = async ( model: Model, repo: Repo ): Promise<void> => {
   return npmLimit( async () => {
-    console.log( 'npm update', repo );
+    logger.verbose( 'npm update', repo );
 
-    const repoDirectory = getRepoDirectory( repo, 'main' );
+    try {
+      const repoDirectory = getRepoDirectory( repo, 'main' );
 
-    const packageJSONFile = path.join( repoDirectory, 'package.json' );
+      const packageJSONFile = path.join( repoDirectory, 'package.json' );
 
-    if ( fs.existsSync( packageJSONFile ) ) {
-      await npmUpdateDirectory( getRepoDirectory( repo, 'main' ) );
+      if ( fs.existsSync( packageJSONFile ) ) {
+        await npmUpdateDirectory( getRepoDirectory( repo, 'main' ) );
+      }
+
+      model.repos[ repo ].branches.main.npmUpdated = true;
+      saveModel();
     }
-
-    model.repos[ repo ].branches.main.npmUpdated = true;
-    saveModel();
+    catch( e ) {
+      logger.error( `unable to npm update for ${repo}: ${e}` );
+    }
   } );
 };
 
@@ -335,23 +400,33 @@ export const singlePassUpdate = async (
   const limit = pLimit( 10 );
 
   await Promise.all( repos.map( repo => limit( async () => {
-    const branches = Object.keys( model.repos[ repo ].branches );
+    try {
+      const branches = Object.keys( model.repos[ repo ].branches );
 
-    // no-op if using GitHub API. Otherwise we will... request all of these at the same time (or limit in the future?)
-    const branchSHAs = useGithubAPI ? {} : ( await getRemoteBranchSHAs( repo ) as Record<Repo, string> );
+      // no-op if using GitHub API. Otherwise we will... request all of these at the same time (or limit in the future?)
+      const branchSHAs = useGithubAPI ? {} : ( await getRemoteBranchSHAs( repo ) as Record<Repo, string> );
 
-    for ( const branch of branches ) {
-      // NOTE: skipping currently-updating branches
-      if ( model.repos[ repo ].branches[ branch ].updateJobID === null && model.repos[ repo ].branches[ branch ].isCheckedOut ) {
-        const localSHA = model.repos[ repo ].branches[ branch ].sha;
-        const remoteSHA = useGithubAPI ? ( await githubGetLatestBranchSHA( model.repos[ repo ].owner, repo, branch ) ) : branchSHAs[ branch ];
+      for ( const branch of branches ) {
+        try {
+          // NOTE: skipping currently-updating branches
+          if ( model.repos[ repo ].branches[ branch ].updateJobID === null && model.repos[ repo ].branches[ branch ].isCheckedOut ) {
+            const localSHA = model.repos[ repo ].branches[ branch ].sha;
+            const remoteSHA = useGithubAPI ? ( await githubGetLatestBranchSHA( model.repos[ repo ].owner, repo, branch ) ) : branchSHAs[ branch ];
 
-        if ( localSHA && remoteSHA && localSHA !== remoteSHA ) {
-          console.log( repo, branch, 'is stale, updating', localSHA, remoteSHA );
+            if ( localSHA && remoteSHA && localSHA !== remoteSHA ) {
+              logger.verbose( repo, branch, 'is stale, updating', localSHA, remoteSHA );
 
-          updateBranch( model.repos[ repo ].branches[ branch ] ).catch( e => { throw e; } );
+              updateBranch( model.repos[ repo ].branches[ branch ] ).catch( e => logger.error( `update branch failure: ${e}` ) );
+            }
+          }
+        }
+        catch( e ) {
+          logger.error( `error during singlePassUpdate for ${repo} ${branch}: ${e}` );
         }
       }
+    }
+    catch( e ) {
+      logger.error( `error during singlePassUpdate for ${repo}: ${e}` );
     }
   } ) ) );
 };
