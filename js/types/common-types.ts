@@ -52,6 +52,7 @@ export type ModelBranchInfo = {
 
   buildJobID: number | null; // if it is a number, it is building currently
   lastBuiltTime: number | null;
+  lastBuildSHAs: Record<Repo, SHA>;
 
   updateJobID: number | null; // if it is a number, it is updating currently
   lastUpdatedTime: number | null;

@@ -8,7 +8,7 @@
 
 import { Property, TinyEmitter, TReadOnlyProperty } from 'scenerystack/axon';
 import { FireListener, GridBox, HBox, HSeparator, Node, RichText, VBox } from 'scenerystack/scenery';
-import { BranchInfo, RepoListEntry } from '../types/common-types.js';
+import { BranchInfo, Repo, RepoListEntry, SHA } from '../types/common-types.js';
 import moment from 'moment';
 import { copyToClipboard } from './copyToClipboard.js';
 import { ModeListNode } from './ModeListNode.js';
@@ -17,7 +17,7 @@ import { ViewContext } from './ViewContext.js';
 import { apiBuild, apiBuildEvents, apiUpdate, apiUpdateEvents, getLatestSHA, getLatestSHAs } from './client-api.js';
 import { UIText } from './UIText.js';
 import { UITextPushButton } from './UITextPushButton.js';
-import { buildOutputFont, uiForegroundColorProperty, uiHeaderFont } from './theme.js';
+import { buildOutputFont, uiButtonBaseColorProperty, uiForegroundColorProperty, uiHeaderFont } from './theme.js';
 import { WaitingNode } from './WaitingNode.js';
 import { UIAccordionBox } from './UIAccordionBox.js';
 import { OutOfDateIcon, UpToDateIcon } from './icons.js';
@@ -43,6 +43,26 @@ export class BranchNode extends VBox {
   ) {
     const infoChildren = [];
     const disposeCallbacks: ( () => void )[] = [];
+
+    // Our promises (at the start) that we can listen to in multiple places
+    const latestSHAPromise: Promise<SHA | null> = branchInfo.isCheckedOut ? getLatestSHA( branchInfo.repo, branchInfo.branch ) : Promise.resolve( null );
+    const latestSHAsPromise: Promise<Record<Repo, SHA>> = ( branchInfo.isCheckedOut && branchInfo.branch === 'main' && branchInfo.dependencyRepos.length )
+      ? getLatestSHAs( branchInfo.dependencyRepos )
+      : Promise.resolve( {} );
+    const areDependenciesUpToDatePromise: Promise<boolean> = latestSHAsPromise.then( shaMap => {
+      let allUpToDate = true;
+
+      for ( const dependencyRepo of branchInfo.dependencyRepos ) {
+        const localSHA = branchInfo.dependencySHAMap[ dependencyRepo ];
+        const latestSHA = shaMap[ dependencyRepo ];
+
+        if ( localSHA !== latestSHA ) {
+          allUpToDate = false;
+        }
+      }
+
+      return allUpToDate;
+    } );
 
     if ( branchInfo.version && branchInfo.brands ) {
       infoChildren.push( new UIText( `${branchInfo.version} (${branchInfo.brands.join( ', ' )})` ) );
@@ -73,7 +93,7 @@ export class BranchNode extends VBox {
       selfDependencyNode.addChild( waitingNode );
 
       ( async () => {
-        const latestSHA = await getLatestSHA( branchInfo.repo, branchInfo.branch );
+        const latestSHA = await latestSHAPromise;
 
         if ( selfDependencyNode.hasChild( waitingNode ) ) {
           selfDependencyNode.removeChild( waitingNode );
@@ -124,7 +144,7 @@ export class BranchNode extends VBox {
       } ) );
 
       ( async () => {
-        const shaMap = await getLatestSHAs( branchInfo.dependencyRepos );
+        const shaMap = await latestSHAsPromise;
 
         if ( dependenciesTitleNode.hasChild( waitingNode ) ) {
           dependenciesTitleNode.removeChild( waitingNode );
@@ -249,6 +269,27 @@ export class BranchNode extends VBox {
 
     // Build status and button
     if ( repoListEntry.isRunnable && branchInfo.isCheckedOut ) {
+      let isBuildableWithNewSHAs: boolean;
+      if ( !branchInfo.lastBuiltTime ) {
+        isBuildableWithNewSHAs = true;
+      }
+      else if ( branchInfo.branch === 'main' ) {
+        isBuildableWithNewSHAs = !branchInfo.dependencyRepos.every( dependencyRepo => {
+          if ( !( dependencyRepo in branchInfo.dependencySHAMap ) ) {
+            return false;
+          }
+          const localSHA = branchInfo.dependencySHAMap[ dependencyRepo ];
+          const latestBuildSHA = branchInfo.lastBuildSHAs[ dependencyRepo ];
+
+          return localSHA === latestBuildSHA;
+        } );
+      }
+      else {
+        isBuildableWithNewSHAs = branchInfo.sha !== branchInfo.lastBuildSHAs[ branchInfo.repo ];
+      }
+
+      // TODO: areDependenciesUpToDatePromise --- if we are out-of-date, don't recommend or highlight build?
+
       const buildStatusText = new UIText( branchInfo.lastBuiltTime === null ? 'No build available' : `Last successful build: ${moment( branchInfo.lastBuiltTime ).calendar()}` );
 
       const buildOutputContainer = new Node();
@@ -288,7 +329,9 @@ export class BranchNode extends VBox {
         return onOutput;
       };
 
-      const buildButton = new UITextPushButton( branchInfo.lastBuiltTime ? 'Rebuild' : 'Build', {
+      const buildButton = new UITextPushButton( branchInfo.lastBuiltTime ? ( isBuildableWithNewSHAs ? 'Update Build' : 'Force Re-Build' ) : 'Build', {
+        opacity: isBuildableWithNewSHAs ? 1 : 0.6,
+        scale: isBuildableWithNewSHAs ? 1 : 0.7,
         listener: async () => {
           buildButton.visible = false;
           buildStatusText.visible = false;

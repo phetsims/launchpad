@@ -19,10 +19,11 @@ import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
 import basicAuth from 'basic-auth';
 import { config } from './config.js';
 import { model, saveModel } from './model.js';
-import { autoUpdate, port, ROOT_DIR } from './options.js';
-import { buildMain, buildReleaseBranch, getLatestSHA, getNPMHash, getStaleBranches, updateMain, updateReleaseBranchCheckout } from './util.js';
-import { recomputeNodeModules, updateModel, updateModelBranchInfo, updateNodeModules, singlePassUpdate } from './updateModel.js';
+import { autoBuild, autoUpdate, numAutoBuildThreads, port, ROOT_DIR } from './options.js';
+import { buildMain, buildReleaseBranch, getLatestSHA, getNPMHash, updateMain, updateReleaseBranchCheckout } from './util.js';
+import { recomputeNodeModules, singlePassUpdate, updateModel, updateModelBranchInfo, updateNodeModules } from './updateModel.js';
 import { bundleFile, transpileTS } from './bundling.js';
+import sleep from '../../../perennial/js/common/sleep.js';
 
 const ReleaseBranch = ReleaseBranchImport.default;
 
@@ -31,6 +32,17 @@ const ReleaseBranch = ReleaseBranchImport.default;
   //
   // -- SECURITY REVIEW/AUDIT on variables passed into the API
   // -- HARDEN error handling
+  //
+  // - SHOW whether Checkout is up-to-date
+  //   - Actually, why have an "update checkout" button if it is up-to-date! Get rid of that bit completely
+  //
+  // - SHOW WHETHER SHAS ARE UP-TO-DATE
+  //   - A: IF shas differ from server-side, make build button different
+  //   - B: IF shas differ from GITHUB, show the out-of-date status
+  // - Auto-build? (per-branch option perhaps?)
+  //   - RECORD SHAS for each build ---- oh wait, we have dependencies.json
+  //     - NO dependencies.json - that will be generated potentially AFTER a pull
+  // - SHOW whether the build is for the latest SHAs
   //
   // - BAYES setup (once secure and vetted)
   //
@@ -43,12 +55,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
   //
   // - Auto-modulification? --- separate service
   //
-  // - LOCK so we don't build while an update to a dependency is happening? Or update while a build is happening?
-  // - SHOW whether the build is for the latest SHAs
   // - update job ID also works for the "git pull"
-  //
-  // - REQUEST RESPONSE for checking latest github-side SHAs for a set of repos (to show in UI)
-  //   - Polling for this type of thing (or hit github API if it is fast)
   //
   // - update model periodically (or on demand --- button?)
   // - IF no autoUpdate, allow a manual "sync" or "sync all branches" (i.e. local developer machine)
@@ -62,8 +69,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
   //     - Should we auto-build here?
   //
   // - What remote operations can we speed up by just using octokit?
-  //
-  // - Auto-build? (per-branch option perhaps?)
   //
   // - GitHub WEBHOOKS - organization-wide, send updated repos (for faster updates)
   //
@@ -121,6 +126,84 @@ const ReleaseBranch = ReleaseBranchImport.default;
 
   await updateModel( model );
   saveModel();
+
+  const runBuildJob = async (
+    branchInfo: ModelBranchInfo,
+    buildJobID: number
+  ) => {
+    if ( branchInfo.buildJobID !== null ) {
+      throw new Error( `Branch ${branchInfo.repo}/${branchInfo.branch} is already being built` );
+    }
+
+    const repo = branchInfo.repo;
+    const branch = branchInfo.branch;
+
+    branchInfo.buildJobID = buildJobID;
+    branchInfo.lastBuiltTime = null;
+    branchInfo.lastBuildSHAs = {};
+    saveModel();
+
+    buildJobs[ buildJobID ] = {
+      repo: repo,
+      branch: branch,
+      onOutputCallbacks: [],
+      onCompletedCallbacks: [],
+      outputString: '',
+      completionState: null
+    };
+
+    const onOutput = ( str: string ) => {
+      console.log( str.split( '\n' ).map( line => `  [build job ${buildJobID}] ${line}` ).join( '\n' ) );
+      buildJobs[ buildJobID ].outputString += str;
+      buildJobs[ buildJobID ].onOutputCallbacks.forEach( callback => callback( str ) );
+    };
+    const onCompleted = ( success: boolean ) => {
+      buildJobs[ buildJobID ].completionState = success;
+      buildJobs[ buildJobID ].onCompletedCallbacks.forEach( callback => callback( success ) );
+    };
+    try {
+      console.log( `Starting build job ${buildJobID} for ${repo}/${branch}` );
+
+      const lastBuildSHAs: Record<Repo, SHA> = {};
+
+      if ( branch === 'main' ) {
+        for ( const dependencyRepo of branchInfo.dependencyRepos ) {
+          lastBuildSHAs[ dependencyRepo ] = model.repos[ dependencyRepo ].branches.main.sha!;
+        }
+        await buildMain( branchInfo, onOutput );
+      }
+      else {
+        lastBuildSHAs[ repo ] = model.repos[ repo ].branches[ branch ].sha!;
+        await buildReleaseBranch( new ReleaseBranch( repo, branch, branchInfo.brands, branchInfo.isReleased ), onOutput );
+      }
+
+      console.log( `Build job ${buildJobID} for ${repo}/${branch} completed successfully` );
+
+      onCompleted( true );
+
+      // TODO: improved persistence model https://github.com/phetsims/phettest/issues/20
+      // Only set this on success
+      // eslint-disable-next-line require-atomic-updates
+      branchInfo.lastBuiltTime = Date.now();
+      // eslint-disable-next-line require-atomic-updates
+      branchInfo.lastBuildSHAs = lastBuildSHAs;
+      saveModel();
+    }
+    catch( e ) {
+      console.log( `Build job ${buildJobID} for ${repo}/${branch} failed: ${e}` );
+
+      onOutput( `Build error: ${e}\n` );
+      onCompleted( false );
+    }
+    finally {
+      buildJobs[ buildJobID ].onOutputCallbacks = [];
+      buildJobs[ buildJobID ].onCompletedCallbacks = [];
+
+      // eslint-disable-next-line require-atomic-updates
+      branchInfo.buildJobID = null;
+      saveModel();
+    }
+  };
 
   const updateBranch = async (
     branchInfo: ModelBranchInfo,
@@ -227,6 +310,20 @@ const ReleaseBranch = ReleaseBranchImport.default;
         }
       }
     } )().catch( e => { throw e; } );
+  }
+
+  // TODO: allow a certain amount of build workers(!)
+  if ( autoBuild ) {
+    for ( let i = 0; i < numAutoBuildThreads; i++ ) {
+      ( async () => {
+        while ( true ) {
+          // TODO
+
+          //runBuildJob
+          await sleep( 3000 ); // prevent tight loop if there is nothing to build
+        }
+      } )().catch( e => { throw e; } );
+    }
   }
 
   type JSCacheEntry = {
@@ -400,7 +497,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
     const branch = req.params.branch;
 
     const branchInfo = model.repos[ repo ]?.branches[ branch ];
-    if ( !branchInfo ) {
+    if ( !branchInfo || !repo || !branch ) {
       res.status( 404 ).send( `Unknown repo/branch: ${repo}/${branch}` );
       return;
     }
@@ -416,65 +513,12 @@ const ReleaseBranch = ReleaseBranchImport.default;
     else {
       const buildJobID = nextJobID++;
 
-      branchInfo.buildJobID = buildJobID;
-      branchInfo.lastBuiltTime = null;
-      saveModel();
-
-      buildJobs[ buildJobID ] = {
-        repo: repo,
-        branch: branch,
-        onOutputCallbacks: [],
-        onCompletedCallbacks: [],
-        outputString: '',
-        completionState: null
-      };
-
       res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
       res.send( JSON.stringify( {
-        buildJobID: branchInfo.buildJobID
+        buildJobID: buildJobID
       } ) );
 
-      const onOutput = ( str: string ) => {
-        console.log( str.split( '\n' ).map( line => `  [build job ${buildJobID}] ${line}` ).join( '\n' ) );
-        buildJobs[ buildJobID ].outputString += str;
-        buildJobs[ buildJobID ].onOutputCallbacks.forEach( callback => callback( str ) );
-      };
-      const onCompleted = ( success: boolean ) => {
-        buildJobs[ buildJobID ].completionState = success;
-        buildJobs[ buildJobID ].onCompletedCallbacks.forEach( callback => callback( success ) );
-      };
-      try {
-        console.log( `Starting build job ${buildJobID} for ${repo}/${branch}` );
-
-        if ( branch === 'main' ) {
-          await buildMain( branchInfo, onOutput );
-        }
-        else {
-          await buildReleaseBranch( new ReleaseBranch( repo, branch, branchInfo.brands, branchInfo.isReleased ), onOutput );
-        }
-
-        console.log( `Build job ${buildJobID} for ${repo}/${branch} completed successfully` );
-
-        onCompleted( true );
-
-        // TODO: improved persistence model https://github.com/phetsims/phettest/issues/20
-        // Only set this on success
-        branchInfo.lastBuiltTime = Date.now();
-        saveModel();
-      }
-      catch( e ) {
-        console.log( `Build job ${buildJobID} for ${repo}/${branch} failed: ${e}` );
-
-        onOutput( `Build error: ${e}\n` );
-        onCompleted( false );
-      }
-      finally {
-        buildJobs[ buildJobID ].onOutputCallbacks = [];
-        buildJobs[ buildJobID ].onCompletedCallbacks = [];
-
-        branchInfo.buildJobID = null;
-        saveModel();
-      }
+      await runBuildJob( branchInfo, buildJobID );
     }
   } );
 

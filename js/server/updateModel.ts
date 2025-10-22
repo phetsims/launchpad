@@ -156,6 +156,7 @@ export const searchForNewReleaseBranches = async (): Promise<void> => {
 
         buildJobID: null,
         lastBuiltTime: null,
+        lastBuildSHAs: {},
 
         updateJobID: null,
         lastUpdatedTime: null,
@@ -239,6 +240,7 @@ export const updateModel = async ( model: Model ): Promise<void> => {
 
         buildJobID: null,
         lastBuiltTime: null,
+        lastBuildSHAs: {},
 
         updateJobID: null,
         lastUpdatedTime: null,

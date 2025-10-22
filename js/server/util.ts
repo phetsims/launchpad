@@ -15,7 +15,6 @@ import type { Branch, ModelBranchInfo, PackageJSON, Repo, RepoBranch, SHA } from
 import executeImport from '../../../perennial/js/common/execute.js';
 // eslint-disable-next-line phet/default-import-match-filename
 import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
-import npmUpdateDirectory from '../../../perennial/js/common/npmUpdateDirectory.js';
 import ChipperVersion from '../../../perennial/js/common/ChipperVersion.js';
 // eslint-disable-next-line phet/default-import-match-filename
 import getBuildArgumentsImport from '../../../perennial/js/common/getBuildArguments.js';

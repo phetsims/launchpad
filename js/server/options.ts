@@ -24,6 +24,8 @@ export const options = {
   port: getOptionIfProvided( 'port', '45372' ),
   rootDirectory: getOptionIfProvided( 'rootDirectory', resolve( __dirname, '../../..' ) ),
   autoUpdate: getOptionIfProvided( 'autoUpdate', true ),
+  autoBuild: getOptionIfProvided( 'autoBuild', true ),
+  numAutoBuildThreads: getOptionIfProvided( 'numAutoBuildThreads', 2 ),
   checkClean: getOptionIfProvided( 'checkClean', false ),
 
   // NOTE: this might run through rate limits very quickly if using the API, but it is faster for many things
@@ -48,6 +50,16 @@ if ( typeof ROOT_DIR !== 'string' || !fs.existsSync( ROOT_DIR ) || !fs.statSync(
 export const autoUpdate = options.autoUpdate;
 if ( typeof autoUpdate !== 'boolean' ) {
   throw new Error( `Invalid autoUpdate: ${autoUpdate}` );
+}
+
+export const autoBuild = options.autoBuild;
+if ( typeof autoBuild !== 'boolean' ) {
+  throw new Error( `Invalid autoBuild: ${autoBuild}` );
+}
+
+export const numAutoBuildThreads = options.numAutoBuildThreads;
+if ( typeof numAutoBuildThreads !== 'number' || isNaN( numAutoBuildThreads ) || numAutoBuildThreads < 1 ) {
+  throw new Error( `Invalid numAutoBuildThreads: ${numAutoBuildThreads}` );
 }
 
 export const checkClean = options.checkClean;
