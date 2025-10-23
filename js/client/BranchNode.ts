@@ -252,21 +252,10 @@ export class BranchNode extends VBox {
 
       const updateStatusNode = new HBox( {
         spacing: 10
-        // children: [
-        //   new UIText( branchInfo.isCheckedOut && branchInfo.lastUpdatedTime ? `Checkout updated: ${moment( branchInfo.lastUpdatedTime ).calendar()}` : 'Not checked out' ),
-        //   new UITextPushButton( branchInfo.isCheckedOut && branchInfo.lastUpdatedTime ? 'Update Checkout' : 'Check Out', {
-        //     listener: async () => {
-        //       showUpdating();
-        //
-        //       await apiUpdate( branchInfo.repo, branchInfo.branch );
-        //       requestNewBranchInfo();
-        //     }
-        //   } )
-        // ]
       } );
 
       areDependenciesUpToDatePromise.then( areUpToDate => {
-        if ( !areUpToDate ) {
+        if ( !areUpToDate || !branchInfo.isCheckedOut ) {
           updateStatusNode.children = [
             new UIText( branchInfo.isCheckedOut && branchInfo.lastUpdatedTime ? `Checkout updated: ${moment( branchInfo.lastUpdatedTime ).calendar()}` : 'Not checked out' ),
             new UITextPushButton( branchInfo.isCheckedOut && branchInfo.lastUpdatedTime ? 'Update Checkout' : 'Check Out', {
