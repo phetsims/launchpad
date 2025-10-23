@@ -13,7 +13,7 @@ import express, { NextFunction, Request, Response } from 'express';
 import http from 'node:http';
 import serveIndex from 'serve-index';
 import crypto from 'crypto';
-import type { Branch, BranchInfo, ModelBranchInfo, Repo, RepoListEntry, SHA } from '../types/common-types.js';
+import type { Branch, BranchInfo, LogEvent, ModelBranchInfo, Repo, RepoListEntry, SHA } from '../types/common-types.js';
 // eslint-disable-next-line phet/default-import-match-filename
 import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
 import basicAuth from 'basic-auth';
@@ -24,12 +24,14 @@ import { buildMain, buildReleaseBranch, getLatestSHA, getNPMHash, updateMain, up
 import { recomputeNodeModules, singlePassUpdate, updateModel, updateModelBranchInfo, updateNodeModules } from './updateModel.js';
 import { bundleFile, transpileTS } from './bundling.js';
 import sleep from '../../../perennial/js/common/sleep.js';
-import { logger } from './logging.js';
+import { addLogCallback, logger, removeLogCallback } from './logging.js';
 
 const ReleaseBranch = ReleaseBranchImport.default;
 
 ( async () => {
   // To do list:
+  //
+  // -- MISSING release branch checkout completely, OOPS
   //
   // -- SHOW log info (listen to it) if desired?
   // -- Set up emails or slack notifications on errors?
@@ -812,6 +814,36 @@ const ReleaseBranch = ReleaseBranchImport.default;
     }
     catch( e ) {
       console.error( `Error in /api/update-events: ${e}` );
+      next( e );
+    }
+  } );
+
+  app.get( '/api/log-events', async ( req: Request, res: Response, next: NextFunction ) => {
+    try {
+      req.socket.setTimeout( 0 ); // Keep connection open
+      res.writeHead( 200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no' // for nginx
+      } );
+
+      const logCallback = ( logEvent: LogEvent ) => {
+        res.write( `data: ${JSON.stringify( logEvent )}\n\n` );
+      };
+
+      addLogCallback( logCallback );
+
+      const ping = setInterval( () => res.write( ': ping\n\n' ), 15000 );
+
+      req.on( 'close', () => {
+        clearInterval( ping );
+
+        removeLogCallback( logCallback );
+      } );
+    }
+    catch( e ) {
+      console.error( `Error in /api/log-events: ${e}` );
       next( e );
     }
   } );

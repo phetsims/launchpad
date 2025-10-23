@@ -13,6 +13,7 @@
 import { createLogger, format, transports } from 'winston';
 import { autoBuild, autoUpdate, checkClean, logLevel, numAutoBuildThreads, port, ROOT_DIR, useGithubAPI } from './options.js';
 import { default as perennialWinston } from '../../../perennial/js/npm-dependencies/winston.js';
+import { LogEvent } from '../types/common-types.js';
 
 export const logger = createLogger( {
   format: format.combine(
@@ -26,6 +27,34 @@ export const logger = createLogger( {
       level: logLevel
     } )
   ]
+} );
+
+const logCallbacks: ( ( event: LogEvent ) => void )[] = [];
+export const addLogCallback = ( callback: ( event: LogEvent ) => void ): void => {
+  logger.info( 'adding logger' );
+  logCallbacks.push( callback );
+};
+export const removeLogCallback = ( callback: ( event: LogEvent ) => void ): void => {
+  const index = logCallbacks.indexOf( callback );
+  if ( index >= 0 ) {
+    logCallbacks.splice( index, 1 );
+  }
+  logger.info( 'removing logger' );
+};
+
+logger.on( 'data', info => {
+  for ( const callback of logCallbacks ) {
+    try {
+      callback( {
+        message: info.message,
+        level: info.level,
+        timestamp: info.timestamp
+      } );
+    }
+    catch( e ) {
+      console.error( 'Error in log callback:', e );
+    }
+  }
 } );
 
 // also try to hit the default logger

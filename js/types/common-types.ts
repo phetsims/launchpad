@@ -91,6 +91,11 @@ export type PackageJSON = {
       preventMultitouch?: boolean;
       interruptMultitouch?: boolean;
     };
-
   };
+};
+
+export type LogEvent = {
+  message: string;
+  level: string;
+  timestamp: string;
 };

@@ -24,6 +24,8 @@ import { launchTypeProperty } from './settings.js';
 import { SettingsNode } from './SettingsNode.js';
 import { UIRectangularPushButton } from './UIRectangularPushButton.js';
 import { UIText } from './UIText.js';
+import { LogNode } from './LogNode.js';
+import { UITextPushButton } from './UITextPushButton.js';
 
 // eslint-disable-next-line no-undef
 if ( process.env.NODE_ENV === 'development' ) {
@@ -106,6 +108,15 @@ selectedRepoProperty.link( selectedRepo => {
   }
 } );
 
+let logNode: LogNode | null = null;
+const logButton = new UITextPushButton( 'Log', {
+  listener: () => {
+    logNode = logNode || new LogNode( viewContext );
+
+    logNode.show();
+  }
+} );
+
 let settingsNode: SettingsNode | null = null;
 const settingsImage = new Image( preferencesIconOnWhite_png, {
   scale: 0.15
@@ -133,7 +144,13 @@ const baseBox = new VBox( {
           font: uiHeaderFont
         } ),
         searchBoxNode,
-        settingsButton
+        new HBox( {
+          spacing: 10,
+          children: [
+            logButton,
+            settingsButton
+          ]
+        } )
       ]
     } ),
     new HBox( {

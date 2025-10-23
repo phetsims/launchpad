@@ -6,7 +6,7 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import { Branch, BranchInfo, Repo, RepoList, SHA } from '../types/common-types.js';
+import { Branch, BranchInfo, LogEvent, Repo, RepoList, SHA } from '../types/common-types.js';
 
 export const apiGetRepoList = async (): Promise<RepoList> => {
   const response = await fetch( 'api/repo-list' );
@@ -104,6 +104,26 @@ export const apiUpdateEvents = async ( updateJobID: number ): Promise<boolean> =
         eventSource.close();
         resolve( data.success );
       }
+    } );
+  } );
+};
+
+// Returns a promise that will only resolve when the EventSource is closed
+export const logEvents = ( onLogEvent: ( logEvent: LogEvent ) => void ): Promise<void> => {
+  const eventSource = new EventSource( 'api/log-events' );
+
+  eventSource.addEventListener( 'error', event => {
+    eventSource.close();
+  } );
+
+  eventSource.addEventListener( 'message', event => {
+    onLogEvent( JSON.parse( event.data ) as LogEvent );
+  } );
+
+  return new Promise( ( resolve, reject ) => {
+    eventSource.addEventListener( 'close', event => {
+      eventSource.close();
+      resolve();
     } );
   } );
 };
