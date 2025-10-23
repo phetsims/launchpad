@@ -34,8 +34,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // -- SHOW log info (listen to it) if desired?
   // -- Set up emails or slack notifications on errors?
   //
-  // -- SECURITY REVIEW/AUDIT on variables passed into the API
-  //
   // - BAYES setup (once secure and vetted)
   //
   // - Run updateModel after... MORE. Especially since it might change what repos we should handle
@@ -402,9 +400,46 @@ const ReleaseBranch = ReleaseBranchImport.default;
     return `"${algorithm}-${crypto.createHash( algorithm ).update( input ).digest( 'base64' )}"`;
   };
 
-  const conditionalStat = async ( filePath: string ): Promise<fs.Stats | null> => {
+  const safeConditionalStat = async (
+    filePath: string,
+    extension: string
+  ): Promise<fs.Stats | null> => {
     try {
-      return await fsPromises.stat( filePath );
+      // Handle bad characters
+      // eslint-disable-next-line no-control-regex
+      if ( /[\0-\x1F]/.test( filePath ) || filePath.includes( '%' ) ) {
+        logger.debug( `Rejected filePath with bad characters: ${filePath}` );
+        return null;
+      }
+
+      // Normalize slashes and validate segments
+      const segments = filePath.replace( /\\/g, '/' ).split( '/' ).filter( Boolean );
+      if ( segments.length === 0 ) {
+        logger.debug( `Rejected empty filePath: ${filePath}` );
+        return null;
+      }
+
+      for ( const segment of segments ) {
+        if (
+          segment === '.' ||
+          segment === '..' ||
+          !/^[A-Za-z0-9._\-]+$/.test( segment ) // TODO: is this too restrictive?
+        ) {
+          logger.debug( `Rejected filePath with invalid segment: ${filePath}` );
+          return null;
+        }
+      }
+
+      const sanitizedPath = segments.join( '/' );
+      const fullPath = path.resolve( ROOT_DIR, sanitizedPath + '.' + extension );
+      const basePath = path.resolve( ROOT_DIR );
+
+      if ( !fullPath.startsWith( basePath + path.sep ) && fullPath !== basePath ) {
+        logger.debug( `Rejected filePath outside ROOT_DIR: ${filePath}` );
+        return null;
+      }
+
+      return await fsPromises.stat( fullPath ).catch( () => null );
     }
     catch( e ) {
       return null;
@@ -415,7 +450,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
     const result: Record<string, fs.Stats | null> = {};
 
     await Promise.all( extensions.map( async extension => {
-        result[ extension ] = await conditionalStat( path.join( ROOT_DIR, filePath + '.' + extension ) );
+      result[ extension ] = await safeConditionalStat( filePath, extension );
     } ) );
 
     return result;
@@ -506,10 +541,10 @@ const ReleaseBranch = ReleaseBranchImport.default;
       const branch = req.params[ 1 ];
 
       if ( !model.repos[ repo ] ) {
-        res.status( 404 ).send( `Unknown repo: ${repo}` );
+        res.status( 404 ).send( 'Unknown repo' ); // NOTE: not returning the string just to minimize XSS possibilities
       }
       else if ( !model.repos[ repo ].branches[ branch ] ) {
-        res.status( 404 ).send( `Unknown branch: ${branch} for repo ${repo}` );
+        res.status( 404 ).send( 'Unknown branch' ); // NOTE: not returning the string just to minimize XSS possibilities
       }
       else {
         res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
@@ -566,6 +601,15 @@ const ReleaseBranch = ReleaseBranchImport.default;
       const repo = req.params.repo;
       const branch = req.params.branch;
 
+      if ( !model.repos[ repo ] ) {
+        res.status( 404 ).send( 'Unknown repo' ); // NOTE: not returning the string just to minimize XSS possibilities
+        return;
+      }
+      else if ( !model.repos[ repo ].branches[ branch ] ) {
+        res.status( 404 ).send( 'Unknown branch' ); // NOTE: not returning the string just to minimize XSS possibilities
+        return;
+      }
+
       const result = {
         sha: await getLatestSHA( model, repo, branch )
       };
@@ -584,9 +628,18 @@ const ReleaseBranch = ReleaseBranchImport.default;
       const repo = req.params.repo;
       const branch = req.params.branch;
 
+      if ( !model.repos[ repo ] ) {
+        res.status( 404 ).send( 'Unknown repo' ); // NOTE: not returning the string just to minimize XSS possibilities
+        return;
+      }
+      else if ( !model.repos[ repo ].branches[ branch ] ) {
+        res.status( 404 ).send( 'Unknown branch' ); // NOTE: not returning the string just to minimize XSS possibilities
+        return;
+      }
+
       const branchInfo = model.repos[ repo ]?.branches[ branch ];
       if ( !branchInfo || !repo || !branch ) {
-        res.status( 404 ).send( `Unknown repo/branch: ${repo}/${branch}` );
+        res.status( 404 ).send( 'Unknown repo/branch' );
         return;
       }
 
@@ -622,7 +675,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
 
       const buildJob = buildJobs[ id ];
       if ( !buildJob ) {
-        res.status( 404 ).send( `Unknown build job: ${id}` );
+        res.status( 404 ).send( 'Unknown build job id' ); // NOTE: not returning the string just to minimize XSS possibilities
         return;
       }
 
@@ -678,9 +731,18 @@ const ReleaseBranch = ReleaseBranchImport.default;
       const repo = req.params.repo;
       const branch = req.params.branch;
 
+      if ( !model.repos[ repo ] ) {
+        res.status( 404 ).send( 'Unknown repo' ); // NOTE: not returning the string just to minimize XSS possibilities
+        return;
+      }
+      else if ( !model.repos[ repo ].branches[ branch ] ) {
+        res.status( 404 ).send( 'Unknown branch' ); // NOTE: not returning the string just to minimize XSS possibilities
+        return;
+      }
+
       const branchInfo = model.repos[ repo ]?.branches[ branch ];
       if ( !branchInfo ) {
-        res.status( 404 ).send( `Unknown repo/branch: ${repo}/${branch}` );
+        res.status( 404 ).send( 'Unknown repo/branch' ); // NOTE: not returning the string just to minimize XSS possibilities
         return;
       }
 
@@ -715,7 +777,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
 
       const updateCheckoutJob = updateJobs[ id ];
       if ( !updateCheckoutJob ) {
-        res.status( 404 ).send( `Unknown update checkout job: ${id}` );
+        res.status( 404 ).send( 'Unknown update checkout job' ); // NOTE: not returning the string just to minimize XSS possibilities
         return;
       }
 
@@ -761,6 +823,8 @@ const ReleaseBranch = ReleaseBranchImport.default;
 
       const statWithExtension = await getStatWithExtension( key );
 
+      // NOTE: For security, getStatWithExtension will essentially ensure that the file is within ROOT_DIR,
+      // and exists (so that we'll be serving an actual file)
       if ( statWithExtension ) {
         const stat = statWithExtension.stat;
         const extension = statWithExtension.extension;
@@ -777,7 +841,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
         }
         res.setHeader( 'Last-Modified', new Date( stat.mtimeMs ).toUTCString() );
         res.setHeader( 'Content-Type', 'application/javascript; charset=utf-8' );
-        // res.setHeader( 'Cache-Control', 'public, max-age=0, must-revalidate' );
+        // NOTE: cache control header set way earlier
 
         // Give a quick 304 if possible
         if ( !isEntryPoint && req.headers[ 'if-none-match' ] === singleFileEtag ) {
