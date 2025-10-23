@@ -29,7 +29,26 @@ export const logger = createLogger( {
   ]
 } );
 
-const logCallbacks: ( ( event: LogEvent ) => void )[] = [];
+const LAST_LOG_QUANTITY = 20;
+export const lastErrorLogEvents: LogEvent[] = [];
+export const lastWarnLogEvents: LogEvent[] = [];
+
+const logCallbacks: ( ( event: LogEvent ) => void )[] = [
+  ( event: LogEvent ) => {
+    if ( event.level === 'error' ) {
+      lastErrorLogEvents.push( event );
+      while ( lastErrorLogEvents.length > LAST_LOG_QUANTITY ) {
+        lastErrorLogEvents.shift();
+      }
+    }
+    if ( event.level === 'warn' ) {
+      lastWarnLogEvents.push( event );
+      while ( lastWarnLogEvents.length > LAST_LOG_QUANTITY ) {
+        lastWarnLogEvents.shift();
+      }
+    }
+  }
+];
 export const addLogCallback = ( callback: ( event: LogEvent ) => void ): void => {
   logger.info( 'adding logger' );
   logCallbacks.push( callback );

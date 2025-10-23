@@ -24,7 +24,7 @@ import { buildMain, buildReleaseBranch, getLatestSHA, getNPMHash, updateMain, up
 import { recomputeNodeModules, singlePassUpdate, updateModel, updateModelBranchInfo, updateNodeModules } from './updateModel.js';
 import { bundleFile, transpileTS } from './bundling.js';
 import sleep from '../../../perennial/js/common/sleep.js';
-import { addLogCallback, logger, removeLogCallback } from './logging.js';
+import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, logger, removeLogCallback } from './logging.js';
 
 const ReleaseBranch = ReleaseBranchImport.default;
 
@@ -33,7 +33,8 @@ const ReleaseBranch = ReleaseBranchImport.default;
   //
   // -- MISSING release branch checkout completely, OOPS
   //
-  // -- SHOW log info (listen to it) if desired?
+  // --- try enabling assertions?
+  //
   // -- Set up emails or slack notifications on errors?
   //
   // - BAYES setup (once secure and vetted)
@@ -844,6 +845,20 @@ const ReleaseBranch = ReleaseBranchImport.default;
     }
     catch( e ) {
       console.error( `Error in /api/log-events: ${e}` );
+      next( e );
+    }
+  } );
+
+  app.get( '/api/last-notable-events', async ( req: Request, res: Response, next: NextFunction ) => {
+    try {
+      res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
+      res.send( JSON.stringify( {
+        lastErrorLogEvents: lastErrorLogEvents,
+        lastWarnLogEvents: lastWarnLogEvents
+      } ) );
+    }
+    catch( e ) {
+      console.error( `Error in /api/last-notable-events: ${e}` );
       next( e );
     }
   } );

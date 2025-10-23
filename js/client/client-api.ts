@@ -128,6 +128,22 @@ export const logEvents = ( onLogEvent: ( logEvent: LogEvent ) => void ): Promise
   } );
 };
 
+export const getLastNotableEvents = async (): Promise<{
+  lastErrorLogEvents: LogEvent[];
+  lastWarnLogEvents: LogEvent[];
+}> => {
+  const response = await fetch( 'api/last-notable-events' );
+
+  if ( !response.ok ) {
+    throw new Error( `Failed to fetch last notable events: ${response.status} ${response.statusText}` );
+  }
+
+  return ( ( await response.json() ) as {
+    lastErrorLogEvents: LogEvent[];
+    lastWarnLogEvents: LogEvent[];
+  } );
+};
+
 export const getLatestSHAs = async ( repos: Repo[] ): Promise<Record<Repo, SHA>> => {
   const response = await fetch( `api/latest-shas/${repos.join( ',' )}` );
 
