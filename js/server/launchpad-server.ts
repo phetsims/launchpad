@@ -31,15 +31,10 @@ const ReleaseBranch = ReleaseBranchImport.default;
 ( async () => {
   // To do list:
   //
-  // timestamps for logging (winston?)
-  //
-  // -- NOTE or fail if non-main branches are checked out when starting launchpad (or updateModel?)
-  //
-  // -- per-main-repo LOCKS for git mutating commands (includes getFileAtBranch... unfortunately)
-  //  - done in search for new release branches, can we find a slower but safer way to do this?
+  // -- SHOW log info (listen to it) if desired?
+  // -- Set up emails or slack notifications on errors?
   //
   // -- SECURITY REVIEW/AUDIT on variables passed into the API
-  // -- HARDEN error handling
   //
   // - BAYES setup (once secure and vetted)
   //
@@ -47,8 +42,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
   //
   // - Release Branch Pages
   //   - Simplify (combine update checkout and build?) --- since we only build?
-  //
-  // - remove checkout buttons, and maybe built -- "force rebuild"
   //
   // - Persistence and "saveModel" usage is a mess
   //
@@ -89,6 +82,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // - Reduce file sizes --- they are pretty big, especially with the source map inline
   // - preview of URL?
   // - How to handle pulls of launchpad itself??? (could also auto-rebuild launchpad after pull, and restart)
+  // - per-main-repo LOCKS for git mutating commands (includes getFileAtBranch... unfortunately)
 
   // These will get stat'ed all at once
   const PREFERRED_EXTENSIONS = [ 'js', 'ts' ];
@@ -116,19 +110,24 @@ const ReleaseBranch = ReleaseBranchImport.default;
   }> = {};
 
   await updateModel( model );
-  saveModel();
 
   // TODO: move the build job logic to another file https://github.com/phetsims/phettest/issues/20
   const runBuildJob = async (
     branchInfo: ModelBranchInfo,
     buildJobID: number
   ) => {
+
+    const repo = branchInfo.repo;
+    const branch = branchInfo.branch;
+
     if ( branchInfo.buildJobID !== null ) {
       throw new Error( `Branch ${branchInfo.repo}/${branchInfo.branch} is already being built` );
     }
 
-    const repo = branchInfo.repo;
-    const branch = branchInfo.branch;
+    if ( branch === 'main' && branchInfo.currentBranch !== null && branchInfo.currentBranch !== 'main' ) {
+      logger.warn( 'Skipping build of main branch when a release branch is checked out' );
+      return;
+    }
 
     branchInfo.buildJobID = buildJobID;
     branchInfo.lastBuiltTime = null;
@@ -210,6 +209,11 @@ const ReleaseBranch = ReleaseBranchImport.default;
     const repo = branchInfo.repo;
     const branch = branchInfo.branch;
 
+    if ( branch === 'main' && branchInfo.currentBranch !== null && branchInfo.currentBranch !== 'main' ) {
+      logger.warn( 'Skipping update of main branch when a release branch is checked out' );
+      return;
+    }
+
     branchInfo.updateJobID = updateJobID;
     branchInfo.lastUpdatedTime = null;
     if ( branch !== 'main' ) {
@@ -280,6 +284,13 @@ const ReleaseBranch = ReleaseBranchImport.default;
       branchInfo.updateJobID = null;
       saveModel();
     }
+
+    // Trigger an updateModel immediately after a perennial update
+    if ( repo === 'perennial' ) {
+      ( async () => {
+        await updateModel( model );
+      } )().catch( e => logger.error( `async updateModel after perennial update error: ${e}` ) );
+    }
   };
 
   // Kick off initial node_modules updates
@@ -295,6 +306,8 @@ const ReleaseBranch = ReleaseBranchImport.default;
   if ( autoUpdate ) {
     ( async () => {
       while ( true ) {
+        logger.debug( 'Starting auto-update iteration' );
+
         try {
           // eslint-disable-next-line @typescript-eslint/no-loop-func
           await singlePassUpdate( model, branchInfo => updateBranch( branchInfo, nextJobID++ ) );
@@ -311,6 +324,8 @@ const ReleaseBranch = ReleaseBranchImport.default;
       // eslint-disable-next-line @typescript-eslint/no-loop-func
       ( async () => {
         while ( true ) {
+
+          logger.debug( 'Starting auto-build iteration' );
 
           for ( const repo of Object.keys( model.repos ) ) {
             if ( model.repos[ repo ].isRunnable ) {
@@ -331,8 +346,15 @@ const ReleaseBranch = ReleaseBranchImport.default;
                     }
 
                     if ( outOfDate ) {
+                      logger.debug( `Auto-building ${repo}/${branch}` );
                       await runBuildJob( branchInfo, nextJobID++ );
                     }
+                    else {
+                      logger.debug( `Skipping autobuild for ${repo}/${branch}, up-to-date` );
+                    }
+                  }
+                  else {
+                    logger.debug( `Skipping autobuild for ${repo}/${branch}`, branchInfo.isCheckedOut, branchInfo.buildJobID, branchInfo.npmUpdated );
                   }
                 }
                 catch( e ) {
@@ -347,6 +369,21 @@ const ReleaseBranch = ReleaseBranchImport.default;
       } )().catch( e => logger.error( `async autoBuild error: ${e}` ) );
     }
   }
+
+  ( async () => {
+    while ( true ) {
+      await sleep( 10 * 60 * 1000 ); // every 10 minutes
+
+      try {
+        logger.debug( 'Starting periodic updateModel' );
+
+        await updateModel( model );
+      }
+      catch( e ) {
+        logger.error( `Periodic updateModel error: ${e}` );
+      }
+    }
+  } )().catch( e => logger.error( `updateModel global error: ${e}` ) );
 
   type JSCacheEntry = {
     mtime: number;
