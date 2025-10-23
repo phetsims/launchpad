@@ -211,7 +211,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
     const branch = branchInfo.branch;
 
     if ( branch === 'main' && branchInfo.currentBranch !== null && branchInfo.currentBranch !== 'main' ) {
-      logger.warn( 'Skipping update of main branch when a release branch is checked out' );
+      logger.warn( `Skipping update of main branch when a release branch is checked out: ${repo}/${branch}` );
       return;
     }
 
@@ -482,6 +482,11 @@ const ReleaseBranch = ReleaseBranchImport.default;
   };
 
   const app = express();
+
+  app.use( ( req, res, next ) => {
+    logger.silly( `url: ${req.originalUrl}` );
+    next();
+  } );
 
   // Global cache-control and authentication
   app.use( ( req: Request, res: Response, next: NextFunction ) => {
