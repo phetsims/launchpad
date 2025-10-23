@@ -10,6 +10,7 @@ import { Octokit } from 'octokit';
 import fs from 'fs';
 import { config } from './config.js';
 import pLimit from 'p-limit';
+import { useGithubAPI } from './options.js';
 
 const githubRequestLimit = pLimit( 10 );
 
@@ -27,7 +28,7 @@ if ( !githubAuth ) {
   githubAuth = config.githubToken || '';
 }
 
-if ( !githubAuth.length ) {
+if ( useGithubAPI && !githubAuth.length ) {
   throw new Error( 'GitHub access token not found, please create ~/.phet/build-local.json with phetDevGitHubAccessToken, or specify in config.json githubToken' );
 }
 
