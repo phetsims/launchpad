@@ -50,6 +50,8 @@ const ReleaseBranch = ReleaseBranchImport.default;
   //
   // - update job ID also works for the "git pull"
   //
+  // - Allow autocomplete top-level for modes that might only exist in one place?
+  //
   // - update model periodically (or on demand --- button?)
   // - IF no autoUpdate, allow a manual "sync" or "sync all branches" (i.e. local developer machine)
   //   - DO NOT auto-update launchpad - note that pulls of launchpad likely require rebuild of launchpad for serving to work

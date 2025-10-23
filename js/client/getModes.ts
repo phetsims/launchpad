@@ -242,6 +242,16 @@ export const getModes = (
       }
     }
 
+    if ( branchInfo.lastBuiltTime ) {
+      modes.push( {
+        name: 'xhtml (built)',
+        description: 'Runs the built simulation XHTML',
+        createCustomizationNode: () => {
+          return new EmptyCustomizationNode( `${repoDirectory}/build${phetFolder}/xhtml/${repo}_all.xhtml` );
+        }
+      } );
+    }
+
     if ( branchInfo.branch === 'main' ) {
       modes.push( {
         name: 'color editor',
@@ -269,6 +279,151 @@ export const getModes = (
     }
   }
 
+  if ( repo === 'phet-io' ) {
+    // modes.push( {
+    //   name: 'fuzz-test studio wrapper',
+    //   description: 'Runs automated testing with fuzzing on studio, 15 second timer',
+    //   createCustomizationNode: () => {
+    //     return new EmptyCustomizationNode( `../aqua/fuzz-lightyear/?fuzz&wrapperName=studio&wrapperContinuousTest=%7B%7D&repos=${TODO phetio sims joined by comma}` );
+    //   }
+    // } );
+    // modes.push( {
+    //   name: 'test-migration-sims',
+    //   text: 'Fuzz Test Migration',
+    //   description: 'Runs automated testing with fuzzing on studio, 10 second timer',
+    //   url: '../aqua/fuzz-lightyear/',
+    //   queryParameters: getFuzzLightyearParameters( 20000 ).concat( migrationQueryParameters ).concat( [ {
+    //     value: 'fuzz&wrapperName=migration&wrapperContinuousTest=%7B%7D&migrationRate=2000&' +
+    //            `phetioMigrationReport=assert&repos=${phetioHydrogenSims.map( simData => simData.sim ).join( ',' )}`,
+    //     text: 'Fuzz Test PhET-IO sims',
+    //     default: true
+    //   } ] )
+    // } );
+    // modes.push( {
+    //   name: 'test-state-sims',
+    //   text: 'Fuzz Test State Wrapper',
+    //   description: 'Runs automated testing with fuzzing on state, 15 second timer',
+    //   url: '../aqua/fuzz-lightyear/',
+    //   queryParameters: getFuzzLightyearParameters( 15000 ).concat( [ {
+    //     value: `fuzz&wrapperName=state&setStateRate=3000&wrapperContinuousTest=%7B%7D&repos=${phetioSims.join( ',' )}`,
+    //     text: 'Fuzz Test PhET-IO sims',
+    //     default: true
+    //   } ] )
+    // } );
+  }
+
+  if ( repo === 'phet-io-website' ) {
+    modes.push( {
+      name: 'view local',
+      description: 'view the local root of the website',
+      createCustomizationNode: () => {
+        return new EmptyCustomizationNode( `${releaseBranchPrefix}phet-io-website/root/` );
+      }
+    } );
+  }
+
+  if ( repoListEntry.hasUnitTests ) {
+    modes.push( {
+      name: 'unit tests (unbuilt)',
+      description: 'Runs unit tests in unbuilt mode',
+      createCustomizationNode: () => {
+        // TODO: provide phet-io brand if phet-io/tandem/phet-io-wrappers?
+        return new EmptyCustomizationNode( `${repoDirectory}/${repo}-tests.html` );
+      }
+    } );
+  }
+
+  if ( [ 'phet-io', 'binder' ].includes( repo ) ) {
+    modes.push( {
+      name: 'documentation',
+      description: 'Browse HTML documentation',
+      createCustomizationNode: () => {
+        return new EmptyCustomizationNode( `${repoDirectory}/doc${repo === 'binder' ? 's' : ''}/` );
+      }
+    } );
+  }
+
+  if ( repo === 'scenery' ) {
+    modes.push( {
+      name: 'basics documentation',
+      description: 'Scenery Basics Documentation',
+      createCustomizationNode: () => {
+        return new EmptyCustomizationNode( 'https://scenerystack.org/learn/scenery-basics/' );
+      }
+    } );
+    modes.push( {
+      name: 'layout documentation',
+      description: 'Scenery Layout Documentation',
+      createCustomizationNode: () => {
+        return new EmptyCustomizationNode( 'https://scenerystack.org/learn/scenery-layout/' );
+      }
+    } );
+    modes.push( {
+      name: 'input documentation',
+      description: 'Scenery Input Documentation',
+      createCustomizationNode: () => {
+        return new EmptyCustomizationNode( 'https://scenerystack.org/learn/scenery-input/' );
+      }
+    } );
+    modes.push( {
+      name: 'accessibility documentation',
+      description: 'Scenery Accessibility Documentation',
+      createCustomizationNode: () => {
+        return new EmptyCustomizationNode( 'https://scenerystack.org/learn/scenery-accessibility/' );
+      }
+    } );
+  }
+
+  if ( repo === 'scenery' || repo === 'kite' || repo === 'dot' || repo === 'phet-core' || repo === 'alpenglow' ) {
+    modes.push( {
+      name: 'playground',
+      description: `Loads ${repo} and dependencies in the tab, and allows quick testing`,
+      createCustomizationNode: () => {
+        return new EmptyCustomizationNode( `${repoDirectory}/tests/playground.html` );
+      }
+    } );
+  }
+
+  if ( repo === 'scenery' ) {
+    modes.push( {
+      name: 'sandbox',
+      description: 'Allows quick testing of Scenery features',
+      createCustomizationNode: () => {
+        return new EmptyCustomizationNode( `${repoDirectory}/tests/sandbox.html` );
+      }
+    } );
+  }
+
+  if ( repo === 'yotta' ) {
+    modes.push( {
+      name: 'statistics page',
+      description: 'Goes to the yotta report page, credentials in the Google Doc',
+      createCustomizationNode: () => {
+        return new EmptyCustomizationNode( 'https://bayes.colorado.edu/statistics/yotta/' );
+      }
+    } );
+  }
+  if ( repo === 'skiffle' ) {
+    modes.push( {
+      name: 'sound board',
+      description: 'Interactive HTML page for exploring existing sounds in sims and common code',
+      createCustomizationNode: () => {
+        return new EmptyCustomizationNode( '../skiffle/html/sound-board.html' );
+      }
+    } );
+  }
+  if ( repo === 'quake' ) {
+    modes.push( {
+      name: 'haptics playground (build for browser)',
+      description: 'Built browser version of the Haptics Playground app',
+      createCustomizationNode: () => {
+        return new EmptyCustomizationNode( '../quake/platforms/browser/www/haptics-playground.html' );
+      }
+    } );
+  }
+
+  // TODO: start from --- if ( repo === 'chipper' || repo === 'aqua' ) {
+
   modes.push( {
     name: 'github',
     description: 'Opens to the repository\'s GitHub main page',
@@ -278,7 +433,7 @@ export const getModes = (
   } );
 
   modes.push( {
-    name: 'github issues',
+    name: 'issues',
     description: 'Opens to the repository\'s GitHub issues page',
     createCustomizationNode: () => {
       return new EmptyCustomizationNode( `https://github.com/${owner}/${repo}/issues` );
