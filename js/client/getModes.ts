@@ -220,8 +220,8 @@ export const getModes = (
       }
     }
 
-    if ( branchInfo.branch === 'main' ) {
-      if ( repoListEntry.supportsInteractiveDescription ) {
+    if ( repoListEntry.supportsInteractiveDescription ) {
+      if ( branchInfo.branch === 'main' ) {
         modes.push( {
           name: 'a11y view (unbuilt)',
           description: 'Runs the simulation in an iframe next to a copy of the PDOM to easily inspect accessible content',
@@ -229,18 +229,20 @@ export const getModes = (
             return new EmptyCustomizationNode( `${releaseBranchPrefix}chipper/wrappers/a11y-view/?sim=${repo}&brand=phet&ea&debugger` );
           }
         } );
-
-        if ( branchInfo.lastBuiltTime ) {
-          modes.push( {
-            name: 'a11y view (built)',
-            description: 'Runs the simulation in an iframe next to a copy of the PDOM to easily inspect accessible content',
-            createCustomizationNode: () => {
-              return new EmptyCustomizationNode( `${repoDirectory}/build${phetFolder}/${repo}_a11y_view.html` );
-            }
-          } );
-        }
       }
 
+      if ( branchInfo.lastBuiltTime ) {
+        modes.push( {
+          name: 'a11y view (built)',
+          description: 'Runs the simulation in an iframe next to a copy of the PDOM to easily inspect accessible content',
+          createCustomizationNode: () => {
+            return new EmptyCustomizationNode( `${repoDirectory}/build${phetFolder}/${repo}_a11y_view.html` );
+          }
+        } );
+      }
+    }
+
+    if ( branchInfo.branch === 'main' ) {
       modes.push( {
         name: 'color editor',
         description: 'Runs the top-level -colors.html file (allows editing/viewing different profile colors)',
