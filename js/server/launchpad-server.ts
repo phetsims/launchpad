@@ -31,9 +31,18 @@ const ReleaseBranch = ReleaseBranchImport.default;
 ( async () => {
   // To do list:
   //
-  // -- MISSING release branch checkout completely, OOPS
+  // - BM reports 503 error on studio (phet-io unbuilt) --- THIS LOOKS LIKE it is caused by a 301 redirect, investigating
+  // - BF reports page locks up/crashes when pressing Log button
+  // - QUERY PARAMETERS
+  // - Additional phet-io links --- figure out which ones are good
+  // - Link to last commit (github commit page)
+  //   - Show commit message (or potentially have the last few commit messages?)
+  // - Test with Safari and cache (to make sure it is refreshing and getting 304s properly)
+  // - FIGURE OUT MODULIFY -- LIVE MODULIFY(?)
   //
-  // --- try enabling assertions?
+  // -- ALLOW customization on which things to show/hide?
+  //
+  // --- try enabling assertions? --- allow ?ea query parameter
   //
   // -- Set up emails or slack notifications on errors?
   //
