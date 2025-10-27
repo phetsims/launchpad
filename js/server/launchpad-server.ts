@@ -31,6 +31,14 @@ const ReleaseBranch = ReleaseBranchImport.default;
 ( async () => {
   // To do list:
   //
+  // - Compiled Index
+  //
+  // - Talk with MK about phet-io list for phetmarks => launchpad
+  //
+  // - Hide log under settings
+  //   - Log messages are huge
+  // - Show last few commits (and start of commit messages)
+  //
   // - BM reports 503 error on studio (phet-io unbuilt) --- THIS LOOKS LIKE it is caused by a 301 redirect, investigating
   // - BF reports page locks up/crashes when pressing Log button
   // - QUERY PARAMETERS
@@ -41,6 +49,8 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // - FIGURE OUT MODULIFY -- LIVE MODULIFY(?)
   //
   // -- ALLOW customization on which things to show/hide?
+  //
+  // "Copy" icon and buttons (?)
   //
   // --- try enabling assertions? --- allow ?ea query parameter
   //
@@ -55,9 +65,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
   //
   // - Persistence and "saveModel" usage is a mess
   //
-  // - Auto-modulification? --- separate service
-  //
-  // - update job ID also works for the "git pull"
+  // - Auto-modulification? --- separate service?
   //
   // - Allow autocomplete top-level for modes that might only exist in one place?
   //
