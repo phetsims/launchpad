@@ -29,59 +29,41 @@ import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, logger, removeLo
 const ReleaseBranch = ReleaseBranchImport.default;
 
 ( async () => {
-  // To do list:
-  //
-  // - Talk with MK about phet-io list for phetmarks => launchpad
-  //
-  // - BM reports 503 error on studio (phet-io unbuilt) --- THIS LOOKS LIKE it is caused by a 301 redirect, investigating
-  // - BF reports page locks up/crashes when pressing Log button
-  // - QUERY PARAMETERS
-  // - Additional phet-io links --- figure out which ones are good
-  // - Link to last commit (github commit page)
-  //   - Show commit message (or potentially have the last few commit messages?)
-  // - Test with Safari and cache (to make sure it is refreshing and getting 304s properly)
-  //
-  // -- ALLOW customization on which things to show/hide?
-  //
-  // "Copy" icon and buttons (?)
-  //
-  // - Release Branch Pages
-  //   - Simplify (combine update checkout and build?) --- since we only build?
-  //
-  // - Persistence and "saveModel" usage is a mess
-  //
-  // - Allow autocomplete top-level for modes that might only exist in one place?
-  //
-  // - update model periodically (or on demand --- button?)
-  // - IF no autoUpdate, allow a manual "sync" or "sync all branches" (i.e. local developer machine)
-  //   - DO NOT auto-update launchpad - note that pulls of launchpad likely require rebuild of launchpad for serving to work
-  //     -- OR does that mean when launchpad gets pulled, we just auto-rebuild it?
-  //   - Sync
-  //     - first npm-updated chipper, perennial-alias, perennial
-  //     - then sync --transpile=true --status=false logPull=false logFormatting=false --npmUpdate=false --checkoutMain=true (????)
-  //     - Then check lists?
-  //
-  // - Front-end UI off of scenerystack
-  //   - Query parameters: do we scan ALL locations (for dependencies) for query parameters? (initialize-globals, and *QueryParameters?)
-  //     -- HAVE a search box for query parameters!
-  //     -- BUILD: SHOW whether the sim SHOULD be up-to-date (note that doesn't include babel, so allow builds even if it looks up-to-date)
-  //     - Sim-specific query parameters
-  //   - Show last commit messages of things?
-  //   - TOP-level "most recently updated repos"?
-  //   - up/down keys for navigating the repo list?
-  //   - Load which locales are supported(!)
-  // - Proper a11y for lists and selection -- do group selection?
-  // - Reduce file sizes --- they are pretty big, especially with the source map inline
-  // - How to handle pulls of launchpad itself??? (could also auto-rebuild launchpad after pull, and restart)
-  // - per-main-repo LOCKS for git mutating commands (includes getFileAtBranch... unfortunately)
-  //
-
   /*
+   * TO DO feedback:
+   *  - Discuss with MK about phet-io list for phetmarks => launchpad (and potentially query parameters)
+   *
+   * TO DO bugs:
+   *  - Log button crash - memory?
+   *  - Test with Safari and cache (to make sure it is refreshing and getting 304s properly)
+   *  - Why getting "Warning: expected main branch for ... but found null"
+   *
    * TO DO features:
+   *  - Query Parameters!
+   *    - Include sim-specific query parameters --- auto-scan all files?
+   *    - Query parameters: do we scan ALL locations (for dependencies) for query parameters? (initialize-globals, and *QueryParameters?)
+   *      -- HAVE a search box for query parameters!
+   *      -- BUILD: SHOW whether the sim SHOULD be up-to-date (note that doesn't include babel, so allow builds even if it looks up-to-date)
+   *    - Include (and detect) locale query parameter translated locales
+   *  - TOASTS for when repos are updated (perhaps show commit info too) --- i.e. popups that show live updates
+   *    - Perhaps show a list of recently discovered updates --- server-side query list?
+   *  - LOG usability (right now seems tricky) - at least test main server-side)
    *  - Modulify - LIVE MODULIFY preferred, but can auto-modulify otherwise
    *  - Unbuilt release branches (they are buggy right now)
    *  - Test on Windows
    *  - Package Lock handling
+   *  - Move over more phetmarks links (e.g. phet-io links that are missing - talk to MK)
+   *  - Better a11y for lists (have the arrows handle first list, can tab to second, etc.) -- e.g. group selection
+   *  - Clearer copy-to-clipboard (or just... make links) - copy icon or buttons?
+   *  - "Advanced" button to trigger updateModel server-side?
+   *    - WE MIGHT NEED A LOCK
+   *  - Search that can find modes (see if we can match two levels with the search) -- for modes that exist in one repo
+   *
+   * TO DO internal:
+   *  - Persistence and saveModel usage is a mess (server-side)
+   *
+   * TO DO performance:
+   *  - Reduce file sizes --- they are pretty big, especially with the source map inline
    *
    * Deferred performance:
    *  - Octokit remote operations (due to worries about rate limits)
@@ -89,8 +71,15 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *
    * Deferred features:
    *  - Non-PhET-member handling (private repos shouldn't be pulled, etc.)
+   *  - More customization on what features to show/hide
    *  - Preview of URL that will be launched
    *  - Emails or slack notifications on errors
+   *  - "Sync" button for local non-auto-update development?
+   *    - Or allow client to control server auto-update?
+   *      - first npm-updated chipper, perennial-alias, perennial
+   *      - then sync --transpile=true --status=false logPull=false logFormatting=false --npmUpdate=false --checkoutMain=true (????)
+   *      - Then check lists?
+   *  - per-main-repo LOCKS for git mutating commands (includes getFileAtBranch... unfortunately)
    */
 
   // These will get stat'ed all at once
