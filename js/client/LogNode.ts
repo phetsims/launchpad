@@ -101,12 +101,16 @@ export class LogNode extends PopupNode {
         new RichText( logEvent.message, {
           font: uiFont,
           fill: uiForegroundColorProperty,
-          replaceNewlines: true
+          replaceNewlines: true,
+          maxWidth: 800,
+          maxHeight: 100
         } )
       ];
     };
 
     const updateLogGrid = () => {
+      logGridBox.children.forEach( child => child.dispose() );
+
       logGridBox.rows = recordedLogEvents.filter( logEvent => {
         return logLevelProperties[ logEvent.level ].value;
       } ).slice( -NUM_LOG_LINES ).map( logEvent => {
