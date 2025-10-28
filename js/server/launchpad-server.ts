@@ -40,8 +40,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
   // - Link to last commit (github commit page)
   //   - Show commit message (or potentially have the last few commit messages?)
   // - Test with Safari and cache (to make sure it is refreshing and getting 304s properly)
-  // - FIGURE OUT MODULIFY -- LIVE MODULIFY(?)
-  //   - Or auto-modulify
   //
   // -- ALLOW customization on which things to show/hide?
   //
@@ -80,6 +78,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
 
   /*
    * TO DO features:
+   *  - Modulify - LIVE MODULIFY preferred, but can auto-modulify otherwise
    *  - Unbuilt release branches (they are buggy right now)
    *  - Test on Windows
    *  - Package Lock handling
@@ -512,6 +511,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
       }
 
       res.setHeader( 'Cache-Control', 'public, max-age=0, must-revalidate' );
+      res.setHeader( 'X-Launchpad', 'Launchpad' );
 
       if ( INCLUDE_CORS_ALL_ORIGINS ) {
         res.setHeader( 'Access-Control-Allow-Origin', '*' );
