@@ -183,7 +183,7 @@ export const getModes = (
             description: `Runs the unbuilt simulation in ${studioNameBeautified}`,
             createCustomizationNode: () => {
               // TODO: likely this URL won't work for older cases https://github.com/phetsims/phettest/issues/20
-              return new EmptyCustomizationNode( `${releaseBranchPrefix}studio?sim=${repo}&phetioWrapperDebug=true&phetioElementsDisplay=all` );
+              return new EmptyCustomizationNode( `${releaseBranchPrefix}studio/?sim=${repo}&phetioWrapperDebug=true&phetioElementsDisplay=all` );
             }
           } );
         }

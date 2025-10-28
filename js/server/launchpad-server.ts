@@ -988,12 +988,14 @@ const ReleaseBranch = ReleaseBranchImport.default;
 
   // Static hosting for other files
   app.use( express.static( ROOT_DIR, {
-    etag: true
+    etag: true,
+    redirect: false
   } ) );
 
   // Static hosting for launchpad build
   app.use( express.static( `${ROOT_DIR}/launchpad/dist`, {
-    etag: true
+    etag: true,
+    redirect: false
   } ) );
 
   // If static didn't find a file (esp. index.html in a dir), serveIndex will check if it's a directory and list contents.
