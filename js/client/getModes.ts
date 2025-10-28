@@ -146,7 +146,7 @@ export const getModes = (
   const phetSuffix = usesChipper2 ? '_phet' : '';
   const phetioSuffix = usesChipper2 ? '_all_phet-io' : '_en-phetio';
   // const phetioBrandSuffix = usesChipper2 ? '' : '-phetio';
-  const studioPathSuffix = branchInfo.usesPhetioStudioIndex ? '' : `/${studioName}.html?sim=${branchInfo.repo}&${proxiesParams}`;
+  const studioPathSuffix = branchInfo.usesPhetioStudioIndex ? '/' : `/${studioName}.html?sim=${branchInfo.repo}&${proxiesParams}`;
   // const phetioDevVersion = usesChipper2 ? versionString : versionString.split( '-' ).join( '-phetio' );
 
   // `](https://phet-dev.colorado.edu/html/${this.repo}/${versionString}${phetFolder}/${this.repo}_all${phetSuffix}.html)`
