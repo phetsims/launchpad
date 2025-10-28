@@ -6,7 +6,7 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import { Branch, BranchInfo, LogEvent, Repo, RepoList, SHA } from '../types/common-types.js';
+import { Branch, BranchInfo, Commit, LogEvent, Repo, RepoList, SHA } from '../types/common-types.js';
 
 export const apiGetRepoList = async (): Promise<RepoList> => {
   const response = await fetch( 'api/repo-list' );
@@ -162,4 +162,14 @@ export const getLatestSHA = async ( repo: Repo, branch: Branch ): Promise<SHA> =
   }
 
   return ( ( await response.json() ) as { sha: SHA } ).sha;
+};
+
+export const getLastCommits = async ( repo: Repo, branch: Branch ): Promise<Commit[]> => {
+  const response = await fetch( `api/last-commits/${repo}/${branch}` );
+
+  if ( !response.ok ) {
+    throw new Error( `Failed to fetch last commits: ${repo} ${branch} ${response.status} ${response.statusText}` );
+  }
+
+  return ( ( await response.json() ) as { commits: Commit[] } ).commits;
 };

@@ -7,10 +7,11 @@
  */
 
 import { DerivedProperty, TProperty } from 'scenerystack/axon';
-import { Color, FireListener, Node, Rectangle, RichText } from 'scenerystack/scenery';
+import { Color, FireListener, Node, Rectangle } from 'scenerystack/scenery';
 import { ViewContext } from './ViewContext.js';
 import { TooltipListener } from './TooltipListener.js';
-import { autocompleteMatchColorProperty, listEvenColorProperty, listHoverColorProperty, listOddColorProperty, listSelectedColorProperty, uiFont, uiForegroundColorProperty } from './theme.js';
+import { autocompleteMatchColorProperty, listEvenColorProperty, listHoverColorProperty, listOddColorProperty, listSelectedColorProperty } from './theme.js';
+import { UIRichText } from './UIRichText.js';
 
 // TODO: GC https://github.com/phetsims/phettest/issues/20
 export class ListItemNode extends Node {
@@ -33,10 +34,7 @@ export class ListItemNode extends Node {
 
     // TODO: arrow keys to switch between entries (up/down) https://github.com/phetsims/phettest/issues/20
 
-    const richText = new RichText( '', {
-      font: uiFont,
-      fill: uiForegroundColorProperty
-    } );
+    const richText = new UIRichText( '' );
 
     const highlightListener = ( color: Color ) => {
       const cssColor = color.toCSS();

@@ -16,16 +16,16 @@ import type { RepoList } from '../types/common-types.js';
 import { apiGetRepoList } from './client-api.js';
 import { RepoListNode } from './RepoListNode.js';
 import { RepoNode } from './RepoNode.js';
-import { LaunchType } from './LaunchType.js';
 import { ViewContext } from './ViewContext.js';
 import { preferencesIconOnWhite_png } from 'scenerystack/joist';
 import { uiBackgroundColorProperty, uiHeaderFont } from './theme.js';
-import { launchTypeProperty, showAdvancedProperty } from './settings.js';
+import { showAdvancedProperty } from './settings.js';
 import { SettingsNode } from './SettingsNode.js';
 import { UIRectangularPushButton } from './UIRectangularPushButton.js';
 import { UIText } from './UIText.js';
 import { LogNode } from './LogNode.js';
 import { UITextPushButton } from './UITextPushButton.js';
+import { launchURL } from './launchURL.js';
 
 // eslint-disable-next-line no-undef
 if ( process.env.NODE_ENV === 'development' ) {
@@ -80,18 +80,6 @@ display.initializeEvents();
 const glassPane = new Node();
 
 const viewContext = new ViewContext( layoutBoundsProperty, glassPane, stepTimer );
-
-const launchURL = ( url: string ) => {
-  const launchType = launchTypeProperty.value;
-
-  if ( launchType === LaunchType.SAME_TAB ) {
-    window.location.href = url;
-  }
-  else if ( launchType === LaunchType.NEW_TAB ) {
-    const popupWindow = window.open( url, '_blank' );
-    popupWindow && popupWindow.focus();
-  }
-};
 
 const searchBoxNode = new SearchBoxNode( searchBoxTextProperty );
 const repoListNode = new RepoListNode( repoListProperty, searchBoxTextProperty, selectedRepoProperty, viewContext );

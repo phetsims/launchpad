@@ -99,3 +99,11 @@ export type LogEvent = {
   level: string;
   timestamp: string;
 };
+
+export type Commit = {
+  sha: SHA;
+  date: string; // ISO8601
+  authorName: string;
+  authorEmail: string;
+  message: string;
+};

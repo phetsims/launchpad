@@ -9,8 +9,8 @@
 import { PopupNode } from './PopupNode.js';
 import { UIText } from './UIText.js';
 import { ViewContext } from './ViewContext.js';
-import { FireListener, GridBox, HBox, RichText, VBox } from 'scenerystack/scenery';
-import { uiFont, uiForegroundColorProperty, uiHeaderFont } from './theme.js';
+import { FireListener, GridBox, HBox, VBox } from 'scenerystack/scenery';
+import { uiHeaderFont } from './theme.js';
 import { Property, TEmitter, TinyEmitter } from 'scenerystack/axon';
 import { LogEvent } from '../types/common-types.js';
 import { getLastNotableEvents, logEvents } from './client-api.js';
@@ -18,6 +18,7 @@ import { LocalStorageBooleanProperty } from './localStorage.js';
 import { UITextCheckbox } from './UITextCheckbox.js';
 import { WaitingNode } from './WaitingNode.js';
 import { copyToClipboard } from './copyToClipboard.js';
+import { UIRichText } from './UIRichText.js';
 
 let logEventEmitter: TEmitter<[LogEvent]> | null = null;
 const recordedLogEvents: LogEvent[] = [];
@@ -96,10 +97,7 @@ export class LogNode extends PopupNode {
     const logEventEmitter = getLogEventEmitter();
 
     const logEventToGridRow = ( logEvent: LogEvent ) => {
-      const richText = new RichText( logEvent.message, {
-        font: uiFont,
-        fill: uiForegroundColorProperty,
-        replaceNewlines: true,
+      const richText = new UIRichText( logEvent.message, {
         maxWidth: 800,
         maxHeight: 100,
         cursor: 'copy'

@@ -10,7 +10,7 @@ import path from 'path';
 import fs from 'fs';
 // eslint-disable-next-line phet/default-import-match-filename
 import fsPromises from 'fs/promises';
-import type { Branch, ModelBranchInfo, PackageJSON, Repo, SHA } from '../types/common-types.js';
+import type { Branch, Commit, ModelBranchInfo, PackageJSON, Repo, SHA } from '../types/common-types.js';
 // eslint-disable-next-line phet/default-import-match-filename
 import executeImport from '../../../perennial/js/common/execute.js';
 import ChipperVersion from '../../../perennial/js/common/ChipperVersion.js';
@@ -133,4 +133,31 @@ export const getNPMHash = async ( repo: Repo ): Promise<string> => {
   hash.update( packageJSONContents );
   hash.update( packageLockContents );
   return hash.digest( 'hex' );
+};
+
+export const getLatestCommits = async ( repo: Repo, branch: Branch, count: number ): Promise<Commit[]> => {
+  const output = await execute( 'git', [
+    'log',
+    branch,
+    '-n',
+    `${count}`,
+    '--date=iso-strict',
+    '--pretty=format:%x1e%H%x1f%h%x1f%an%x1f%ae%x1f%ad%x1f%s'
+  ], getRepoDirectory( repo, branch ) );
+
+  return output
+    .split( '\x1e' )
+    .filter( Boolean )
+    .map( line => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const [ sha, _, authorName, authorEmail, date, message ] =
+        line.split( '\x1f' );
+      return {
+        sha: sha,
+        date: date,
+        authorName: authorName,
+        authorEmail: authorEmail,
+        message: message
+      };
+    } );
 };

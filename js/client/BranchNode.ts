@@ -7,20 +7,21 @@
  */
 
 import { Property, TinyEmitter, TReadOnlyProperty } from 'scenerystack/axon';
-import { FireListener, GridBox, HBox, HSeparator, Node, RichText, VBox } from 'scenerystack/scenery';
+import { FireListener, GridBox, HBox, HSeparator, Node, VBox } from 'scenerystack/scenery';
 import { BranchInfo, Repo, RepoListEntry, SHA } from '../types/common-types.js';
 import moment from 'moment';
 import { copyToClipboard } from './copyToClipboard.js';
 import { ModeListNode } from './ModeListNode.js';
 import { CustomizationNode, getModes } from './getModes.js';
 import { ViewContext } from './ViewContext.js';
-import { apiBuild, apiBuildEvents, apiUpdate, apiUpdateEvents, getLatestSHA, getLatestSHAs } from './client-api.js';
+import { apiBuild, apiBuildEvents, apiUpdate, apiUpdateEvents, getLastCommits, getLatestSHA, getLatestSHAs } from './client-api.js';
 import { UIText } from './UIText.js';
 import { UITextPushButton } from './UITextPushButton.js';
-import { buildOutputFont, uiForegroundColorProperty, uiHeaderFont } from './theme.js';
+import { buildOutputFont, uiHeaderFont } from './theme.js';
 import { WaitingNode } from './WaitingNode.js';
 import { UIAccordionBox } from './UIAccordionBox.js';
 import { OutOfDateIcon, UpToDateIcon } from './icons.js';
+import { UIRichText } from './UIRichText.js';
 
 let isStartup = true;
 
@@ -82,6 +83,53 @@ export class BranchNode extends VBox {
     }
 
     if ( branchInfo.isCheckedOut ) {
+      const commitsGrid = new VBox( {
+        spacing: 12,
+        align: 'left',
+        children: [
+          new UIText( 'loading commits...' )
+        ]
+      } );
+
+      ( async () => {
+        const commits = await getLastCommits( branchInfo.repo, branchInfo.branch );
+
+        commitsGrid.children = [
+          new UIText( 'Last 5 commits:' ),
+          ...commits.map( commit => {
+            const openCommitListener = new FireListener( {
+              fire: () => {
+                launchURL( `https://github.com/phetsims/${branchInfo.repo}/commit/${commit.sha}` );
+              }
+            } );
+            disposeCallbacks.push( () => openCommitListener.dispose() );
+
+            return new VBox( {
+              align: 'left',
+              spacing: 3,
+              children: [
+                new UIRichText( commit.message, {
+                  cursor: 'pointer',
+                  inputListeners: [ openCommitListener ],
+                  maxWidth: 900
+                } ),
+                new HBox( {
+                  opacity: 0.6,
+                  spacing: 10,
+                  children: [
+                    new UIText( commit.sha.slice( 0, 7 ) ),
+                    new UIText( commit.authorName ),
+                    new UIText( moment( commit.date ).calendar() )
+                  ]
+                } )
+              ],
+              cursor: 'pointer',
+              inputListeners: [ openCommitListener ]
+            } );
+          } ),
+        ];
+      } )().catch( e => { throw e; } );
+
       const selfDependencyNode = new HBox( {
         spacing: 10,
         children: [
@@ -123,7 +171,9 @@ export class BranchNode extends VBox {
       } )().catch( e => { throw e; } );
 
 
-      infoChildren.push( selfDependencyNode );
+      infoChildren.push( new UIAccordionBox( commitsGrid, {
+        titleNode: selfDependencyNode
+      } ) );
     }
 
     if ( branchInfo.isCheckedOut && branchInfo.branch === 'main' && branchInfo.dependencyRepos.length ) {
@@ -315,10 +365,8 @@ export class BranchNode extends VBox {
       const getBuildOnOutput = (): ( ( str: string ) => void ) => {
         let outputString = '';
 
-        const textNode = new RichText( 'Starting build...', {
-          font: buildOutputFont,
-          fill: uiForegroundColorProperty,
-          replaceNewlines: true
+        const textNode = new UIRichText( 'Starting build...', {
+          font: buildOutputFont
         } );
 
         const waitingNode = new WaitingNode( viewContext );
