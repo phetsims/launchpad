@@ -6,7 +6,9 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import { enableAssert } from 'scenerystack/assert';
+// NOTE: This is required first (to turn on assertions)
+import './clientQueryParameters.js';
+
 import { Property, stepTimer } from 'scenerystack/axon';
 import { Bounds2 } from 'scenerystack/dot';
 import { platform } from 'scenerystack/phet-core';
@@ -26,12 +28,6 @@ import { UIText } from './UIText.js';
 import { LogNode } from './LogNode.js';
 import { UITextPushButton } from './UITextPushButton.js';
 import { launchURL } from './launchURL.js';
-
-// eslint-disable-next-line no-undef
-if ( process.env.NODE_ENV === 'development' ) {
-  // Enable assertions if we are in development mode
-  enableAssert();
-}
 
 const selectedRepoProperty = new Property<string | null>( null );
 const searchBoxTextProperty = new Property( '' );

@@ -20,7 +20,7 @@ import basicAuth from 'basic-auth';
 import { config } from './config.js';
 import { model, saveModel } from './model.js';
 import { autoBuild, autoUpdate, numAutoBuildThreads, port, ROOT_DIR } from './options.js';
-import { buildMain, buildReleaseBranch, getLatestCommits, getLatestSHA, getNPMHash, getRepoDirectory, updateMain, updateReleaseBranchCheckout } from './util.js';
+import { buildMain, buildReleaseBranch, getLatestCommits, getLatestSHA, getNPMHash, updateMain, updateReleaseBranchCheckout } from './util.js';
 import { recomputeNodeModules, singlePassUpdate, updateModel, updateModelBranchInfo, updateNodeModules } from './updateModel.js';
 import { bundleFile, transpileTS } from './bundling.js';
 import sleep from '../../../perennial/js/common/sleep.js';
@@ -33,8 +33,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
   //
   // - Talk with MK about phet-io list for phetmarks => launchpad
   //
-  // - Show last few commits (and start of commit messages)
-  //
   // - BM reports 503 error on studio (phet-io unbuilt) --- THIS LOOKS LIKE it is caused by a 301 redirect, investigating
   // - BF reports page locks up/crashes when pressing Log button
   // - QUERY PARAMETERS
@@ -43,25 +41,16 @@ const ReleaseBranch = ReleaseBranchImport.default;
   //   - Show commit message (or potentially have the last few commit messages?)
   // - Test with Safari and cache (to make sure it is refreshing and getting 304s properly)
   // - FIGURE OUT MODULIFY -- LIVE MODULIFY(?)
+  //   - Or auto-modulify
   //
   // -- ALLOW customization on which things to show/hide?
   //
   // "Copy" icon and buttons (?)
   //
-  // --- try enabling assertions? --- allow ?ea query parameter
-  //
-  // -- Set up emails or slack notifications on errors?
-  //
-  // - BAYES setup (once secure and vetted)
-  //
-  // - Run updateModel after... MORE. Especially since it might change what repos we should handle
-  //
   // - Release Branch Pages
   //   - Simplify (combine update checkout and build?) --- since we only build?
   //
   // - Persistence and "saveModel" usage is a mess
-  //
-  // - Auto-modulification? --- separate service?
   //
   // - Allow autocomplete top-level for modes that might only exist in one place?
   //
@@ -73,12 +62,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
   //     - first npm-updated chipper, perennial-alias, perennial
   //     - then sync --transpile=true --status=false logPull=false logFormatting=false --npmUpdate=false --checkoutMain=true (????)
   //     - Then check lists?
-  //   - Auto-update on release branches:
-  //     - Should we auto-build here?
-  //
-  // - What remote operations can we speed up by just using octokit?
-  //
-  // - GitHub WEBHOOKS - organization-wide, send updated repos (for faster updates)
   //
   // - Front-end UI off of scenerystack
   //   - Query parameters: do we scan ALL locations (for dependencies) for query parameters? (initialize-globals, and *QueryParameters?)
@@ -89,16 +72,27 @@ const ReleaseBranch = ReleaseBranchImport.default;
   //   - TOP-level "most recently updated repos"?
   //   - up/down keys for navigating the repo list?
   //   - Load which locales are supported(!)
-  // - Test on Windows
-  // - Get release branch unbuilt running
-  // - Complete package-lock items
-  // - Status?
-  // - Private repo handling for non-PhET members
   // - Proper a11y for lists and selection -- do group selection?
   // - Reduce file sizes --- they are pretty big, especially with the source map inline
-  // - preview of URL?
   // - How to handle pulls of launchpad itself??? (could also auto-rebuild launchpad after pull, and restart)
   // - per-main-repo LOCKS for git mutating commands (includes getFileAtBranch... unfortunately)
+  //
+
+  /*
+   * TO DO features:
+   *  - Unbuilt release branches (they are buggy right now)
+   *  - Test on Windows
+   *  - Package Lock handling
+   *
+   * Deferred performance:
+   *  - Octokit remote operations (due to worries about rate limits)
+   *  - GitHub webhooks - could set organization-wide hooks, and have launchpad listen for updates
+   *
+   * Deferred features:
+   *  - Non-PhET-member handling (private repos shouldn't be pulled, etc.)
+   *  - Preview of URL that will be launched
+   *  - Emails or slack notifications on errors
+   */
 
   // These will get stat'ed all at once
   const PREFERRED_EXTENSIONS = [ 'js', 'ts' ];
