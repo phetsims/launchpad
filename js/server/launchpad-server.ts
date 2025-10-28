@@ -30,13 +30,18 @@ const ReleaseBranch = ReleaseBranchImport.default;
 
 ( async () => {
   /*
-   * TO DO feedback:
-   *  - Discuss with MK about phet-io list for phetmarks => launchpad (and potentially query parameters)
-   *
    * TO DO bugs:
    *  - Log button crash - memory?
    *
    * TO DO features:
+   *  - Write out power-user features in Settings UI (or an info button) (have a pop-up for it?)
+   *  - "unbuilt / built" mode switch --- ONLY REMEMBER SETTING when they have a choice
+   *    - Ability to show "disabled" built mode (if only one option is available)
+   *    - Hide mode completely if either is available
+   *    - Get unbuilt mode working for release branches (so we can have it there too)
+   *    - UNCLEAR if this switch should be high-level (so doesn't show "build" button), or if it should essentially be per-mode (have a switch?)
+   *  -- Wrapper index as "wrappers" -- but then radio button to select other wrappers
+   *  -- Update the Branch UI on a switch to building (since we won't be able to run a built version at that point)
    *  - Query Parameters!
    *    - Include sim-specific query parameters --- auto-scan all files?
    *    - Query parameters: do we scan ALL locations (for dependencies) for query parameters? (initialize-globals, and *QueryParameters?)
@@ -51,6 +56,9 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *  - Test on Windows
    *  - Package Lock handling
    *  - Move over more phetmarks links (e.g. phet-io links that are missing - talk to MK)
+   *    - UNBUILT and BUILT index!!! This is this primary thing
+   *    - Migration and State are the two main things I'm missing
+   *    - Have a "wrappers"
    *  - Better a11y for lists (have the arrows handle first list, can tab to second, etc.) -- e.g. group selection
    *  - Clearer copy-to-clipboard (or just... make links) - copy icon or buttons?
    *  - "Advanced" button to trigger updateModel server-side?

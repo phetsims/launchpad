@@ -14,9 +14,6 @@ import { OnOffSwitch, OnOffSwitchOptions } from 'scenerystack/sun';
 import { uiButtonBaseColorProperty, uiButtonDisabledColorProperty } from './theme.js';
 
 type SelfOptions = {
-  // If it is advanced, will only be visible when advancedSettingsVisibleProperty is true
-  advanced?: boolean;
-
   onOffSwitchOptions?: OnOffSwitchOptions;
 };
 
@@ -31,7 +28,6 @@ export class UISwitch extends HBox {
   ) {
     const options = optionize<UISwitchOptions, SelfOptions, HBoxOptions>()(
       {
-        advanced: false,
         // checkboxColor: uiForegroundColorProperty,
         // checkboxColorBackground: uiBackgroundColorProperty,
         onOffSwitchOptions: {

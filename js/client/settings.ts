@@ -13,3 +13,6 @@ import { RepoFilterType } from './RepoFilterType.js';
 export const launchTypeProperty = new LocalStorageEnumerationProperty( 'launchType', LaunchType.SAME_TAB );
 export const repoFilterTypeProperty = new LocalStorageEnumerationProperty( 'repoFilterType', RepoFilterType.ALL );
 export const showAdvancedProperty = new LocalStorageBooleanProperty( 'showAdvanced', false );
+
+// This only controls unbuilt/built for places where there is a choice (it takes a default)
+export const useBuiltProperty = new LocalStorageBooleanProperty( 'useBuilt', false );

@@ -452,7 +452,7 @@ export class BranchNode extends VBox {
       children: [
         modeListNode,
         new VBox( {
-          spacing: 10,
+          spacing: 15,
           align: 'left',
           children: [
             new UITextPushButton( 'Launch', {
