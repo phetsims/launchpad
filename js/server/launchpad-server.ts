@@ -924,7 +924,9 @@ const ReleaseBranch = ReleaseBranchImport.default;
         const extension = statWithExtension.extension;
         const pathWithExtension = path.join( ROOT_DIR, key + '.' + extension );
         const isJS = extension === 'js';
-        const isEntryPoint = key.endsWith( '-main' ) || key.endsWith( '-tests' );
+
+        // phet-io-wrappers-main uses import.meta.url, which MESSES with bundling bad (and gives the wrong results)
+        const isEntryPoint = ( key.endsWith( '-main' ) && !key.includes( 'phet-io-wrappers-main' ) ) || key.endsWith( '-tests' );
 
         const cacheEntry = jsCache.get( key );
 
