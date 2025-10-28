@@ -31,8 +31,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
 ( async () => {
   // To do list:
   //
-  // - Compiled Index
-  //
   // - Talk with MK about phet-io list for phetmarks => launchpad
   //
   // - Hide log under settings

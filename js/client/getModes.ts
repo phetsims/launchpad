@@ -217,6 +217,17 @@ export const getModes = (
             }
           } );
         }
+
+        if ( branchInfo.lastBuiltTime ) {
+          // Add a link to the compiled wrapper index;
+          modes.push( {
+            name: 'index (phet-io built)',
+            description: 'Runs the PhET-iO wrapper index from build/ directory (built from chipper)',
+            createCustomizationNode: () => {
+              return new EmptyCustomizationNode( `${repoDirectory}/build${phetioFolder}/` );
+            }
+          } );
+        }
       }
     }
 
