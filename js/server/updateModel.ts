@@ -72,7 +72,7 @@ export const updateModelBranchInfo = async (
       try {
         branchInfo.currentBranch = branch === 'main' ? await getDirectoryBranch( repoDirectory ) : null;
 
-        if ( branchInfo.currentBranch !== 'main' ) {
+        if ( branchInfo.currentBranch !== 'main' && branch === 'main' ) {
           logger.warn( `Warning: expected main branch for ${repo} but found ${branchInfo.currentBranch}` );
         }
       }

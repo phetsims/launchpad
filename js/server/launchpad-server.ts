@@ -36,7 +36,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
    * TO DO bugs:
    *  - Log button crash - memory?
    *  - Test with Safari and cache (to make sure it is refreshing and getting 304s properly)
-   *  - Why getting "Warning: expected main branch for ... but found null"
    *
    * TO DO features:
    *  - Query Parameters!
