@@ -9,7 +9,7 @@
 import { PopupNode } from './PopupNode.js';
 import { UIText } from './UIText.js';
 import { ViewContext } from './ViewContext.js';
-import { GridBox, HBox, RichText, VBox } from 'scenerystack/scenery';
+import { FireListener, GridBox, HBox, RichText, VBox } from 'scenerystack/scenery';
 import { uiFont, uiForegroundColorProperty, uiHeaderFont } from './theme.js';
 import { Property, TEmitter, TinyEmitter } from 'scenerystack/axon';
 import { LogEvent } from '../types/common-types.js';
@@ -17,6 +17,7 @@ import { getLastNotableEvents, logEvents } from './client-api.js';
 import { LocalStorageBooleanProperty } from './localStorage.js';
 import { UITextCheckbox } from './UITextCheckbox.js';
 import { WaitingNode } from './WaitingNode.js';
+import { copyToClipboard } from './copyToClipboard.js';
 
 let logEventEmitter: TEmitter<[LogEvent]> | null = null;
 const recordedLogEvents: LogEvent[] = [];
@@ -95,16 +96,26 @@ export class LogNode extends PopupNode {
     const logEventEmitter = getLogEventEmitter();
 
     const logEventToGridRow = ( logEvent: LogEvent ) => {
+      const richText = new RichText( logEvent.message, {
+        font: uiFont,
+        fill: uiForegroundColorProperty,
+        replaceNewlines: true,
+        maxWidth: 800,
+        maxHeight: 100,
+        cursor: 'copy'
+      } );
+      const copyListener = new FireListener( {
+        fire: async () => {
+          await copyToClipboard( `${logEvent.timestamp} ${logEvent.level} ${logEvent.message}` );
+        }
+      } );
+      richText.addInputListener( copyListener );
+      richText.addDisposable( copyListener );
+
       return [
         new UIText( logEvent.timestamp ),
         new UIText( logEvent.level ),
-        new RichText( logEvent.message, {
-          font: uiFont,
-          fill: uiForegroundColorProperty,
-          replaceNewlines: true,
-          maxWidth: 800,
-          maxHeight: 100
-        } )
+        richText
       ];
     };
 
