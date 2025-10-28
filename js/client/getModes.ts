@@ -15,7 +15,7 @@ import { DatedVersion, getDevVersions, getProductionVersions } from './fileListi
 import { UIAquaRadioButtonGroup } from './UIAquaRadioButtonGroup.js';
 import { BooleanProperty, Property } from 'scenerystack/axon';
 import moment from 'moment';
-import { useBuiltProperty } from './settings.js';
+import { showAdvancedProperty, useBuiltProperty } from './settings.js';
 import { UITextSwitch } from './UITextSwitch.js';
 
 export type CustomizationNode = Node & { getURL: () => string };
@@ -182,6 +182,7 @@ export const getModes = (
   const supportsPhet = branchInfo.brands.includes( 'phet' );
   const supportsPhetio = branchInfo.brands.includes( 'phet-io' );
   const supportsInteractiveDescription = repoListEntry.supportsInteractiveDescription;
+  const showAdvanced = showAdvancedProperty.value;
 
   const releaseBranchPrefix = branchInfo.branch === 'main' ? '' : `release-branches/${branchInfo.repo}-${branchInfo.branch}/`;
   const repoDirectory = `${releaseBranchPrefix}${repo}`;
@@ -244,6 +245,14 @@ export const getModes = (
         isMainBranch ? `${releaseBranchPrefix}phet-io-wrappers/index/?sim=${repo}&phetioDebug=true&phetioWrapperDebug=true` : null,
         hasBuild ? `${repoDirectory}/build${phetioFolder}/` : null
       );
+    }
+  } );
+
+  isRunnable && isCheckedOut && supportsPhetio && isMainBranch && showAdvanced && modes.push( {
+    name: 'wrapper unit tests',
+    description: 'Runs the phet-io wrapper unit tests',
+    createCustomizationNode: () => {
+      return new EmptyCustomizationNode( `${releaseBranchPrefix}phet-io-wrappers/phet-io-wrappers-tests.html?sim=${repo}` );
     }
   } );
 

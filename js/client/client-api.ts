@@ -29,7 +29,13 @@ export const apiGetBranchInfo = async ( repo: Repo, branch: Branch ): Promise<Br
 };
 
 // Resolves with success
-export const apiBuild = async ( repo: Repo, branch: Branch, onOutput: ( str: string ) => void ): Promise<boolean> => {
+export const apiBuild = async (
+  repo: Repo,
+  branch: Branch,
+  onOutput: ( str: string ) => void,
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  onStarted: () => void = () => {}
+): Promise<boolean> => {
   const response = await fetch( `api/build/${repo}/${branch}`, { method: 'POST' } );
 
   if ( !response.ok ) {
@@ -39,6 +45,8 @@ export const apiBuild = async ( repo: Repo, branch: Branch, onOutput: ( str: str
   const result = ( await response.json() ) as { buildJobID: number };
 
   const buildJobID = result.buildJobID;
+
+  onStarted();
 
   return apiBuildEvents( buildJobID, onOutput );
 };

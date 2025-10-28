@@ -35,13 +35,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *
    * TO DO features:
    *  - Write out power-user features in Settings UI (or an info button) (have a pop-up for it?)
-   *  - "unbuilt / built" mode switch --- ONLY REMEMBER SETTING when they have a choice
-   *    - Ability to show "disabled" built mode (if only one option is available)
-   *    - Hide mode completely if either is available
-   *    - Get unbuilt mode working for release branches (so we can have it there too)
-   *    - UNCLEAR if this switch should be high-level (so doesn't show "build" button), or if it should essentially be per-mode (have a switch?)
    *  -- Wrapper index as "wrappers" -- but then radio button to select other wrappers
-   *  -- Update the Branch UI on a switch to building (since we won't be able to run a built version at that point)
    *  - Query Parameters!
    *    - Include sim-specific query parameters --- auto-scan all files?
    *    - Query parameters: do we scan ALL locations (for dependencies) for query parameters? (initialize-globals, and *QueryParameters?)

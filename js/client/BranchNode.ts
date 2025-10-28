@@ -22,6 +22,7 @@ import { WaitingNode } from './WaitingNode.js';
 import { UIAccordionBox } from './UIAccordionBox.js';
 import { OutOfDateIcon, UpToDateIcon } from './icons.js';
 import { UIRichText } from './UIRichText.js';
+import { showAdvancedProperty } from './settings.js';
 
 let isStartup = true;
 
@@ -410,7 +411,8 @@ export class BranchNode extends VBox {
           buildButton.visible = false;
           buildStatusText.visible = false;
 
-          const success = await apiBuild( branchInfo.repo, branchInfo.branch, getBuildOnOutput() );
+          // When we "start" the build, we will request new branch info
+          const success = await apiBuild( branchInfo.repo, branchInfo.branch, getBuildOnOutput(), requestNewBranchInfo );
 
           if ( success ) {
             requestNewBranchInfo();
@@ -479,6 +481,11 @@ export class BranchNode extends VBox {
         } ),
         mainBox
       ]
+    } );
+
+    showAdvancedProperty.lazyLink( requestNewBranchInfo );
+    disposeCallbacks.push( () => {
+      showAdvancedProperty.unlink( requestNewBranchInfo );
     } );
 
     disposeCallbacks.forEach( callback => this.disposeEmitter.addListener( callback ) );
