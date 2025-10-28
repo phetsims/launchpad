@@ -102,6 +102,11 @@ export const uiButtonDisabledColorProperty = new LightDarkColorProperty(
   'rgb(128,128,128)'
 );
 
+export const linkColorProperty = new LightDarkColorProperty(
+  '#00f',
+  '#6cf'
+);
+
 export const autocompleteMatchColorProperty = new LightDarkColorProperty(
   '#02a',
   '#6cf'

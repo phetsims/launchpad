@@ -17,7 +17,7 @@ import { ViewContext } from './ViewContext.js';
 import { apiBuild, apiBuildEvents, apiUpdate, apiUpdateEvents, getLastCommits, getLatestSHA, getLatestSHAs } from './client-api.js';
 import { UIText } from './UIText.js';
 import { UITextPushButton } from './UITextPushButton.js';
-import { buildOutputFont, uiHeaderFont } from './theme.js';
+import { buildOutputFont, linkColorProperty, uiHeaderFont } from './theme.js';
 import { WaitingNode } from './WaitingNode.js';
 import { UIAccordionBox } from './UIAccordionBox.js';
 import { OutOfDateIcon, UpToDateIcon } from './icons.js';
@@ -108,19 +108,27 @@ export class BranchNode extends VBox {
               align: 'left',
               spacing: 3,
               children: [
-                new UIRichText( commit.message, {
+                // Replace issue links with clickable links
+                new UIRichText( commit.message.replace( /https:\/\/github.com\/([a-z]+)\/([a-z-]+)\/issues\/(\d+)/g, ( match, org, repo, issue ) => {
+                  return `<a href="https://github.com/${org}/${repo}/issues/${issue}">${repo}#${issue}</a>`;
+                } ), {
                   cursor: 'pointer',
                   inputListeners: [ openCommitListener ],
-                  maxWidth: 900
+                  maxWidth: 900,
+                  links: true, // allow our embedded specific links
+                  linkFill: linkColorProperty
                 } ),
                 new HBox( {
                   opacity: 0.6,
-                  spacing: 10,
+                  spacing: 20,
                   children: [
                     new UIText( commit.sha.slice( 0, 7 ) ),
                     new UIText( commit.authorName ),
                     new UIText( moment( commit.date ).calendar() )
-                  ]
+                  ],
+                  layoutOptions: {
+                    leftMargin: 10
+                  }
                 } )
               ],
               cursor: 'pointer',
