@@ -97,6 +97,10 @@ export const uiButtonForegroundProperty = new LightDarkColorProperty(
   'rgb(0,0,0)',
   'rgb(0,0,0)'
 );
+export const uiButtonDisabledColorProperty = new LightDarkColorProperty(
+  'rgb(220,220,220)',
+  'rgb(128,128,128)'
+);
 
 export const autocompleteMatchColorProperty = new LightDarkColorProperty(
   '#02a',

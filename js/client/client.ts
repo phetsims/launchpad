@@ -20,7 +20,7 @@ import { LaunchType } from './LaunchType.js';
 import { ViewContext } from './ViewContext.js';
 import { preferencesIconOnWhite_png } from 'scenerystack/joist';
 import { uiBackgroundColorProperty, uiHeaderFont } from './theme.js';
-import { launchTypeProperty } from './settings.js';
+import { launchTypeProperty, showAdvancedProperty } from './settings.js';
 import { SettingsNode } from './SettingsNode.js';
 import { UIRectangularPushButton } from './UIRectangularPushButton.js';
 import { UIText } from './UIText.js';
@@ -114,7 +114,8 @@ const logButton = new UITextPushButton( 'Log', {
     logNode = logNode || new LogNode( viewContext );
 
     logNode.show();
-  }
+  },
+  visibleProperty: showAdvancedProperty
 } );
 
 let settingsNode: SettingsNode | null = null;

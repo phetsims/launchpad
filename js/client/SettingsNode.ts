@@ -12,9 +12,10 @@ import { ViewContext } from './ViewContext.js';
 import { HBox, Node, VBox } from 'scenerystack/scenery';
 import { UIAquaRadioButtonGroup } from './UIAquaRadioButtonGroup.js';
 import { LaunchType } from './LaunchType.js';
-import { launchTypeProperty, repoFilterTypeProperty } from './settings.js';
+import { launchTypeProperty, repoFilterTypeProperty, showAdvancedProperty } from './settings.js';
 import { ColorTheme, colorThemeProperty, uiHeaderFont } from './theme.js';
 import { RepoFilterType } from './RepoFilterType.js';
+import { UITextSwitch } from './UITextSwitch.js';
 
 export class SettingsNode extends PopupNode {
   public constructor( viewContext: ViewContext ) {
@@ -95,7 +96,8 @@ export class SettingsNode extends PopupNode {
             orientation: 'vertical',
             align: 'center',
             spacing: 5
-          } ) )
+          } ) ),
+          new UITextSwitch( showAdvancedProperty, 'Show Advanced Options' )
         ]
       } ),
       viewContext
