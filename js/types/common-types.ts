@@ -109,3 +109,20 @@ export type Commit = {
   authorEmail: string;
   message: string;
 };
+
+export type QueryParameterType = 'boolean' | 'flag' | 'string' | 'number' | 'array' | 'custom';
+export type QueryParameterSchema = {
+  type: QueryParameterType;
+  private?: boolean;
+  public?: boolean;
+  defaultValue?: unknown;
+  validValues?: unknown[];
+  elementSchema?: QueryParameterSchema; // for arrays
+  separator?: string; // for arrays
+};
+
+export type QueryParameter = {
+  name: string;
+  doc: string;
+  repo: string;
+} & QueryParameterSchema;

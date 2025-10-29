@@ -77,7 +77,13 @@ logger.on( 'data', info => {
 } );
 
 // also try to hit the default logger
-perennialWinston.default.transports.Console.level = logLevel;
+// TODO: why did winston switch from "Console" to "console"??? --- npm update seemed to break it.
+if ( perennialWinston.default.transports.console ) {
+  perennialWinston.default.transports.console.level = logLevel;
+}
+if ( perennialWinston.default.transports.Console ) {
+  perennialWinston.default.transports.Console.level = logLevel;
+}
 
 logger.info( 'options:' );
 logger.info( ` - port: ${port}` );

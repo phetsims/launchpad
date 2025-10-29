@@ -26,6 +26,9 @@ import { bundleFile, transpileTS } from './bundling.js';
 import sleep from '../../../perennial/js/common/sleep.js';
 import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, logger, removeLogCallback } from './logging.js';
 import getRepoList from '../../../perennial/js/common/getRepoList.js';
+import { extractQueryParameters } from './extractQueryParameters.js';
+
+await extractQueryParameters( 'chipper', '../chipper' );
 
 const ReleaseBranch = ReleaseBranchImport.default;
 
