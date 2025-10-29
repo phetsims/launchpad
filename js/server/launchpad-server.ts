@@ -104,6 +104,9 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *  - Add nonce to client.js path?? Allows faster load of large launchpad download?
    *    - Optimize what is in launchpad download. Do profiling to see if that is slowing things down.
    *
+   * TO DO cleanup:
+   *  - Clean up code and documentation!!! badly needed. Reorganize
+   *
    * Deferred performance:
    *  - Octokit remote operations (due to worries about rate limits)
    *  - GitHub webhooks - could set organization-wide hooks, and have launchpad listen for updates
