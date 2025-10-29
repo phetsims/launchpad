@@ -32,22 +32,49 @@ const ReleaseBranch = ReleaseBranchImport.default;
 ( async () => {
   /*
    * TO DO bugs:
-   *  - Log button crash - memory?
+   *  - Log button crash!!
+   *  - Allow https://bayes.colorado.edu/launchpad (redirect... if no slash!) -- server config?
    *
    * TO DO features:
-   *  - Write out power-user features in Settings UI (or an info button) (have a pop-up for it?)
-   *  - BUILT wrappers (for the "wrappers" list)
-   *    - THEN remove the "index" since it would be the default wrapper
-   *  -- Wrapper index as "wrappers" -- but then radio button to select other wrappers
-   *  -- Power shortcut for build/no-build
-   *    - Perhaps we should default to non-built
-   *  - Query Parameters!
-   *    - Include sim-specific query parameters --- auto-scan all files?
-   *    - Query parameters: do we scan ALL locations (for dependencies) for query parameters? (initialize-globals, and *QueryParameters?)
-   *      -- HAVE a search box for query parameters!
-   *      -- BUILD: SHOW whether the sim SHOULD be up-to-date (note that doesn't include babel, so allow builds even if it looks up-to-date)
-   *    - Include (and detect) locale query parameter translated locales
-   *    - Wrappers query parameters
+   *  - Query Parameters:
+   *    - Text boxes for query parameters (when there aren't fixed values that we know)
+   *    - Search box for query parameters (multi-target search -- search docs)
+   *      - Don't dump entire list --- search activates on 2+ chars (but match/show single-char params if they exist?)
+   *    - Featured query parameters
+   *      - User can FAVORITE query parameters... they get featured?
+   *      - localStorage which are featured, so they can also REMOVE ones they don't like
+   *    - PERFORMANCE so we aren't creating UIs for all query parameters on mode switches (and create fewer???)
+   *      - THIS IS SLOWING THINGS DOWN
+   *    - Support release branches (old styles of query parameters)
+   *    - Add "wrapper" query parameters, and things for e.g. aqua
+   *  - Double click (or click on selected) to launch directly from lists
+   *    -- Power shortcut for build/no-build
+   *  - Info button (next to settings): Write out power-user features in Settings UI (or an info button) (have a pop-up for it?)
+   *  - Wrappers:
+   *    - BUILT wrappers (for the "wrappers" list)
+   *      - THEN remove the "index" since it would be the default wrapper
+   *    -- Wrapper index as "wrappers" -- but then radio button to select other wrappers
+   *      - Perhaps we should default to non-built
+   *  - Add babel as a dependency implicitly for every runnable (so we will get rebuilds whenever strings change
+   *    - HIDE the "force re-build" button unless "show advanced" is on
+   *  - KEYBOARD / a11y:
+   *    - Arrow buttons listener only activates when search box is selected
+   *    - radio button group like keyboard control for lists
+   *      - Check for tabs patternshttps://www.w3.org/WAI/ARIA/apg/patterns/tabs/
+   *    - Focus order:
+   *      - Search box
+   *      - Repo list
+   *      - Mode list
+   *      - Launch button???
+   *      - Main branch content (accordion boxes)
+   *      - Customization node
+   *    - Scroll to the focus (soft scroll?) for when it changes
+   *  - Top-level search:
+   *    - Use '-' (or think of alternatives) for modes selection -- because "build" is in modes and sims, combined would be annoying?
+   *    - Multi-target search (for repos, modes, branches, etc. all at once?) -- brainstorm
+   *    - Search that can find modes (see if we can match two levels with the search) -- for modes that exist in one repo
+   *  - Show the "need to rebuild" warning in getModes when build mode is selected
+   *    - Brainstorm whether this is the only place the build button lives
    *  - TOASTS for when repos are updated (perhaps show commit info too) --- i.e. popups that show live updates
    *    - Perhaps show a list of recently discovered updates --- server-side query list?
    *  - LOG usability (right now seems tricky) - at least test main server-side)
@@ -59,17 +86,22 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *    - UNBUILT and BUILT index!!! This is this primary thing
    *    - Migration and State are the two main things I'm missing
    *    - Have a "wrappers"
-   *  - Better a11y for lists (have the arrows handle first list, can tab to second, etc.) -- e.g. group selection
    *  - Clearer copy-to-clipboard (or just... make links) - copy icon or buttons?
    *  - "Advanced" button to trigger updateModel server-side?
    *    - WE MIGHT NEED A LOCK
-   *  - Search that can find modes (see if we can match two levels with the search) -- for modes that exist in one repo
+   *  - Auto-checkout release branches
+   *  - Change color/branding of "launchpad" when being run from different places (local vs bayes)
    *
    * TO DO internal:
    *  - Persistence and saveModel usage is a mess (server-side)
    *
    * TO DO performance:
    *  - Reduce file sizes --- they are pretty big, especially with the source map inline
+   *  - WORKERS
+   *  - And make the main thread lighter (move work to workers, and try to reduce CPU)
+   *  - Profile or check CPU usage for all API requests. But ESPECIALLY INTERNAL ACTIONS
+   *  - Add nonce to client.js path?? Allows faster load of large launchpad download?
+   *    - Optimize what is in launchpad download. Do profiling to see if that is slowing things down.
    *
    * Deferred performance:
    *  - Octokit remote operations (due to worries about rate limits)

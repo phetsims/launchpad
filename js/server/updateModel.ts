@@ -466,8 +466,6 @@ export const getQueryParameters = async ( model: Model, branchInfo: ModelBranchI
   await Promise.all( dependencyRepos.map( async dependencyRepo => {
     try {
       const directory = path.join( rootDirectory, dependencyRepo );
-
-      // TODO: updates are fast, how about we just check the existing SHA in our records? (does this work for release branches?)
       const sha = branchInfo.branch === 'main' ? model.repos[ dependencyRepo ].branches.main.sha : await getDirectorySHA( directory );
       const cacheKey = `${dependencyRepo}@${sha}`;
 
