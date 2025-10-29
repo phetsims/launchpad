@@ -106,6 +106,8 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *
    * TO DO cleanup:
    *  - Clean up code and documentation!!! badly needed. Reorganize
+   *  - Linting
+   *  - TypeScript checks
    *
    * Deferred performance:
    *  - Octokit remote operations (due to worries about rate limits)
