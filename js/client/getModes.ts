@@ -22,6 +22,7 @@ import { queryParameterDocFont, uiHeaderFont } from './theme.js';
 import { UIRichText } from './UIRichText.js';
 import { UISwitch } from './UISwitch.js';
 import { UIAccordionBox } from './UIAccordionBox.js';
+import { clientSleep } from './clientSleep.js';
 
 export type CustomizationNode = Node & { getURL: () => string };
 
@@ -495,7 +496,10 @@ class QueryParametersNode extends UIAccordionBox {
       } )
     ];
 
-    queryParametersPromise.then( queryParameters => {
+    queryParametersPromise.then( async queryParameters => {
+      // Don't synchronously do this!
+      await clientSleep( 15 );
+
       // TODO: order query parameters better (featured or non-default first)
       // TODO: include "unknown" parameters from defaultObject
       this.queryParameterNodes = queryParameters.map( queryParameter => {
