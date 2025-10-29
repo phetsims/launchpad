@@ -80,6 +80,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *    - Perhaps show a list of recently discovered updates --- server-side query list?
    *  - LOG usability (right now seems tricky) - at least test main server-side)
    *  - Modulify - LIVE MODULIFY preferred, but can auto-modulify otherwise
+   *    - Potentially subdirectory for "auto-modulified" versions? (perhaps have a "raw" subdirectory that provides only raw files)
    *  - Unbuilt release branches (they are buggy right now)
    *  - Test on Windows
    *  - Package Lock handling
@@ -103,6 +104,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *  - Profile or check CPU usage for all API requests. But ESPECIALLY INTERNAL ACTIONS
    *  - Add nonce to client.js path?? Allows faster load of large launchpad download?
    *    - Optimize what is in launchpad download. Do profiling to see if that is slowing things down.
+   *  - Remove blocking file reads (or other blocking operations)
    *
    * TO DO cleanup:
    *  - Clean up code and documentation!!! badly needed. Reorganize

@@ -10,8 +10,8 @@ import { TProperty, TReadOnlyProperty } from 'scenerystack/axon';
 import { VBox } from 'scenerystack/scenery';
 import { ListItemNode } from './ListItemNode.js';
 import fuzzysort from 'fuzzysort';
-import { ModeData } from './getModes.js';
 import { ViewContext } from './ViewContext.js';
+import { ModeData } from './modes/mode-types.js';
 
 const WIDTH = 200;
 

@@ -12,7 +12,7 @@ import { BranchInfo, QueryParameter, Repo, RepoListEntry, SHA } from '../types/c
 import moment from 'moment';
 import { copyToClipboard } from './copyToClipboard.js';
 import { ModeListNode } from './ModeListNode.js';
-import { CustomizationNode, getModes } from './getModes.js';
+import { getModes } from './modes/getModes.js';
 import { ViewContext } from './ViewContext.js';
 import { apiBuild, apiBuildEvents, apiUpdate, apiUpdateEvents, getLastCommits, getLatestSHA, getLatestSHAs, getQueryParameters } from './client-api.js';
 import { UIText } from './UIText.js';
@@ -23,6 +23,7 @@ import { UIAccordionBox } from './UIAccordionBox.js';
 import { OutOfDateIcon, UpToDateIcon } from './icons.js';
 import { UIRichText } from './UIRichText.js';
 import { showAdvancedProperty } from './settings.js';
+import { CustomizationNode } from './modes/mode-types.js';
 
 let isStartup = true;
 
@@ -137,7 +138,7 @@ export class BranchNode extends VBox {
               cursor: 'pointer',
               inputListeners: [ openCommitListener ]
             } );
-          } ),
+          } )
         ];
       } )().catch( e => { throw e; } );
 
