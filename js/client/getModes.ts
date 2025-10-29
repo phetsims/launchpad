@@ -387,13 +387,31 @@ class QueryParameterNode extends VBox {
       } ) );
     }
     else if ( queryParameter.validValues ) {
-      // TODO: SET UP the default case, and don't handle if it is ... defaulted?
+      let property: Property<unknown>;
+      if ( queryParameter.defaultValue && queryParameter.validValues.includes( queryParameter.defaultValue ) ) {
+
+        // We don't want to send default values, but we want to have a Property that has them exist for the aqua radio button group
+        property = new Property<unknown>( queryParameter.defaultValue );
+
+        property.link( value => {
+          if ( value === queryParameter.defaultValue ) {
+            this.valueProperty.value = undefined;
+          }
+          else {
+            this.valueProperty.value = value;
+          }
+        } );
+      }
+      else {
+        property = this.valueProperty;
+      }
+
       this.addChild( new VBox( {
         align: 'left',
         spacing: 3,
         children: [
           nameInfoNode,
-          new UIAquaRadioButtonGroup( this.valueProperty as Property<boolean | undefined>, queryParameter.validValues.map( value => {
+          new UIAquaRadioButtonGroup( property, queryParameter.validValues.map( ( value: unknown ) => {
             return {
               value: value,
               createNode: () => new UIText( `${value}` )
@@ -541,6 +559,10 @@ export const getModes = (
 
   const simSpecificWrappers: string[] = supportsPhetio ? ( branchInfo.phetPackageJSON?.[ 'phet-io' ]?.wrappers ?? [] ) : [];
 
+  const nonStudioQueryParametersPromise = queryParametersPromise.then( queryParameters => {
+    return queryParameters.filter( queryParameter => queryParameter.repo !== 'studio' );
+  } );
+
   // `](https://phet-dev.colorado.edu/html/${this.repo}/${versionString}${phetFolder}/${this.repo}_all${phetSuffix}.html)`
 
   // TODO: locale-specific versions perhaps? https://github.com/phetsims/phettest/issues/20
@@ -553,7 +575,7 @@ export const getModes = (
         branchInfo,
         isMainBranch ? `${repoDirectory}/${repo}_en.html` : null,
         hasBuild ? `${repoDirectory}/build${phetFolder}/${repo}_all${phetSuffix}.html` : null,
-        queryParametersPromise,
+        nonStudioQueryParametersPromise,
         viewContext,
         {
           ea: undefined,
@@ -574,7 +596,7 @@ export const getModes = (
         branchInfo,
         isMainBranch ? `${repoDirectory}/${repo}_en.html?ea&brand=phet-io&${phetioStandaloneQueryParameters}&debugger` : null,
         hasBuild ? `${repoDirectory}/build${phetioFolder}/${repo}${phetioSuffix}.html?${phetioStandaloneQueryParameters}` : null,
-        queryParametersPromise,
+        nonStudioQueryParametersPromise,
         viewContext,
 
         // TODO: phetioStandaloneQueryParameters and such
@@ -609,7 +631,7 @@ export const getModes = (
         branchInfo,
         isMainBranch ? `${releaseBranchPrefix}phet-io-wrappers/index/?sim=${repo}&phetioDebug=true&phetioWrapperDebug=true` : null,
         hasBuild ? `${repoDirectory}/build${phetioFolder}/` : null,
-        queryParametersPromise,
+        nonStudioQueryParametersPromise,
         viewContext
       );
     }
@@ -646,7 +668,7 @@ export const getModes = (
         branchInfo,
         isMainBranch ? `${releaseBranchPrefix}chipper/wrappers/a11y-view/?sim=${repo}&brand=phet&ea&debugger` : null,
         hasBuild ? `${repoDirectory}/build${phetFolder}/${repo}_a11y_view.html` : null,
-        queryParametersPromise,
+        nonStudioQueryParametersPromise,
         viewContext
       );
     }

@@ -199,5 +199,17 @@ export const getQueryParameters = async ( repo: Repo, branch: Branch ): Promise<
     throw new Error( `Failed to fetch query parameters: ${repo} ${branch} ${response.status} ${response.statusText}` );
   }
 
-  return ( ( await response.json() ) as { queryParameters: QueryParameter[] } ).queryParameters;
+  return ( ( await response.json() ) as { queryParameters: QueryParameter[] } ).queryParameters.filter( queryParameter => {
+    // Sun query parameters are for the demo
+    if ( queryParameter.repo === 'sun' ) {
+      return false;
+    }
+
+    // Scenery-phet backgroundColor query parameter is for the demo
+    if ( queryParameter.repo === 'scenery-phet' && queryParameter.name === 'backgroundColor' ) {
+      return false;
+    }
+
+    return true;
+  } );
 };
