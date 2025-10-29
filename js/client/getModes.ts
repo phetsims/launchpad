@@ -21,6 +21,7 @@ import { getWrappers } from './client-api.js';
 import { queryParameterDocFont, uiHeaderFont } from './theme.js';
 import { UIRichText } from './UIRichText.js';
 import { UISwitch } from './UISwitch.js';
+import { UIAccordionBox } from './UIAccordionBox.js';
 
 export type CustomizationNode = Node & { getURL: () => string };
 
@@ -456,7 +457,7 @@ class QueryParameterNode extends VBox {
   }
 }
 
-class QueryParametersNode extends VBox {
+class QueryParametersNode extends UIAccordionBox {
   private queryParameterNodes: QueryParameterNode[] = [];
 
   public constructor(
@@ -472,14 +473,9 @@ class QueryParametersNode extends VBox {
       stretch: true
     } );
 
-    super( {
-      align: 'left',
-      spacing: 15,
-      children: [
-        // TODO: accordion box?
-        new UIText( 'Query Parameters' ),
-        queryParameterContainer
-      ]
+    super( queryParameterContainer, {
+      titleNode: new UIText( 'Query Parameters' ),
+      expandedDefaultValue: true
     } );
 
     const waitingNode = new WaitingNode( viewContext );
