@@ -20,7 +20,7 @@ import executeImport from '../../../perennial/js/common/execute.js';
 import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
 import { model, Model, saveModel } from './model.js';
 import { checkClean, ROOT_DIR, useGithubAPI } from './options.js';
-import { getBranchRootDirectory, getDirectoryBranch, getDirectorySHA, getDirectoryTimestampBranch, getPackageJSON, getRepoDirectory, isDirectoryClean } from './util.js';
+import { getBranchRootDirectory, getDirectoryBranch, getDirectorySHA, getDirectoryTimestampBranch, getLocalesForRepo, getPackageJSON, getRepoDirectory, isDirectoryClean } from './util.js';
 import gitCloneDirectory from '../../../perennial/js/common/gitCloneDirectory.js';
 import { npmLimit } from './globals.js';
 import npmUpdateDirectory from '../../../perennial/js/common/npmUpdateDirectory.js';
@@ -461,6 +461,8 @@ export const getQueryParameters = async ( model: Model, branchInfo: ModelBranchI
 
   const queryParameters: QueryParameter[] = [];
 
+  const localesPromise = getLocalesForRepo( branchInfo.repo );
+
   await Promise.all( dependencyRepos.map( async dependencyRepo => {
     try {
       const directory = path.join( rootDirectory, dependencyRepo );
@@ -487,6 +489,8 @@ export const getQueryParameters = async ( model: Model, branchInfo: ModelBranchI
     }
   } ) );
 
+  const locales = await localesPromise;
+
   // TODO: don't use filters (for performance)
 
   queryParameters.sort( ( a, b ) => a.name.localeCompare( b.name ) );
@@ -504,7 +508,7 @@ export const getQueryParameters = async ( model: Model, branchInfo: ModelBranchI
   } );
   queryParameters.filter( queryParameter => queryParameter.name === 'locale' ).forEach( queryParameter => {
     queryParameter.defaultValue = 'en';
-    // TODO: do locale lookup for valid locales?
+    queryParameter.validValues = locales;
   } );
   queryParameters.filter( queryParameter => queryParameter.name === 'supportsDynamicLocale' ).forEach( queryParameter => {
     queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsDynamicLocale ?? false;

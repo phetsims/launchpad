@@ -414,7 +414,7 @@ class QueryParameterNode extends VBox {
           new UIAquaRadioButtonGroup( property, queryParameter.validValues.map( ( value: unknown ) => {
             return {
               value: value,
-              createNode: () => new UIText( `${value}` )
+              createNode: () => new UIText( `${value}${queryParameter.name === 'locale' ? ` (${phet.chipper.localeData[ value ].englishName})` : ''}` )
             };
           } ), { layoutOptions: { leftMargin: 20 } } )
         ]

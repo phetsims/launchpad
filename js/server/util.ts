@@ -24,6 +24,7 @@ import { npmLimit } from './globals.js';
 import getRemoteBranchSHAs from '../../../perennial/js/common/getRemoteBranchSHAs.js';
 import gitPullRebase from '../../../perennial/js/common/gitPullRebase.js';
 import crypto from 'crypto';
+import { logger } from './logging.js';
 
 const execute = executeImport.default;
 const getBuildArguments = getBuildArgumentsImport.default;
@@ -169,4 +170,41 @@ export const getLatestCommits = async ( repo: Repo, branch: Branch, count: numbe
         message: message
       };
     } );
+};
+
+export const getLocalesForRepo = async ( repo: Repo ): Promise<string[]> => {
+  const locales = [ 'en' ];
+
+  try {
+    const babelDir = path.join( ROOT_DIR, 'babel', repo );
+
+    if ( babelDir ) {
+      const fileList = await fsPromises.readdir( babelDir );
+
+      for ( const file of fileList ) {
+        // Better extract the locale with regex
+        const match = file.match( new RegExp( `^${repo}-strings_(.+)\\.json$` ) );
+        if ( match && match[ 1 ] ) {
+          locales.push( match[ 1 ] );
+        }
+      }
+    }
+  }
+  catch( e ) {
+    logger.warn( `Error getting locales for repo ${repo}: ${e}` );
+  }
+
+  locales.sort( ( a, b ) => {
+    if ( a === 'en' && b !== 'en' ) {
+      return -1;
+    }
+    else if ( a !== 'en' && b === 'en' ) {
+      return 1;
+    }
+    else {
+      return a.localeCompare( b );
+    }
+  } );
+
+  return locales;
 };
