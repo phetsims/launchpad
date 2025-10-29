@@ -391,7 +391,7 @@ class QueryParameterNode extends VBox {
       if ( queryParameter.defaultValue && queryParameter.validValues.includes( queryParameter.defaultValue ) ) {
 
         // We don't want to send default values, but we want to have a Property that has them exist for the aqua radio button group
-        property = new Property<unknown>( queryParameter.defaultValue );
+        property = new Property<unknown>( this.valueProperty.value ?? queryParameter.defaultValue );
 
         property.link( value => {
           if ( value === queryParameter.defaultValue ) {
@@ -426,7 +426,10 @@ class QueryParameterNode extends VBox {
 
     this.addChild( new UIRichText( queryParameter.doc.split( '\n' ).map( line => line.trim() ).join( ' ' ), {
       lineWrap: 500, // TODO: we need to adjust to take up the remaining space
-      font: queryParameterDocFont
+      font: queryParameterDocFont,
+      layoutOptions: {
+        leftMargin: 20
+      }
     } ) );
 
     // TODO: more disposal
@@ -446,6 +449,9 @@ class QueryParameterNode extends VBox {
     else if ( this.valueProperty.value !== undefined ) {
       // TODO: anything else besides just.... direct entry?
       obj[ this.queryParameter.name ] = this.valueProperty.value;
+    }
+    else {
+      delete obj[ this.queryParameter.name ];
     }
   }
 }

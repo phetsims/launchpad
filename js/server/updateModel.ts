@@ -487,7 +487,58 @@ export const getQueryParameters = async ( model: Model, branchInfo: ModelBranchI
     }
   } ) );
 
+  // TODO: don't use filters (for performance)
+
   queryParameters.sort( ( a, b ) => a.name.localeCompare( b.name ) );
+
+  // Overrides section (for things we can and should fill in that would be otherwise computed in runtime sim code)
+  queryParameters.filter( queryParameter => queryParameter.name === 'brand' ).forEach( queryParameter => {
+    queryParameter.validValues = [ ...branchInfo.brands, 'adapted-from-phet' ];
+  } );
+  queryParameters.filter( queryParameter => queryParameter.name === 'colorProfiles' ).forEach( queryParameter => {
+    queryParameter.defaultValue = 'default';
+    queryParameter.validValues = branchInfo.phetPackageJSON?.simFeatures?.colorProfiles ?? [ 'default' ];
+  } );
+  queryParameters.filter( queryParameter => queryParameter.name === 'interruptMultitouch' ).forEach( queryParameter => {
+    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.interruptMultitouch ?? false;
+  } );
+  queryParameters.filter( queryParameter => queryParameter.name === 'locale' ).forEach( queryParameter => {
+    queryParameter.defaultValue = 'en';
+    // TODO: do locale lookup for valid locales?
+  } );
+  queryParameters.filter( queryParameter => queryParameter.name === 'supportsDynamicLocale' ).forEach( queryParameter => {
+    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsDynamicLocale ?? false;
+  } );
+  queryParameters.filter( queryParameter => queryParameter.name === 'preventMultitouch' ).forEach( queryParameter => {
+    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.preventMultitouch ?? false;
+  } );
+  queryParameters.filter( queryParameter => queryParameter.name === 'regionAndCulture' ).forEach( queryParameter => {
+    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.defaultRegionAndCulture ?? 'usa';
+  } );
+  queryParameters.filter( queryParameter => queryParameter.name === 'supportsInteractiveDescription' ).forEach( queryParameter => {
+    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsInteractiveDescription ?? false;
+  } );
+  queryParameters.filter( queryParameter => queryParameter.name === 'supportsInteractiveHighlights' ).forEach( queryParameter => {
+    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsInteractiveHighlights ?? branchInfo.phetPackageJSON?.simFeatures?.supportsInteractiveDescription;
+  } );
+  queryParameters.filter( queryParameter => queryParameter.name === 'supportsGestureControl' ).forEach( queryParameter => {
+    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsGestureControl ?? false;
+  } );
+  queryParameters.filter( queryParameter => queryParameter.name === 'supportsVoicing' ).forEach( queryParameter => {
+    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsVoicing ?? false;
+  } );
+  queryParameters.filter( queryParameter => queryParameter.name === 'supportsCoreVoicing' ).forEach( queryParameter => {
+    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsCoreVoicing ?? false;
+  } );
+  queryParameters.filter( queryParameter => queryParameter.name === 'supportsPanAndZoom' ).forEach( queryParameter => {
+    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsPanAndZoom ?? true;
+  } );
+  queryParameters.filter( queryParameter => queryParameter.name === 'supportsSound' ).forEach( queryParameter => {
+    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsSound ?? false;
+  } );
+  queryParameters.filter( queryParameter => queryParameter.name === 'supportsExtraSound' ).forEach( queryParameter => {
+    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsExtraSound ?? false;
+  } );
 
   return queryParameters;
 };

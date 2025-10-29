@@ -79,6 +79,7 @@ export type PackageJSON = {
     };
     supportedBrands?: string[];
     simFeatures?: {
+      supportsGestureControl?: boolean;
       supportsInteractiveDescription?: boolean;
       supportsVoicing?: boolean;
       supportsCoreVoicing?: boolean;
