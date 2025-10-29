@@ -81,8 +81,6 @@ export class BranchNode extends VBox {
 
     const queryParametersPromise: Promise<QueryParameter[]> = branchInfo.isCheckedOut && repoListEntry.isRunnable ? getQueryParameters( branchInfo.repo, branchInfo.branch ) : Promise.resolve( [] );
 
-    queryParametersPromise.then( console.log );
-
     if ( branchInfo.version && branchInfo.brands && repoListEntry.isRunnable ) {
       infoChildren.push( new UIText( `${branchInfo.version} (${branchInfo.brands.join( ', ' )})` ) );
     }
@@ -258,7 +256,7 @@ export class BranchNode extends VBox {
 
     const customizationContainerNode = new Node();
     let customizationNode: CustomizationNode | null = null;
-    const availableModes = getModes( repoListEntry, branchInfo, viewContext );
+    const availableModes = getModes( repoListEntry, branchInfo, queryParametersPromise, viewContext );
 
     // Some logic to select the same mode on startup (load)
     const lastModeName = localStorage.getItem( 'lastModeName' ) ?? null;

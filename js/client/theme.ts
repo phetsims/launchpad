@@ -76,6 +76,11 @@ export const buildOutputFont = new Font( {
   size: 12
 } );
 
+export const queryParameterDocFont = new Font( {
+  family: uiFontFamily,
+  size: 12
+} );
+
 const useFlatButtons = true;
 export const rectangularButtonAppearanceStrategy =
   useFlatButtons ? RectangularButton.FlatAppearanceStrategy : RectangularButton.ThreeDAppearanceStrategy;

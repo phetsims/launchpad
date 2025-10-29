@@ -454,7 +454,7 @@ export const singlePassUpdate = async (
 
 const queryParameterCache: Record<string, QueryParameter[]> = {};
 
-export const getQueryParameters = async ( branchInfo: ModelBranchInfo ): Promise<QueryParameter[]> => {
+export const getQueryParameters = async ( model: Model, branchInfo: ModelBranchInfo ): Promise<QueryParameter[]> => {
   const rootDirectory = getBranchRootDirectory( branchInfo.repo, branchInfo.branch );
 
   const dependencyRepos = branchInfo.dependencyRepos;
@@ -466,7 +466,7 @@ export const getQueryParameters = async ( branchInfo: ModelBranchInfo ): Promise
       const directory = path.join( rootDirectory, dependencyRepo );
 
       // TODO: updates are fast, how about we just check the existing SHA in our records? (does this work for release branches?)
-      const sha = await getDirectorySHA( directory );
+      const sha = branchInfo.branch === 'main' ? model.repos[ dependencyRepo ].branches.main.sha : await getDirectorySHA( directory );
       const cacheKey = `${dependencyRepo}@${sha}`;
 
       if ( queryParameterCache[ cacheKey ] ) {

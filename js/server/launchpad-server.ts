@@ -938,7 +938,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
         return;
       }
 
-      const queryParameters = await getQueryParameters( branchInfo );
+      const queryParameters = await getQueryParameters( model, branchInfo );
 
       res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
       res.send( JSON.stringify( {

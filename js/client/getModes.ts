@@ -6,8 +6,8 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import { BranchInfo, Repo, RepoListEntry } from '../types/common-types.js';
-import { HBox, Node } from 'scenerystack/scenery';
+import { BranchInfo, QueryParameter, Repo, RepoListEntry } from '../types/common-types.js';
+import { HBox, Node, VBox } from 'scenerystack/scenery';
 import { WaitingNode } from './WaitingNode.js';
 import { ViewContext } from './ViewContext.js';
 import { UIText } from './UIText.js';
@@ -18,6 +18,9 @@ import moment from 'moment';
 import { showAdvancedProperty, useBuiltProperty } from './settings.js';
 import { UITextSwitch } from './UITextSwitch.js';
 import { getWrappers } from './client-api.js';
+import { queryParameterDocFont, uiHeaderFont } from './theme.js';
+import { UIRichText } from './UIRichText.js';
+import { UISwitch } from './UISwitch.js';
 
 export type CustomizationNode = Node & { getURL: () => string };
 
@@ -39,16 +42,29 @@ class EmptyCustomizationNode extends Node {
   }
 }
 
-class SimpleUnbuiltBuiltCustomizationNode extends Node {
+class SimpleUnbuiltBuiltCustomizationNode extends VBox {
+  private queryParametersNode: QueryParametersNode | null = null;
+
   public constructor(
+    public readonly repoListEntry: RepoListEntry,
+    public readonly branchInfo: BranchInfo,
     public unbuiltURL: string | null,
-    public builtURL: string | null
+    public builtURL: string | null,
+    public queryParametersPromise: Promise<QueryParameter[]>,
+    viewContext: ViewContext,
+    defaultUnbuiltObject: Record<string, unknown> = {},
+    defaultBuiltObject: Record<string, unknown> = {}
   ) {
-    super();
+    super( {
+      align: 'left',
+      spacing: 15
+    } );
 
     const hasBoth = unbuiltURL !== null && builtURL !== null;
 
-    const textSwitch = new UITextSwitch( hasBoth ? useBuiltProperty : new BooleanProperty( unbuiltURL === null ), 'Use Built Version', {
+    const showBuiltProperty = hasBoth ? useBuiltProperty : new BooleanProperty( unbuiltURL === null );
+
+    const textSwitch = new UITextSwitch( showBuiltProperty, 'Use Built Version', {
       onOffSwitchOptions: {
         enabled: hasBoth
       }
@@ -57,23 +73,61 @@ class SimpleUnbuiltBuiltCustomizationNode extends Node {
     this.addDisposable( textSwitch );
     this.addChild( textSwitch );
 
+    const showBuiltListener = ( built: boolean ) => {
+      if ( this.queryParametersNode ) {
+        this.queryParametersNode.dispose();
+      }
+
+      this.queryParametersNode = new QueryParametersNode( repoListEntry, branchInfo, built ? defaultBuiltObject : defaultUnbuiltObject, queryParametersPromise, viewContext );
+
+      this.addChild( this.queryParametersNode );
+    };
+
+    showBuiltProperty.link( showBuiltListener );
+    this.disposeEmitter.addListener( () => {
+      showBuiltProperty.unlink( showBuiltListener );
+
+      if ( this.queryParametersNode ) {
+        this.queryParametersNode.dispose();
+      }
+    } );
+
     if ( !unbuiltURL && !builtURL ) {
       throw new Error( 'At least one URL must be provided' );
     }
   }
 
   public getURL(): string {
+    let baseURL: string;
     if ( this.unbuiltURL && this.builtURL ) {
-      return useBuiltProperty.value ? this.builtURL : this.unbuiltURL;
+      baseURL = useBuiltProperty.value ? this.builtURL : this.unbuiltURL;
     }
     else if ( this.builtURL ) {
-      return this.builtURL;
+      baseURL = this.builtURL;
     }
     else if ( this.unbuiltURL ) {
-      return this.unbuiltURL;
+      baseURL = this.unbuiltURL;
     }
     else {
       throw new Error( 'No URL available' );
+    }
+
+    const queryParameterObject = this.queryParametersNode!.getQueryParameterObject();
+    const queryParameterStrings = Object.keys( queryParameterObject ).map( key => {
+      const value = queryParameterObject[ key ];
+
+      if ( value === undefined ) {
+        return `${encodeURIComponent( key )}`; // key only (flag)
+      }
+      else {
+        return `${encodeURIComponent( key )}=${encodeURIComponent( `${value}` )}`;
+      }
+    } );
+    if ( queryParameterStrings.length > 0 ) {
+      return `${baseURL}${baseURL.includes( '?' ) ? '&' : '?'}${queryParameterStrings.join( '&' )}`;
+    }
+    else {
+      return baseURL;
     }
   }
 }
@@ -243,9 +297,156 @@ class WrappersNode extends Node {
   }
 }
 
+class PlaceholderQueryParameterNode extends UIText {
+  public constructor(
+    public readonly name: string,
+    public readonly value: unknown
+  ) {
+    // eslint-disable-next-line @typescript-eslint/no-base-to-string
+    super( `${name}${value === undefined ? '' : `=${value}`}` );
+  }
+}
+
+class QueryParameterNode extends VBox {
+  private readonly valueProperty: Property<unknown>;
+
+  public constructor(
+    public readonly queryParameter: QueryParameter,
+    public readonly hasDefaultObjectValue: boolean,
+    public readonly defaultValue: unknown
+  ) {
+    super( {
+      align: 'left',
+      spacing: 3,
+      stretch: true
+    } );
+
+    this.valueProperty = new Property( queryParameter.type === 'flag' ? hasDefaultObjectValue : defaultValue );
+
+    const nameInfoNode = new UIRichText( `${queryParameter.name} <translucent>(${queryParameter.repo} ${queryParameter.type}${
+      queryParameter.private ? ' private' : ''
+    }${
+      queryParameter.public ? ' public' : ''
+    }${
+      queryParameter.validValues ? ` validValues: ${queryParameter.validValues.join( ',' )}` : ''
+    })</translucent>`, {
+      tags: {
+        // TODO: better alignment and such
+        translucent: node => {
+          return new Node( {
+            children: [ node ],
+            scale: 0.7,
+            opacity: 0.6
+          } );
+        }
+      }
+    } );
+
+    // TODO: we could create subclasses for each type
+    if ( queryParameter.type === 'flag' ) {
+      this.addChild( new UISwitch( this.valueProperty as Property<boolean>, queryParameter.name, nameInfoNode ) );
+    }
+    else {
+      this.addChild( nameInfoNode );
+    }
+
+    this.addChild( new UIRichText( queryParameter.doc.split( '\n' ).map( line => line.trim() ).join( ' ' ), {
+      lineWrap: 500, // TODO: we need to adjust to take up the remaining space
+      font: queryParameterDocFont
+    } ) );
+
+    // TODO: more disposal
+
+    this.addDisposable( this.valueProperty );
+  }
+
+  public writeIntoObject( obj: Record<string, unknown> ): void {
+    if ( this.queryParameter.type === 'flag' ) {
+      if ( this.valueProperty.value ) {
+        obj[ this.queryParameter.name ] = undefined;
+      }
+      else {
+        delete obj[ this.queryParameter.name ];
+      }
+    }
+    else if ( this.valueProperty.value !== undefined ) {
+      // TODO: anything else besides just.... direct entry?
+      obj[ this.queryParameter.name ] = this.valueProperty.value;
+    }
+  }
+}
+
+class QueryParametersNode extends VBox {
+  private queryParameterNodes: QueryParameterNode[] = [];
+
+  public constructor(
+    public readonly repoListEntry: RepoListEntry,
+    public readonly branchInfo: BranchInfo,
+    public readonly defaultObject: Record<string, unknown>,
+    public readonly queryParametersPromise: Promise<QueryParameter[]>,
+    viewContext: ViewContext
+  ) {
+    const queryParameterContainer = new VBox( {
+      align: 'left',
+      spacing: 20,
+      stretch: true
+    } );
+
+    super( {
+      align: 'left',
+      spacing: 15,
+      children: [
+        // TODO: accordion box?
+        new UIText( 'Query Parameters' ),
+        queryParameterContainer
+      ]
+    } );
+
+    const waitingNode = new WaitingNode( viewContext );
+
+    this.addDisposable( waitingNode );
+
+    queryParameterContainer.children = [
+      new HBox( {
+        spacing: 10,
+        children: [
+          new UIText( 'Loading query parameters...' ),
+          waitingNode
+        ]
+      } ),
+      ...Object.keys( this.defaultObject ).map( key => {
+        return new PlaceholderQueryParameterNode( key, this.defaultObject[ key ] );
+      } )
+    ];
+
+    queryParametersPromise.then( queryParameters => {
+      // TODO: order query parameters better (featured or non-default first)
+      // TODO: include "unknown" parameters from defaultObject
+      this.queryParameterNodes = queryParameters.map( queryParameter => {
+        const hasDefaultObjectValue = Object.hasOwn( this.defaultObject, queryParameter.name );
+        return new QueryParameterNode( queryParameter, hasDefaultObjectValue, this.defaultObject[ queryParameter.name ] );
+      } );
+      queryParameterContainer.children = this.queryParameterNodes;
+    } ).catch( e => { throw e; } );
+  }
+
+  public getQueryParameterObject(): Record<string, unknown> {
+    const object = {
+      ...this.defaultObject
+    };
+
+    for ( const queryParameterNode of this.queryParameterNodes ) {
+      queryParameterNode.writeIntoObject( object );
+    }
+
+    return object;
+  }
+}
+
 export const getModes = (
   repoListEntry: RepoListEntry,
   branchInfo: BranchInfo,
+  queryParametersPromise: Promise<QueryParameter[]>,
   viewContext: ViewContext
 ): ModeData[] => {
 
@@ -292,8 +493,18 @@ export const getModes = (
     description: 'Runs the PhET-brand simulation',
     createCustomizationNode: () => {
       return new SimpleUnbuiltBuiltCustomizationNode(
-        isMainBranch ? `${repoDirectory}/${repo}_en.html?ea&brand=phet&debugger` : null,
-        hasBuild ? `${repoDirectory}/build${phetFolder}/${repo}_all${phetSuffix}.html` : null
+        repoListEntry,
+        branchInfo,
+        isMainBranch ? `${repoDirectory}/${repo}_en.html` : null,
+        hasBuild ? `${repoDirectory}/build${phetFolder}/${repo}_all${phetSuffix}.html` : null,
+        queryParametersPromise,
+        viewContext,
+        {
+          ea: undefined,
+          brand: 'phet',
+          debugger: undefined
+        },
+        {}
       );
     }
   } );
@@ -303,8 +514,16 @@ export const getModes = (
     description: 'Runs the simulation in phet-io standalone mode',
     createCustomizationNode: () => {
       return new SimpleUnbuiltBuiltCustomizationNode(
+        repoListEntry,
+        branchInfo,
         isMainBranch ? `${repoDirectory}/${repo}_en.html?ea&brand=phet-io&${phetioStandaloneQueryParameters}&debugger` : null,
-        hasBuild ? `${repoDirectory}/build${phetioFolder}/${repo}${phetioSuffix}.html?${phetioStandaloneQueryParameters}` : null
+        hasBuild ? `${repoDirectory}/build${phetioFolder}/${repo}${phetioSuffix}.html?${phetioStandaloneQueryParameters}` : null,
+        queryParametersPromise,
+        viewContext,
+
+        // TODO: phetioStandaloneQueryParameters and such
+        {},
+        {}
       );
     }
   } );
@@ -314,9 +533,13 @@ export const getModes = (
     description: `Runs the simulation in ${studioNameBeautified}`,
     createCustomizationNode: () => {
       return new SimpleUnbuiltBuiltCustomizationNode(
+        repoListEntry,
+        branchInfo,
         // TODO: likely this URL won't work for older cases https://github.com/phetsims/phettest/issues/20
         isMainBranch ? `${releaseBranchPrefix}studio/?sim=${repo}&phetioWrapperDebug=true&phetioElementsDisplay=all` : null,
-        hasBuild ? `${repoDirectory}/build${phetioFolder}/wrappers/${studioName}${studioPathSuffix}` : null
+        hasBuild ? `${repoDirectory}/build${phetioFolder}/wrappers/${studioName}${studioPathSuffix}` : null,
+        queryParametersPromise,
+        viewContext
       );
     }
   } );
@@ -326,8 +549,12 @@ export const getModes = (
     description: 'Runs the phet-io wrapper index',
     createCustomizationNode: () => {
       return new SimpleUnbuiltBuiltCustomizationNode(
+        repoListEntry,
+        branchInfo,
         isMainBranch ? `${releaseBranchPrefix}phet-io-wrappers/index/?sim=${repo}&phetioDebug=true&phetioWrapperDebug=true` : null,
-        hasBuild ? `${repoDirectory}/build${phetioFolder}/` : null
+        hasBuild ? `${repoDirectory}/build${phetioFolder}/` : null,
+        queryParametersPromise,
+        viewContext
       );
     }
   } );
@@ -359,8 +586,12 @@ export const getModes = (
     description: 'Runs the simulation in an iframe next to a copy of the PDOM to easily inspect accessible content',
     createCustomizationNode: () => {
       return new SimpleUnbuiltBuiltCustomizationNode(
+        repoListEntry,
+        branchInfo,
         isMainBranch ? `${releaseBranchPrefix}chipper/wrappers/a11y-view/?sim=${repo}&brand=phet&ea&debugger` : null,
-        hasBuild ? `${repoDirectory}/build${phetFolder}/${repo}_a11y_view.html` : null
+        hasBuild ? `${repoDirectory}/build${phetFolder}/${repo}_a11y_view.html` : null,
+        queryParametersPromise,
+        viewContext
       );
     }
   } );

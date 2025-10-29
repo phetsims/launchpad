@@ -15,6 +15,8 @@ import { uiButtonBaseColorProperty, uiButtonDisabledColorProperty } from './them
 
 type SelfOptions = {
   onOffSwitchOptions?: OnOffSwitchOptions;
+
+  reversedColors?: boolean;
 };
 
 export type UISwitchOptions = SelfOptions & HBoxOptions;
@@ -37,10 +39,17 @@ export class UISwitch extends HBox {
           accessibleName: name
         },
 
+        reversedColors: false,
+
         spacing: 10
       },
       providedOptions
     );
+
+    if ( options.reversedColors ) {
+      options.onOffSwitchOptions.trackFillLeft = uiButtonBaseColorProperty;
+      options.onOffSwitchOptions.trackFillRight = uiButtonDisabledColorProperty;
+    }
 
     const onOffSwitch = new OnOffSwitch( property, options.onOffSwitchOptions );
 
