@@ -25,6 +25,7 @@ import { recomputeNodeModules, singlePassUpdate, updateModel, updateModelBranchI
 import { bundleFile, transpileTS } from './bundling.js';
 import sleep from '../../../perennial/js/common/sleep.js';
 import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, logger, removeLogCallback } from './logging.js';
+import getRepoList from '../../../perennial/js/common/getRepoList.js';
 
 const ReleaseBranch = ReleaseBranchImport.default;
 
@@ -35,13 +36,18 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *
    * TO DO features:
    *  - Write out power-user features in Settings UI (or an info button) (have a pop-up for it?)
+   *  - BUILT wrappers (for the "wrappers" list)
+   *    - THEN remove the "index" since it would be the default wrapper
    *  -- Wrapper index as "wrappers" -- but then radio button to select other wrappers
+   *  -- Power shortcut for build/no-build
+   *    - Perhaps we should default to non-built
    *  - Query Parameters!
    *    - Include sim-specific query parameters --- auto-scan all files?
    *    - Query parameters: do we scan ALL locations (for dependencies) for query parameters? (initialize-globals, and *QueryParameters?)
    *      -- HAVE a search box for query parameters!
    *      -- BUILD: SHOW whether the sim SHOULD be up-to-date (note that doesn't include babel, so allow builds even if it looks up-to-date)
    *    - Include (and detect) locale query parameter translated locales
+   *    - Wrappers query parameters
    *  - TOASTS for when repos are updated (perhaps show commit info too) --- i.e. popups that show live updates
    *    - Perhaps show a list of recently discovered updates --- server-side query list?
    *  - LOG usability (right now seems tricky) - at least test main server-side)
@@ -895,6 +901,19 @@ const ReleaseBranch = ReleaseBranchImport.default;
     }
     catch( e ) {
       console.error( `Error in /api/last-commits: ${e}` );
+      next( e );
+    }
+  } );
+
+  app.get( '/api/wrappers', async ( req: Request, res: Response, next: NextFunction ) => {
+    try {
+      res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
+      res.send( JSON.stringify( {
+        wrappers: getRepoList( 'wrappers' )
+      } ) );
+    }
+    catch( e ) {
+      console.error( `Error in /api/wrappers: ${e}` );
       next( e );
     }
   } );

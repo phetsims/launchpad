@@ -181,3 +181,13 @@ export const getLastCommits = async ( repo: Repo, branch: Branch ): Promise<Comm
 
   return ( ( await response.json() ) as { commits: Commit[] } ).commits;
 };
+
+export const getWrappers = async (): Promise<string[]> => {
+  const response = await fetch( 'api/wrappers' );
+
+  if ( !response.ok ) {
+    throw new Error( `Failed to fetch wrappers: ${response.status} ${response.statusText}` );
+  }
+
+  return ( ( await response.json() ) as { wrappers: string[] } ).wrappers;
+};

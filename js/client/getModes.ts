@@ -17,6 +17,7 @@ import { BooleanProperty, Property } from 'scenerystack/axon';
 import moment from 'moment';
 import { showAdvancedProperty, useBuiltProperty } from './settings.js';
 import { UITextSwitch } from './UITextSwitch.js';
+import { getWrappers } from './client-api.js';
 
 export type CustomizationNode = Node & { getURL: () => string };
 
@@ -161,6 +162,87 @@ class DevCustomizationNode extends VersionListingCustomizationNode {
   }
 }
 
+class WrappersNode extends Node {
+  private readonly wrapperProperty = new Property( 'phet-io-wrappers/index' );
+
+  public constructor(
+    public readonly repo: Repo,
+    public readonly simSpecificWrappers: string[],
+    private readonly releaseBranchPrefix: string,
+    viewContext: ViewContext
+  ) {
+    super();
+
+    const waitingNode = new WaitingNode( viewContext );
+
+    this.addDisposable( waitingNode );
+
+    this.children = [ new HBox( {
+      spacing: 10,
+      children: [
+        new UIText( 'Loading wrappers...' ),
+        waitingNode
+      ]
+    } ) ];
+
+    ( async () => {
+      const wrappers = [
+        ...( await getWrappers() ),
+        ...simSpecificWrappers
+      ];
+
+      // this.wrapperProperty.value = wrappers.find( wrapper => getWrapperName( wrapper ) === 'index' )!;
+      // console.log( this.wrapperProperty.value );
+
+      wrappers.sort( ( a, b ) => {
+        const aIndex = getWrapperName( a ) === 'index';
+        const bIndex = getWrapperName( b ) === 'index';
+        if ( aIndex && !bIndex ) {
+          return -1;
+        }
+        else if ( bIndex && !aIndex ) {
+          return 1;
+        }
+        return a.localeCompare( b );
+      } );
+
+      this.children = [
+        new UIAquaRadioButtonGroup( this.wrapperProperty, wrappers.map( wrapper => {
+          return {
+            value: wrapper,
+            createNode: () => new UIText( getWrapperName( wrapper ) )
+          };
+        } ) )
+      ];
+    } )().catch( e => { throw e; } );
+  }
+
+  public getURL(): string {
+    const wrapper = this.wrapperProperty.value;
+    const wrapperName = getWrapperName( wrapper );
+    let url: string;
+
+    // Process for dedicated wrapper repos
+    if ( wrapper.startsWith( 'phet-io-wrapper-' ) ) {
+
+      // Special use case for the sonification wrapper
+      url = wrapperName === 'sonification' ? `${this.releaseBranchPrefix}phet-io-wrapper-${wrapperName}/${this.repo}-sonification.html?sim=${this.repo}` :
+            `${this.releaseBranchPrefix}${wrapper}/?sim=${this.repo}`;
+    }
+    // Load the wrapper urls for the phet-io-wrappers/
+    else {
+      url = `${this.releaseBranchPrefix}${wrapper}/?sim=${this.repo}`;
+    }
+
+    // add recording to the console by default
+    if ( wrapper === 'phet-io-wrappers/record' ) {
+      url += '&console';
+    }
+
+    return url;
+  }
+}
+
 export const getModes = (
   repoListEntry: RepoListEntry,
   branchInfo: BranchInfo,
@@ -199,6 +281,8 @@ export const getModes = (
   // const phetioBrandSuffix = usesChipper2 ? '' : '-phetio';
   const studioPathSuffix = branchInfo.usesPhetioStudioIndex ? '/' : `/${studioName}.html?sim=${branchInfo.repo}&${proxiesParams}`;
   // const phetioDevVersion = usesChipper2 ? versionString : versionString.split( '-' ).join( '-phetio' );
+
+  const simSpecificWrappers: string[] = supportsPhetio ? ( branchInfo.phetPackageJSON?.[ 'phet-io' ]?.wrappers ?? [] ) : [];
 
   // `](https://phet-dev.colorado.edu/html/${this.repo}/${versionString}${phetFolder}/${this.repo}_all${phetSuffix}.html)`
 
@@ -244,6 +328,20 @@ export const getModes = (
       return new SimpleUnbuiltBuiltCustomizationNode(
         isMainBranch ? `${releaseBranchPrefix}phet-io-wrappers/index/?sim=${repo}&phetioDebug=true&phetioWrapperDebug=true` : null,
         hasBuild ? `${repoDirectory}/build${phetioFolder}/` : null
+      );
+    }
+  } );
+
+  isRunnable && isCheckedOut && supportsPhetio && isMainBranch && modes.push( {
+    name: 'wrappers',
+    description: 'Runs phet-io wrappers',
+    createCustomizationNode: () => {
+      return new WrappersNode(
+        repo,
+        simSpecificWrappers,
+        releaseBranchPrefix,
+        // TODO: will need to put other things in here to determine the URLs to use (also ... support built forms)
+        viewContext
       );
     }
   } );
@@ -441,4 +539,22 @@ export const getModes = (
   } );
 
   return modes;
+};
+
+/**
+ * From the wrapper path in perennial-alias/data/wrappers, get the name of the wrapper.
+ */
+export const getWrapperName = ( wrapper: string ): string => {
+
+  // If the wrapper has its own individual repo, then get the name 'classroom-activity' from 'phet-io-wrapper-classroom-activity'
+  // Maintain compatibility for wrappers in 'phet-io-wrappers-'
+  const wrapperParts = wrapper.split( 'phet-io-wrapper-' );
+  const wrapperName = wrapperParts.length > 1 ?
+                      wrapperParts[ 1 ] :
+                      wrapper.startsWith( 'phet-io-sim-specific' ) ? wrapper.split( '/' )[ wrapper.split( '/' ).length - 1 ]
+                                                                   : wrapper;
+
+  // If the wrapper still has slashes in it, then it looks like 'phet-io-wrappers/active'
+  const splitOnSlash = wrapperName.split( '/' );
+  return splitOnSlash[ splitOnSlash.length - 1 ];
 };

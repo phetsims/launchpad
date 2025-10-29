@@ -32,7 +32,7 @@ export type ModelBranchInfo = {
   branch: Branch;
 
   version: string | null;
-  phetPackageJSON: unknown | null;
+  phetPackageJSON: PackageJSON[ 'phet' ] | null;
   brands: string[];
   isReleased: boolean;
   dependencyRepos: Repo[];
@@ -74,7 +74,9 @@ export type PackageJSON = {
     generatedUnitTests?: boolean;
     supportsOutputJS?: boolean;
     requireJSNamespace?: string;
-    'phet-io'?: Record<string, any>;
+    'phet-io'?: {
+      wrappers?: string[];
+    };
     supportedBrands?: string[];
     simFeatures?: {
       supportsInteractiveDescription?: boolean;
