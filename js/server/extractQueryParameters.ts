@@ -10,7 +10,7 @@ import os from 'os';
 import ts from 'typescript';
 // eslint-disable-next-line phet/default-import-match-filename
 import fsPromises from 'fs/promises';
-import { Branch, QueryParameter, QueryParameterType, Repo } from '../types/common-types.js';
+import { QueryParameter, QueryParameterType, Repo } from '../types/common-types.js';
 import { logger } from './logging.js';
 // eslint-disable-next-line phet/default-import-match-filename
 import executeImport from '../../../perennial/js/common/execute.js';
@@ -65,14 +65,19 @@ export const logIndent = ( node: ts.Node, indentLevel: number ): void => {
 export const extractQueryParameters = async ( repo: Repo, directory: string ): Promise<QueryParameter[]> => {
   const queryParameters: QueryParameter[] = [];
 
+  // Some repos we will just abort out, because they have many places
+  if ( [ 'aqua', 'interaction-dashboard' ].includes( repo ) ) {
+    return [];
+  }
+
   const potentialFiles = ( await execute( 'grep', [ '-Rsl', 'QueryStringMachine.getAll(', 'js' ], directory, {
     errors: 'resolve'
   } ) ).stdout.split( os.EOL ).map( line => line.trim() ).filter( line => line.length > 0 );
 
-  console.log( potentialFiles );
+  for ( const file of potentialFiles ) {
+    logger.debug( `Scanning ${directory}/${file} for query parameters` );
 
-  if ( repo === 'chipper' ) {
-    const sourcePath = `${directory}/js/browser/initialize-globals.js`;
+    const sourcePath = `${directory}/${file}`;
     const sourceCode = await fsPromises.readFile( sourcePath, 'utf-8' );
 
     const sourceAST = ts.createSourceFile(
@@ -83,28 +88,65 @@ export const extractQueryParameters = async ( repo: Repo, directory: string ): P
     );
 
     const mainChildren = sourceAST.getChildren()[ 0 ].getChildren();
-    const topExpression = mainChildren[ 0 ] as ts.ExpressionStatement;
-    const topParenthesized = topExpression.expression as ts.ParenthesizedExpression;
-    const topCall = topParenthesized.expression as ts.CallExpression;
-    const topFunction = topCall.expression as ts.FunctionExpression;
-    const topStatements = topFunction.body.statements;
-    const topVariableStatements = topStatements.filter( node => ts.isVariableStatement( node ) );
-    const topVariableDeclarations = topVariableStatements.flatMap( node => node.declarationList.declarations );
-    const matchingDeclaration = topVariableDeclarations.find( declaration => {
-      return ts.isIdentifier( declaration.name ) && declaration.name.text === 'QUERY_PARAMETERS_SCHEMA';
-    } )!;
-    const objectLiteral = matchingDeclaration.initializer as ts.ObjectLiteralExpression;
+
+    const topLevelAssign = mainChildren.find( node => {
+      return ts.isVariableStatement( node ) &&
+             node.declarationList.declarations[ 0 ].initializer &&
+             ts.isCallExpression( node.declarationList.declarations[ 0 ].initializer ) &&
+             node.declarationList.declarations[ 0 ].initializer.expression.getText() === 'QueryStringMachine.getAll' &&
+             ts.isObjectLiteralExpression( node.declarationList.declarations[ 0 ].initializer.arguments[ 0 ] );
+    } );
+
+    let objectLiteral: ts.ObjectLiteralExpression;
+    if ( topLevelAssign ) {
+      objectLiteral = ( ( topLevelAssign as ts.VariableStatement ).declarationList.declarations[ 0 ].initializer as ts.CallExpression ).arguments[ 0 ] as ts.ObjectLiteralExpression;
+    }
+    else {
+      const topExpression = mainChildren[ 0 ] as ts.ExpressionStatement;
+      const topParenthesized = topExpression.expression as ts.ParenthesizedExpression;
+      const topCall = topParenthesized.expression as ts.CallExpression;
+      const topFunction = topCall.expression as ts.FunctionExpression;
+      const topStatements = topFunction.body.statements;
+      const topVariableStatements = topStatements.filter( node => ts.isVariableStatement( node ) );
+      const topVariableDeclarations = topVariableStatements.flatMap( node => node.declarationList.declarations );
+      const matchingDeclaration = topVariableDeclarations.find( declaration => {
+        return ts.isIdentifier( declaration.name ) && declaration.name.text === 'QUERY_PARAMETERS_SCHEMA';
+      } )!;
+      objectLiteral = matchingDeclaration.initializer as ts.ObjectLiteralExpression;
+    }
+
     const propertyAssignments = objectLiteral.properties.filter( node => ts.isPropertyAssignment( node ) );
 
     for ( const propertyAssignment of propertyAssignments ) {
+      const name = ( propertyAssignment.name as ts.Identifier ).text;
+      const doc = getLeadingComments( sourceCode, propertyAssignment ).map( cleanupComment ).join( os.EOL );
+
+      // Handle things like getGameLevelsSchema
+      if ( ts.isCallExpression( propertyAssignment.initializer ) ) {
+        const expressionText = propertyAssignment.initializer.expression.getText();
+
+        if ( expressionText === 'getGameLevelsSchema' ) {
+          queryParameters.push( {
+            name: name,
+            doc: doc,
+            type: 'array',
+            public: true,
+            elementSchema: { type: 'number' },
+            repo: repo
+          } );
+          continue;
+        }
+
+        logger.warn( `Unhandled call expression for query param initializer: ${repo} ${name} ${expressionText}` );
+        continue;
+      }
+
       const subPropertyAssignments = ( propertyAssignment.initializer as ts.ObjectLiteralExpression ).properties.filter( node => ts.isPropertyAssignment( node ) );
       const typeAssignment = subPropertyAssignments.find( subPropertyAssignment => {
         const subName = ( subPropertyAssignment.name as ts.Identifier ).text;
         return subName === 'type';
       } )!;
 
-      const name = ( propertyAssignment.name as ts.Identifier ).text;
-      const doc = getLeadingComments( sourceCode, propertyAssignment ).map( cleanupComment ).join( os.EOL );
       const type = ( typeAssignment.initializer as ts.StringLiteral ).text;
 
       const queryParameter: QueryParameter = {

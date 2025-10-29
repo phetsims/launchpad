@@ -12,7 +12,7 @@ import getActiveRepos from '../../../perennial/js/common/getActiveRepos.js';
 import getActiveRunnables from '../../../perennial/js/common/getActiveRunnables.js';
 import getActiveSceneryStackRepos from '../../../perennial/js/common/getActiveSceneryStackRepos.js';
 import tsxCommand from '../../../perennial/js/common/tsxCommand.js';
-import type { ModelBranchInfo, Repo } from '../types/common-types.js';
+import type { ModelBranchInfo, QueryParameter, Repo } from '../types/common-types.js';
 import pLimit from 'p-limit';
 // eslint-disable-next-line phet/default-import-match-filename
 import executeImport from '../../../perennial/js/common/execute.js';
@@ -20,13 +20,14 @@ import executeImport from '../../../perennial/js/common/execute.js';
 import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
 import { model, Model, saveModel } from './model.js';
 import { checkClean, ROOT_DIR, useGithubAPI } from './options.js';
-import { getDirectoryBranch, getDirectorySHA, getDirectoryTimestampBranch, getPackageJSON, getRepoDirectory, isDirectoryClean } from './util.js';
+import { getBranchRootDirectory, getDirectoryBranch, getDirectorySHA, getDirectoryTimestampBranch, getPackageJSON, getRepoDirectory, isDirectoryClean } from './util.js';
 import gitCloneDirectory from '../../../perennial/js/common/gitCloneDirectory.js';
 import { npmLimit } from './globals.js';
 import npmUpdateDirectory from '../../../perennial/js/common/npmUpdateDirectory.js';
 import getRemoteBranchSHAs from '../../../perennial/js/common/getRemoteBranchSHAs.js';
 import { githubGetLatestBranchSHA } from './github-api.js';
 import { logger } from './logging.js';
+import { extractQueryParameters } from './extractQueryParameters.js';
 
 const execute = executeImport.default;
 const ReleaseBranch = ReleaseBranchImport.default;
@@ -449,4 +450,37 @@ export const singlePassUpdate = async (
       logger.error( `error during singlePassUpdate for ${repo}: ${e}` );
     }
   } ) ) );
+};
+
+const queryParameterCache: Record<string, QueryParameter[]> = {};
+
+export const getQueryParameters = async ( branchInfo: ModelBranchInfo ): Promise<QueryParameter[]> => {
+  const rootDirectory = getBranchRootDirectory( branchInfo.repo, branchInfo.branch );
+
+  const dependencyRepos = branchInfo.dependencyRepos;
+
+  const queryParameters: QueryParameter[] = [];
+
+  await Promise.all( dependencyRepos.map( async dependencyRepo => {
+    try {
+      const directory = path.join( rootDirectory, dependencyRepo );
+
+      const sha = await getDirectorySHA( directory );
+      const cacheKey = `${dependencyRepo}@${sha}`;
+
+      if ( queryParameterCache[ cacheKey ] ) {
+        queryParameters.push( ...queryParameterCache[ cacheKey ] );
+      }
+      else {
+        queryParameters.push( ...( await extractQueryParameters( branchInfo.repo, directory ) ) );
+      }
+    }
+    catch( e ) {
+      logger.warn( `unable to get query parameters for dependency ${dependencyRepo} of ${branchInfo.repo} ${branchInfo.branch}: ${e}` );
+    }
+  } ) );
+
+  queryParameters.sort( ( a, b ) => a.name.localeCompare( b.name ) );
+
+  return queryParameters;
 };

@@ -37,6 +37,15 @@ export const getRepoDirectory = ( repo: Repo, branch: Branch ): string => {
   }
 };
 
+export const getBranchRootDirectory = ( repo: Repo, branch: Branch ): string => {
+  if ( branch === 'main' ) {
+    return path.join( ROOT_DIR );
+  }
+  else {
+    return path.join( ROOT_DIR, 'release-branches', `${repo}-${branch}` );
+  }
+};
+
 export const getPackageJSON = async ( directory: string ): Promise<PackageJSON | null> => {
   const packageJSONFile = path.join( directory, 'package.json' );
 

@@ -21,14 +21,11 @@ import { config } from './config.js';
 import { model, saveModel } from './model.js';
 import { autoBuild, autoUpdate, numAutoBuildThreads, port, ROOT_DIR } from './options.js';
 import { buildMain, buildReleaseBranch, getLatestCommits, getLatestSHA, getNPMHash, updateMain, updateReleaseBranchCheckout } from './util.js';
-import { recomputeNodeModules, singlePassUpdate, updateModel, updateModelBranchInfo, updateNodeModules } from './updateModel.js';
+import { getQueryParameters, recomputeNodeModules, singlePassUpdate, updateModel, updateModelBranchInfo, updateNodeModules } from './updateModel.js';
 import { bundleFile, transpileTS } from './bundling.js';
 import sleep from '../../../perennial/js/common/sleep.js';
 import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, logger, removeLogCallback } from './logging.js';
 import getRepoList from '../../../perennial/js/common/getRepoList.js';
-import { extractQueryParameters } from './extractQueryParameters.js';
-
-await extractQueryParameters( 'chipper', '../chipper' );
 
 const ReleaseBranch = ReleaseBranchImport.default;
 
@@ -917,6 +914,39 @@ const ReleaseBranch = ReleaseBranchImport.default;
     }
     catch( e ) {
       console.error( `Error in /api/wrappers: ${e}` );
+      next( e );
+    }
+  } );
+
+  app.get( '/api/query-parameters/:repo/:branch', async ( req: Request, res: Response, next: NextFunction ) => {
+    try {
+      const repo = req.params.repo;
+      const branch = req.params.branch;
+
+      if ( !model.repos[ repo ] ) {
+        res.status( 404 ).send( 'Unknown repo' ); // NOTE: not returning the string just to minimize XSS possibilities
+        return;
+      }
+      else if ( !model.repos[ repo ].branches[ branch ] ) {
+        res.status( 404 ).send( 'Unknown branch' ); // NOTE: not returning the string just to minimize XSS possibilities
+        return;
+      }
+
+      const branchInfo = model.repos[ repo ]?.branches[ branch ];
+      if ( !branchInfo ) {
+        res.status( 404 ).send( 'Unknown repo/branch' ); // NOTE: not returning the string just to minimize XSS possibilities
+        return;
+      }
+
+      const queryParameters = await getQueryParameters( branchInfo );
+
+      res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
+      res.send( JSON.stringify( {
+        queryParameters: queryParameters
+      } ) );
+    }
+    catch( e ) {
+      console.error( `Error in /api/query-parameters: ${e}` );
       next( e );
     }
   } );
