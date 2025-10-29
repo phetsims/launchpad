@@ -465,16 +465,20 @@ export const getQueryParameters = async ( branchInfo: ModelBranchInfo ): Promise
     try {
       const directory = path.join( rootDirectory, dependencyRepo );
 
+      // TODO: updates are fast, how about we just check the existing SHA in our records? (does this work for release branches?)
       const sha = await getDirectorySHA( directory );
       const cacheKey = `${dependencyRepo}@${sha}`;
 
       if ( queryParameterCache[ cacheKey ] ) {
+        logger.debug( `using cached query parameters for ${cacheKey}` );
         queryParameters.push( ...queryParameterCache[ cacheKey ] );
       }
       else {
+        logger.debug( `extracting query parameters for ${cacheKey}` );
         const repoQueryParameters = await extractQueryParameters( dependencyRepo, directory );
         queryParameters.push( ...repoQueryParameters );
 
+        // eslint-disable-next-line require-atomic-updates
         queryParameterCache[ cacheKey ] = repoQueryParameters;
       }
     }
