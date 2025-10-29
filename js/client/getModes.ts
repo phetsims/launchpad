@@ -346,6 +346,62 @@ class QueryParameterNode extends VBox {
     if ( queryParameter.type === 'flag' ) {
       this.addChild( new UISwitch( this.valueProperty as Property<boolean>, queryParameter.name, nameInfoNode ) );
     }
+    else if ( queryParameter.type === 'boolean' && typeof queryParameter.defaultValue === 'boolean' ) {
+      const isTrueProperty = new BooleanProperty( hasDefaultObjectValue ? defaultValue as boolean : queryParameter.defaultValue );
+
+      this.addChild( new UISwitch( isTrueProperty, queryParameter.name, nameInfoNode, {
+        // TODO: consider color reversal
+        // reversedColors: !!queryParameter.defaultValue
+      } ) );
+
+      isTrueProperty.link( isTrue => {
+        if ( isTrue !== queryParameter.defaultValue ) {
+          this.valueProperty.value = isTrue;
+        }
+        else {
+          this.valueProperty.value = undefined;
+        }
+      } );
+    }
+    else if ( queryParameter.type === 'boolean' && queryParameter.defaultValue === undefined ) {
+      this.addChild( new VBox( {
+        align: 'left',
+        spacing: 3,
+        children: [
+          nameInfoNode,
+          new UIAquaRadioButtonGroup( this.valueProperty as Property<boolean | undefined>, [
+            {
+              value: undefined,
+              createNode: () => new UIText( 'default (undefined)' )
+            },
+            {
+              value: true,
+              createNode: () => new UIText( 'true' )
+            },
+            {
+              value: false,
+              createNode: () => new UIText( 'false' )
+            }
+          ], { layoutOptions: { leftMargin: 20 } } )
+        ]
+      } ) );
+    }
+    else if ( queryParameter.validValues ) {
+      // TODO: SET UP the default case, and don't handle if it is ... defaulted?
+      this.addChild( new VBox( {
+        align: 'left',
+        spacing: 3,
+        children: [
+          nameInfoNode,
+          new UIAquaRadioButtonGroup( this.valueProperty as Property<boolean | undefined>, queryParameter.validValues.map( value => {
+            return {
+              value: value,
+              createNode: () => new UIText( `${value}` )
+            };
+          } ), { layoutOptions: { leftMargin: 20 } } )
+        ]
+      } ) );
+    }
     else {
       this.addChild( nameInfoNode );
     }
