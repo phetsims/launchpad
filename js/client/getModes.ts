@@ -321,14 +321,14 @@ class QueryParameterNode extends VBox {
       stretch: true
     } );
 
+    // TODO: overrides!!!! (because we can compute things based on packageJSON, etc.)
+
     this.valueProperty = new Property( queryParameter.type === 'flag' ? hasDefaultObjectValue : defaultValue );
 
     const nameInfoNode = new UIRichText( `${queryParameter.name} <translucent>(${queryParameter.repo} ${queryParameter.type}${
       queryParameter.private ? ' private' : ''
     }${
       queryParameter.public ? ' public' : ''
-    }${
-      queryParameter.validValues ? ` validValues: ${queryParameter.validValues.join( ',' )}` : ''
     })</translucent>`, {
       tags: {
         // TODO: better alignment and such
