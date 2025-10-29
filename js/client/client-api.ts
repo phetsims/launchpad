@@ -6,7 +6,7 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import { Branch, BranchInfo, Commit, LogEvent, Repo, RepoList, SHA } from '../types/common-types.js';
+import { Branch, BranchInfo, Commit, LogEvent, QueryParameter, Repo, RepoList, SHA } from '../types/common-types.js';
 
 export const apiGetRepoList = async (): Promise<RepoList> => {
   const response = await fetch( 'api/repo-list' );
@@ -190,4 +190,14 @@ export const getWrappers = async (): Promise<string[]> => {
   }
 
   return ( ( await response.json() ) as { wrappers: string[] } ).wrappers;
+};
+
+export const getQueryParameters = async ( repo: Repo, branch: Branch ): Promise<QueryParameter[]> => {
+  const response = await fetch( `api/query-parameters/${repo}/${branch}` );
+
+  if ( !response.ok ) {
+    throw new Error( `Failed to fetch query parameters: ${repo} ${branch} ${response.status} ${response.statusText}` );
+  }
+
+  return ( ( await response.json() ) as { queryParameters: QueryParameter[] } ).queryParameters;
 };

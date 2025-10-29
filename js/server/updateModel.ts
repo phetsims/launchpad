@@ -472,7 +472,7 @@ export const getQueryParameters = async ( branchInfo: ModelBranchInfo ): Promise
         queryParameters.push( ...queryParameterCache[ cacheKey ] );
       }
       else {
-        queryParameters.push( ...( await extractQueryParameters( branchInfo.repo, directory ) ) );
+        queryParameters.push( ...( await extractQueryParameters( dependencyRepo, directory ) ) );
       }
     }
     catch( e ) {

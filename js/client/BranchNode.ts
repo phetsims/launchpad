@@ -8,13 +8,13 @@
 
 import { Property, TinyEmitter, TReadOnlyProperty } from 'scenerystack/axon';
 import { FireListener, GridBox, HBox, HSeparator, Node, VBox } from 'scenerystack/scenery';
-import { BranchInfo, Repo, RepoListEntry, SHA } from '../types/common-types.js';
+import { BranchInfo, QueryParameter, Repo, RepoListEntry, SHA } from '../types/common-types.js';
 import moment from 'moment';
 import { copyToClipboard } from './copyToClipboard.js';
 import { ModeListNode } from './ModeListNode.js';
 import { CustomizationNode, getModes } from './getModes.js';
 import { ViewContext } from './ViewContext.js';
-import { apiBuild, apiBuildEvents, apiUpdate, apiUpdateEvents, getLastCommits, getLatestSHA, getLatestSHAs } from './client-api.js';
+import { apiBuild, apiBuildEvents, apiUpdate, apiUpdateEvents, getLastCommits, getLatestSHA, getLatestSHAs, getQueryParameters } from './client-api.js';
 import { UIText } from './UIText.js';
 import { UITextPushButton } from './UITextPushButton.js';
 import { buildOutputFont, linkColorProperty, uiHeaderFont } from './theme.js';
@@ -78,6 +78,10 @@ export class BranchNode extends VBox {
 
       return allUpToDate;
     } );
+
+    const queryParametersPromise: Promise<QueryParameter[]> = branchInfo.isCheckedOut && repoListEntry.isRunnable ? getQueryParameters( branchInfo.repo, branchInfo.branch ) : Promise.resolve( [] );
+
+    queryParametersPromise.then( console.log );
 
     if ( branchInfo.version && branchInfo.brands && repoListEntry.isRunnable ) {
       infoChildren.push( new UIText( `${branchInfo.version} (${branchInfo.brands.join( ', ' )})` ) );

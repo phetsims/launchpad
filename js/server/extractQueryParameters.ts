@@ -66,7 +66,7 @@ export const extractQueryParameters = async ( repo: Repo, directory: string ): P
   const queryParameters: QueryParameter[] = [];
 
   // Some repos we will just abort out, because they have many places
-  if ( [ 'aqua', 'interaction-dashboard' ].includes( repo ) ) {
+  if ( [ 'aqua', 'interaction-dashboard', 'phet-io-wrappers' ].includes( repo ) ) {
     return [];
   }
 
