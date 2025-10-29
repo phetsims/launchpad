@@ -77,8 +77,10 @@ logger.on( 'data', info => {
 } );
 
 // also try to hit the default logger
-// TODO: why did winston switch from "Console" to "console"??? --- npm update seemed to break it.
+// NOTE: why did winston switch from "Console" to "console"??? --- npm update seemed to break it.
+// @ts-expect-error This seems like the working "console", but it is typed incorrectly from how it is working
 if ( perennialWinston.default.transports.console ) {
+  // @ts-expect-error This seems like the working "console", but it is typed incorrectly from how it is working
   perennialWinston.default.transports.console.level = logLevel;
 }
 if ( perennialWinston.default.transports.Console ) {

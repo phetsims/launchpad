@@ -252,7 +252,6 @@ export const updateModel = async ( model: Model ): Promise<void> => {
 
     // Ensure we are fully cloned first
     await Promise.all( newRepos.map( async newRepo => {
-      // TODO: how do we skip private repos in the future?
       try {
         if ( !fs.existsSync( path.join( ROOT_DIR, newRepo ) ) ) {
           await gitCloneDirectory( newRepo, ROOT_DIR );

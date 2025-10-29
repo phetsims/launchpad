@@ -29,7 +29,7 @@ export const deslashLineComment = ( string: string ): string => {
   return string.replace( /^\/\/ ?/, '' );
 };
 
-export const destarBlockComment = ( string: string ) => {
+export const destarBlockComment = ( string: string ): string => {
   return string.split( os.EOL ).filter( line => {
     const isCommentStart = line.match( /^ *\/\*+ *$/g );
     const isCommentEnd = line.match( /^ *\*+\/ *$/g );
@@ -45,7 +45,7 @@ export const destarBlockComment = ( string: string ) => {
   } ).join( os.EOL );
 };
 
-export const cleanupComment = ( string: string ) => {
+export const cleanupComment = ( string: string ): string => {
   if ( string.startsWith( '/*' ) ) {
     return destarBlockComment( string );
   }
@@ -171,7 +171,7 @@ export const extractQueryParameters = async ( repo: Repo, directory: string ): P
         else if ( kind === 'StringLiteral' ) {
           return ( node as ts.StringLiteral ).text;
         }
-        else if ( node.numericLiteralFlags !== undefined ) {
+        else if ( ( node as { numericLiteralFlags?: number } ).numericLiteralFlags !== undefined ) {
           return Number( ( node as ts.NumericLiteral ).text );
         }
         else if ( ts.isArrayLiteralExpression( node ) ) {
