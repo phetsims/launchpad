@@ -15,8 +15,7 @@ import { autocompleteMatchColorProperty, queryParameterDocFont, uiButtonForegrou
 import { UIAccordionBox } from '../UIAccordionBox.js';
 import { ViewContext } from '../ViewContext.js';
 import { WaitingNode } from '../WaitingNode.js';
-import { clientSleep } from '../clientSleep.js';
-import { Color, DOM, HBox, Node, Path, VBox } from 'scenerystack/scenery';
+import { Color, DOM, HBox, Path, VBox } from 'scenerystack/scenery';
 import { BooleanProperty, DerivedProperty, Multilink, Property, StringProperty } from 'scenerystack/axon';
 import { getInputCSSProperty } from '../css.js';
 import { SearchBoxNode } from '../SearchBoxNode.js';

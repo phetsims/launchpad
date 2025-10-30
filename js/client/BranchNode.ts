@@ -6,7 +6,7 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import { Property, TinyEmitter, TReadOnlyProperty } from 'scenerystack/axon';
+import { Property, TReadOnlyProperty } from 'scenerystack/axon';
 import { FireListener, GridBox, HBox, HSeparator, Node, VBox } from 'scenerystack/scenery';
 import { BranchInfo, QueryParameter, Repo, RepoListEntry, SHA } from '../types/common-types.js';
 import moment from 'moment';
