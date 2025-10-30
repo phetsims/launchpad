@@ -38,7 +38,7 @@ class QueryParameterNode extends VBox {
 
   public constructor(
     public readonly queryParameter: QueryParameter,
-    public readonly hasDefaultObjectValue: boolean,
+    public readonly object: Record<string, unknown>,
     public readonly defaultValue: unknown
   ) {
     super( {
@@ -47,7 +47,10 @@ class QueryParameterNode extends VBox {
       stretch: true
     } );
 
-    this.valueProperty = new Property( queryParameter.type === 'flag' ? hasDefaultObjectValue : defaultValue );
+    const hasObjectValue = object.hasOwnProperty( queryParameter.name );
+
+    // If we are a flag, our value would be undefined (so it isn't written with a `=`), so we use presence as true
+    this.valueProperty = new Property( queryParameter.type === 'flag' ? hasObjectValue : defaultValue );
 
     const nameInfoNode = new UIRichText( `${queryParameter.name} <translucent>(${queryParameter.repo} ${queryParameter.type}${
       queryParameter.private ? ' private' : ''
@@ -71,7 +74,7 @@ class QueryParameterNode extends VBox {
       this.addChild( new UISwitch( this.valueProperty as Property<boolean>, queryParameter.name, nameInfoNode ) );
     }
     else if ( queryParameter.type === 'boolean' && typeof queryParameter.defaultValue === 'boolean' ) {
-      const isTrueProperty = new BooleanProperty( hasDefaultObjectValue ? defaultValue as boolean : queryParameter.defaultValue );
+      const isTrueProperty = new BooleanProperty( hasObjectValue ? defaultValue as boolean : queryParameter.defaultValue );
 
       this.addChild( new UISwitch( isTrueProperty, queryParameter.name, nameInfoNode ) );
 
@@ -181,33 +184,36 @@ class QueryParameterNode extends VBox {
     // TODO: more disposal
 
     this.addDisposable( this.valueProperty );
-  }
 
-  public writeIntoObject( obj: Record<string, unknown> ): void {
-    if ( this.queryParameter.type === 'flag' ) {
-      if ( this.valueProperty.value ) {
-        obj[ this.queryParameter.name ] = undefined;
+    // Mutate our reference object on changes (... potentially remove a lot of logic above if we can simplify)
+    this.valueProperty.lazyLink( value => {
+      if ( this.queryParameter.type === 'flag' ) {
+        if ( this.valueProperty.value ) {
+          object[ this.queryParameter.name ] = undefined;
+        }
+        else {
+          delete object[ this.queryParameter.name ];
+        }
+      }
+      else if ( this.valueProperty.value !== undefined ) {
+        object[ this.queryParameter.name ] = this.valueProperty.value; // just direct entry works for now
       }
       else {
-        delete obj[ this.queryParameter.name ];
+        delete object[ this.queryParameter.name ];
       }
-    }
-    else if ( this.valueProperty.value !== undefined ) {
-      obj[ this.queryParameter.name ] = this.valueProperty.value; // just direct entry works for now
-    }
-    else {
-      delete obj[ this.queryParameter.name ];
-    }
+    } );
   }
 }
 
 export class QueryParametersNode extends UIAccordionBox {
   private queryParameterNodes: QueryParameterNode[] = [];
+  private object: Record<string, unknown> = {};
 
   public constructor(
+    // TODO: remove unused?
     public readonly repoListEntry: RepoListEntry,
     public readonly branchInfo: BranchInfo,
-    public readonly defaultObject: Record<string, unknown>,
+    initialObject: Record<string, unknown>,
     public readonly queryParametersPromise: Promise<QueryParameter[]>,
     viewContext: ViewContext
   ) {
@@ -222,6 +228,11 @@ export class QueryParametersNode extends UIAccordionBox {
       expandedDefaultValue: true
     } );
 
+    // Copy, so we can mutate it and hold it as state
+    this.object = {
+      ...initialObject
+    };
+
     const waitingNode = new WaitingNode( viewContext );
 
     this.addDisposable( waitingNode );
@@ -234,8 +245,8 @@ export class QueryParametersNode extends UIAccordionBox {
           waitingNode
         ]
       } ),
-      ...Object.keys( this.defaultObject ).map( key => {
-        return new PlaceholderQueryParameterNode( key, this.defaultObject[ key ] );
+      ...Object.keys( this.object ).map( key => {
+        return new PlaceholderQueryParameterNode( key, this.object[ key ] );
       } )
     ];
 
@@ -273,7 +284,7 @@ export class QueryParametersNode extends UIAccordionBox {
               return true;
             }
 
-            if ( defaultObject.hasOwnProperty( queryParameter.name ) ) {
+            if ( this.object.hasOwnProperty( queryParameter.name ) ) {
               return true;
             }
 
@@ -284,8 +295,7 @@ export class QueryParametersNode extends UIAccordionBox {
         // TODO: order query parameters better (featured or non-default first)
         // TODO: include "unknown" parameters from defaultObject
         this.queryParameterNodes = filteredQueryParameters.map( queryParameter => {
-          const hasDefaultObjectValue = Object.hasOwn( this.defaultObject, queryParameter.name );
-          return new QueryParameterNode( queryParameter, hasDefaultObjectValue, this.defaultObject[ queryParameter.name ] );
+          return new QueryParameterNode( queryParameter, this.object, this.object[ queryParameter.name ] );
         } );
         queryParameterContainer.children = [
           searchBoxNode,
@@ -299,14 +309,6 @@ export class QueryParametersNode extends UIAccordionBox {
   }
 
   public getQueryParameterObject(): Record<string, unknown> {
-    const object = {
-      ...this.defaultObject
-    };
-
-    for ( const queryParameterNode of this.queryParameterNodes ) {
-      queryParameterNode.writeIntoObject( object );
-    }
-
-    return object;
+    return this.object;
   }
 }
