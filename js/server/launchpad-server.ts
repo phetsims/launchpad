@@ -39,6 +39,8 @@ const ReleaseBranch = ReleaseBranchImport.default;
    * TO DO features:
    *  - Query Parameters:
    *    - Search
+   *      - Hah.... have all of the query parameters instantiated, so they don't go away during search...
+   *        - Performance... but also yeah wow this is bad
    *      - Multi-target search (include descriptions?)
    *      - Highlighting!!!!!
    *    - Featured query parameters
