@@ -33,8 +33,8 @@ export class ModeListNode extends VBox {
     const searchTextListener = ( searchText: string ) => {
       // TODO: GC-friendly https://github.com/phetsims/phettest/issues/20
 
-      // Filter out words NOT starting with ':' (a colon), and remove the colons
-      searchText = searchText.split( ' ' ).filter( s => s.startsWith( ':' ) ).map( s => s.slice( 1 ) ).join( ' ' );
+      // Filter out words NOT starting with '-' (a colon), and remove the colons
+      searchText = searchText.split( ' ' ).filter( s => s.startsWith( '-' ) ).map( s => s.slice( 1 ) ).join( ' ' );
 
       const searchResults = searchText.length ? fuzzysort.go( searchText, modes, { key: 'name' } ) : modes.map( mode => {
         return {

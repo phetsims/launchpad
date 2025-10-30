@@ -38,19 +38,11 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *
    * TO DO features:
    *  - Query Parameters:
-   *    - Search
-   *      - Hah.... have all of the query parameters instantiated, so they don't go away during search...
-   *        - Performance... but also yeah wow this is bad
-   *      - Multi-target search (include descriptions?)
-   *      - Highlighting!!!!!
    *    - Featured query parameters
    *      - User can FAVORITE query parameters... they get featured?
    *      - localStorage which are featured, so they can also REMOVE ones they don't like
-   *    - PERFORMANCE so we aren't creating UIs for all query parameters on mode switches (and create fewer???)
-   *      - THIS IS SLOWING THINGS DOWN
    *    - Support release branches (old styles of query parameters)
    *    - Add "wrapper" query parameters, and things for e.g. aqua
-   *  - Double click (or click on selected) to launch directly from lists
    *    -- Power shortcut for build/no-build
    *  - Info button (next to settings): Write out power-user features in Settings UI (or an info button) (have a pop-up for it?)
    *  - Wrappers:
@@ -73,7 +65,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *      - Customization node
    *    - Scroll to the focus (soft scroll?) for when it changes
    *  - Top-level search:
-   *    - Use '-' (or think of alternatives) for modes selection -- because "build" is in modes and sims, combined would be annoying?
    *    - Multi-target search (for repos, modes, branches, etc. all at once?) -- brainstorm
    *    - Search that can find modes (see if we can match two levels with the search) -- for modes that exist in one repo
    *  - Show the "need to rebuild" warning in getModes when build mode is selected

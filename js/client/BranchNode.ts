@@ -24,16 +24,9 @@ import { OutOfDateIcon, UpToDateIcon } from './icons.js';
 import { UIRichText } from './UIRichText.js';
 import { showAdvancedProperty } from './settings.js';
 import { CustomizationNode } from './modes/mode-types.js';
+import { launchTriggerEmitter } from './launchTriggerEmitter.js';
 
 let isStartup = true;
-
-const enterEmitter = new TinyEmitter();
-document.body.addEventListener( 'keydown', e => {
-  // if enter is pressed
-  if ( e.keyCode === 13 ) {
-    enterEmitter.emit();
-  }
-} );
 
 export class BranchNode extends VBox {
   public constructor(
@@ -493,9 +486,9 @@ export class BranchNode extends VBox {
 
     disposeCallbacks.forEach( callback => this.disposeEmitter.addListener( callback ) );
 
-    enterEmitter.addListener( launch );
+    launchTriggerEmitter.addListener( launch );
     this.disposeEmitter.addListener( () => {
-      enterEmitter.removeListener( launch );
+      launchTriggerEmitter.removeListener( launch );
 
       modeListNode.dispose();
     } );

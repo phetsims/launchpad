@@ -63,8 +63,8 @@ export class RepoListNode extends VBox {
       // Filter out words starting with digits, e.g. 1-9 (they are likely numeric branch names, we want to read those out)
       searchText = searchText.split( ' ' ).filter( s => !/^\d/.test( s ) ).join( ' ' );
 
-      // Filter out words starting with ':' (a colon), since we will use this for other search functionality
-      searchText = searchText.split( ' ' ).filter( s => !s.startsWith( ':' ) ).join( ' ' );
+      // Filter out words starting with '-' (a dash), since we will use this for other search functionality
+      searchText = searchText.split( ' ' ).filter( s => !s.startsWith( '-' ) ).join( ' ' );
 
       const searchResults = searchText.length ? fuzzysort.go<RepoListEntry>( searchText, repoList, { key: 'name' } ) : repoList ? repoList.map( repoEntry => {
         return {

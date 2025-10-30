@@ -12,6 +12,7 @@ import { ViewContext } from './ViewContext.js';
 import { TooltipListener } from './TooltipListener.js';
 import { autocompleteMatchColorProperty, listEvenColorProperty, listHoverColorProperty, listOddColorProperty, listSelectedColorProperty } from './theme.js';
 import { UIRichText } from './UIRichText.js';
+import { launchTriggerEmitter } from './launchTriggerEmitter.js';
 
 // TODO: GC https://github.com/phetsims/phettest/issues/20
 export class ListItemNode extends Node {
@@ -26,7 +27,13 @@ export class ListItemNode extends Node {
   ) {
     const fireListener = new FireListener( {
       fire: () => {
-        selectedItemProperty.value = item;
+        if ( selectedItemProperty.value === item ) {
+          // Fire on double-click
+          launchTriggerEmitter.emit();
+        }
+        else {
+          selectedItemProperty.value = item;
+        }
       }
     } );
 
