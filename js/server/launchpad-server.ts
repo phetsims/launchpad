@@ -40,7 +40,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *  - Query Parameters:
    *    - Support release branches (old styles of query parameters)
    *    - Add "wrapper" query parameters, and things for e.g. aqua
-   *    -- Power shortcut for build/no-build
    *  - Wrappers:
    *    - BUILT wrappers (for the "wrappers" list)
    *      - THEN remove the "index" since it would be the default wrapper
@@ -81,7 +80,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *  - "Advanced" button to trigger updateModel server-side?
    *    - WE MIGHT NEED A LOCK
    *  - Auto-checkout release branches
-   *  - Change color/branding of "launchpad" when being run from different places (local vs bayes)
+   *  - Power shortcut for build/no-build
    *
    * TO DO internal:
    *  - Persistence and saveModel usage is a mess (server-side)

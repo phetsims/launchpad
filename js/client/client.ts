@@ -142,6 +142,10 @@ const infoButton = new UIRectangularPushButton( {
 } );
 infoButton.addInputListener( tooltipListener );
 
+const titleNode = new UIText( 'Launchpad', {
+  font: uiHeaderFont
+} );
+
 const baseBox = new VBox( {
   align: 'left',
   spacing: 10,
@@ -151,9 +155,19 @@ const baseBox = new VBox( {
       spacing: 50,
       stretch: true,
       children: [
-        new UIText( 'Launchpad', {
-          font: uiHeaderFont
-        } ),
+        ...( location.hostname !== 'bayes.colorado.edu' ? [
+          new HBox( {
+            spacing: 10,
+            children: [
+              titleNode,
+              new UIText( `(${location.hostname})`, {
+                opacity: 0.5
+              } )
+            ]
+          } )
+        ] : [
+          titleNode
+        ] ),
         searchBoxNode,
         new HBox( {
           spacing: 10,
