@@ -11,12 +11,12 @@ import { UIRichText } from '../UIRichText.js';
 import { UISwitch } from '../UISwitch.js';
 import { UIAquaRadioButtonGroup } from '../UIAquaRadioButtonGroup.js';
 import { UIText } from '../UIText.js';
-import { queryParameterDocFont } from '../theme.js';
+import { autocompleteMatchColorProperty, queryParameterDocFont } from '../theme.js';
 import { UIAccordionBox } from '../UIAccordionBox.js';
 import { ViewContext } from '../ViewContext.js';
 import { WaitingNode } from '../WaitingNode.js';
 import { clientSleep } from '../clientSleep.js';
-import { DOM, HBox, Node, VBox } from 'scenerystack/scenery';
+import { Color, DOM, HBox, Node, VBox } from 'scenerystack/scenery';
 import { BooleanProperty, DerivedProperty, Multilink, Property, StringProperty } from 'scenerystack/axon';
 import { getInputCSSProperty } from '../css.js';
 import { SearchBoxNode } from '../SearchBoxNode.js';
@@ -38,6 +38,7 @@ class QueryParameterNode extends VBox {
 
   public constructor(
     public readonly queryParameter: QueryParameter,
+    public readonly highlight: ( before: string, after: string ) => string,
     public readonly object: Record<string, unknown>,
     public readonly defaultValue: unknown
   ) {
@@ -52,11 +53,8 @@ class QueryParameterNode extends VBox {
     // If we are a flag, our value would be undefined (so it isn't written with a `=`), so we use presence as true
     this.valueProperty = new Property( queryParameter.type === 'flag' ? hasObjectValue : defaultValue );
 
-    const nameInfoNode = new UIRichText( `${queryParameter.name} <translucent>(${queryParameter.repo} ${queryParameter.type}${
-      queryParameter.private ? ' private' : ''
-    }${
-      queryParameter.public ? ' public' : ''
-    })</translucent>`, {
+    // Will fill in strings below with listener to color
+    const nameInfoNode = new UIRichText( '', {
       tags: {
         // TODO: better alignment and such
         translucent: node => {
@@ -67,6 +65,19 @@ class QueryParameterNode extends VBox {
           } );
         }
       }
+    } );
+
+    const highlightListener = ( color: Color ) => {
+      const cssColor = color.toCSS();
+      nameInfoNode.string = `${highlight( `<b style="color: ${cssColor};">`, '</b>' )} <translucent>(${queryParameter.repo} ${queryParameter.type}${
+        queryParameter.private ? ' private' : ''
+      }${
+        queryParameter.public ? ' public' : ''
+      })</translucent>`;
+    };
+    autocompleteMatchColorProperty.link( highlightListener );
+    this.disposeEmitter.addListener( () => {
+      autocompleteMatchColorProperty.unlink( highlightListener );
     } );
 
     // NOTE: we could create subclasses for each type
@@ -206,7 +217,6 @@ class QueryParameterNode extends VBox {
 }
 
 export class QueryParametersNode extends UIAccordionBox {
-  private queryParameterNodes: QueryParameterNode[] = [];
   private object: Record<string, unknown> = {};
 
   public constructor(
@@ -235,6 +245,11 @@ export class QueryParametersNode extends UIAccordionBox {
 
     const waitingNode = new WaitingNode( viewContext );
 
+    // Work around a complicated disposal thing with AccordionBox layout
+    this.disposeEmitter.addListener( () => {
+      queryParameterContainer.children = [];
+    } );
+
     this.addDisposable( waitingNode );
 
     queryParameterContainer.children = [
@@ -251,8 +266,13 @@ export class QueryParametersNode extends UIAccordionBox {
     ];
 
     queryParametersPromise.then( async queryParameters => {
+
       // Don't synchronously do this!
       await clientSleep( 15 );
+
+      if ( this.isDisposed ) {
+        return;
+      }
 
       const querySearchTextProperty = new StringProperty( '' );
       const searchBoxNode = new SearchBoxNode( querySearchTextProperty );
@@ -262,16 +282,19 @@ export class QueryParametersNode extends UIAccordionBox {
 
       Multilink.multilink( [ querySearchTextProperty, showAllProperty ], ( searchText, showAll ) => {
 
-        let filteredQueryParameters: QueryParameter[];
-
+        let queryParameterNodes: QueryParameterNode[] = [];
         if ( searchText.length >= searchTextThreshold ) {
 
           const searchResults = fuzzysort.go<QueryParameter>( searchText, queryParameters, { key: 'name' } );
 
-          filteredQueryParameters = searchResults.map( result => result.obj );
+          queryParameterNodes = searchResults.map( result => {
+            const queryParameter = result.obj;
+
+            return new QueryParameterNode( queryParameter, result.highlight ? result.highlight.bind( result ) : ( () => queryParameter.name ), this.object, this.object[ queryParameter.name ] );
+          } );
         }
         else {
-          filteredQueryParameters = showAll ? queryParameters : queryParameters.filter( queryParameter => {
+          const filteredQueryParameters = showAll ? queryParameters : queryParameters.filter( queryParameter => {
             // TODO: improve featured list (allow favoriting them, store in local storage)
             if ( [
               'ea',
@@ -284,26 +307,45 @@ export class QueryParametersNode extends UIAccordionBox {
               return true;
             }
 
+            // Include sim-specific query parameters by default
+            if ( ![
+              'chipper',
+              'phet-io',
+              'scenery',
+              'scenery-phet',
+              'utterance-queue'
+            ].includes( queryParameter.repo ) ) {
+              return true;
+            }
+
             if ( this.object.hasOwnProperty( queryParameter.name ) ) {
               return true;
             }
 
             return false;
           } );
+
+          queryParameterNodes = filteredQueryParameters.map( queryParameter => {
+            return new QueryParameterNode( queryParameter, ( () => queryParameter.name ), this.object, this.object[ queryParameter.name ] );
+          } );
         }
 
         // TODO: order query parameters better (featured or non-default first)
         // TODO: include "unknown" parameters from defaultObject
-        this.queryParameterNodes = filteredQueryParameters.map( queryParameter => {
-          return new QueryParameterNode( queryParameter, this.object, this.object[ queryParameter.name ] );
-        } );
+
         queryParameterContainer.children = [
           searchBoxNode,
           new UITextSwitch( showAllProperty, 'Show All Query Parameters', {
             visibleProperty: new DerivedProperty( [ querySearchTextProperty ], searchText => searchText.length < searchTextThreshold )
           } ),
-          ...this.queryParameterNodes
+          ...queryParameterNodes
         ];
+
+        this.disposeEmitter.addListener( () => {
+          queryParameterContainer.children = [];
+        } );
+
+        queryParameterNodes.forEach( node => this.addDisposable( node ) );
       } );
     } ).catch( e => { throw e; } );
   }
