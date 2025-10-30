@@ -38,9 +38,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *
    * TO DO features:
    *  - Query Parameters:
-   *    - Featured query parameters
-   *      - User can FAVORITE query parameters... they get featured?
-   *      - localStorage which are featured, so they can also REMOVE ones they don't like
    *    - Support release branches (old styles of query parameters)
    *    - Add "wrapper" query parameters, and things for e.g. aqua
    *    -- Power shortcut for build/no-build

@@ -11,17 +11,22 @@ import { UIRichText } from '../UIRichText.js';
 import { UISwitch } from '../UISwitch.js';
 import { UIAquaRadioButtonGroup } from '../UIAquaRadioButtonGroup.js';
 import { UIText } from '../UIText.js';
-import { autocompleteMatchColorProperty, queryParameterDocFont } from '../theme.js';
+import { autocompleteMatchColorProperty, queryParameterDocFont, uiButtonForegroundProperty, uiForegroundColorProperty } from '../theme.js';
 import { UIAccordionBox } from '../UIAccordionBox.js';
 import { ViewContext } from '../ViewContext.js';
 import { WaitingNode } from '../WaitingNode.js';
 import { clientSleep } from '../clientSleep.js';
-import { Color, DOM, HBox, Node, VBox } from 'scenerystack/scenery';
+import { Color, DOM, HBox, Node, Path, VBox } from 'scenerystack/scenery';
 import { BooleanProperty, DerivedProperty, Multilink, Property, StringProperty } from 'scenerystack/axon';
 import { getInputCSSProperty } from '../css.js';
 import { SearchBoxNode } from '../SearchBoxNode.js';
 import { UITextSwitch } from '../UITextSwitch.js';
 import fuzzysort from 'fuzzysort';
+import { favoriteQueryParametersProperty } from '../settings.js';
+import { UIBooleanRectangularStickyToggleButton } from '../UIBooleanRectangularStickyToggleButton.js';
+import { Shape } from 'scenerystack/kite';
+import { Matrix3 } from 'scenerystack/dot';
+import { TooltipListener } from '../TooltipListener.js';
 
 class PlaceholderQueryParameterNode extends UIText {
   public constructor(
@@ -40,7 +45,8 @@ class QueryParameterNode extends VBox {
     public readonly queryParameter: QueryParameter,
     public readonly highlight: ( before: string, after: string ) => string,
     public readonly object: Record<string, unknown>,
-    public readonly defaultValue: unknown
+    public readonly defaultValue: unknown,
+    viewContext: ViewContext
   ) {
     super( {
       align: 'left',
@@ -54,26 +60,56 @@ class QueryParameterNode extends VBox {
     this.valueProperty = new Property( queryParameter.type === 'flag' ? hasObjectValue : defaultValue );
 
     // Will fill in strings below with listener to color
-    const nameInfoNode = new UIRichText( '', {
-      tags: {
-        // TODO: better alignment and such
-        translucent: node => {
-          return new Node( {
-            children: [ node ],
-            scale: 0.7,
-            opacity: 0.6
-          } );
-        }
+    const nameInfoRichText = new UIRichText( '' );
+
+    const isFavoriteProperty = new BooleanProperty( favoriteQueryParametersProperty.value.includes( queryParameter.name ) );
+    isFavoriteProperty.lazyLink( isFavorite => {
+      if ( isFavorite ) {
+        favoriteQueryParametersProperty.value = Array.from( new Set( [
+          ...favoriteQueryParametersProperty.value,
+          queryParameter.name
+        ] ) );
       }
+      else {
+        favoriteQueryParametersProperty.value = favoriteQueryParametersProperty.value.filter( name => name !== queryParameter.name );
+      }
+    } );
+
+    const heartIcon = new Path( new Shape( 'M0 200 v-200 h200 a100,100 90 0,1 0,200 a100,100 90 0,1 -200,0 z' ).transformed( Matrix3.rotation2( -0.75 * Math.PI ).timesMatrix( Matrix3.scale( 0.04 ) ) ), {
+      fill: new DerivedProperty( [ isFavoriteProperty, uiButtonForegroundProperty, uiForegroundColorProperty ], ( isFavorite, buttonForeground, uiForeground ) => {
+        return isFavorite ? buttonForeground : null;
+      } ),
+      stroke: new DerivedProperty( [ isFavoriteProperty, uiButtonForegroundProperty, uiForegroundColorProperty ], ( isFavorite, buttonForeground, uiForeground ) => {
+        return isFavorite ? null : uiForeground;
+      } )
+    } );
+
+    const heartButton = new UIBooleanRectangularStickyToggleButton( isFavoriteProperty, {
+      content: heartIcon
+    } );
+
+    heartButton.addInputListener( new TooltipListener( viewContext, 'Add/Remove from "favorites", which will show up without being searched' ) );
+
+    const nameInfoNode = new HBox( {
+      justify: 'left',
+      spacing: 5,
+      children: [
+        nameInfoRichText,
+        new UIText( `(${queryParameter.repo} ${queryParameter.type}${
+        queryParameter.private ? ' private' : ''
+      }${
+        queryParameter.public ? ' public' : ''
+      })`, {
+          opacity: 0.6,
+          scale: 0.7
+        } ),
+        heartButton
+      ]
     } );
 
     const highlightListener = ( color: Color ) => {
       const cssColor = color.toCSS();
-      nameInfoNode.string = `${highlight( `<b style="color: ${cssColor};">`, '</b>' )} <translucent>(${queryParameter.repo} ${queryParameter.type}${
-        queryParameter.private ? ' private' : ''
-      }${
-        queryParameter.public ? ' public' : ''
-      })</translucent>`;
+      nameInfoRichText.string = highlight( `<b style="color: ${cssColor};">`, '</b>' );
     };
     autocompleteMatchColorProperty.link( highlightListener );
     this.disposeEmitter.addListener( () => {
@@ -267,8 +303,8 @@ export class QueryParametersNode extends UIAccordionBox {
 
     queryParametersPromise.then( async queryParameters => {
 
-      // Don't synchronously do this!
-      await clientSleep( 15 );
+      // Don't synchronously do this! --- now should be fine because it is faster
+      // await clientSleep( 15 );
 
       if ( this.isDisposed ) {
         return;
@@ -290,20 +326,18 @@ export class QueryParametersNode extends UIAccordionBox {
           queryParameterNodes = searchResults.map( result => {
             const queryParameter = result.obj;
 
-            return new QueryParameterNode( queryParameter, result.highlight ? result.highlight.bind( result ) : ( () => queryParameter.name ), this.object, this.object[ queryParameter.name ] );
+            return new QueryParameterNode(
+              queryParameter,
+              result.highlight ? result.highlight.bind( result ) : ( () => queryParameter.name ),
+              this.object,
+              this.object[ queryParameter.name ],
+              viewContext
+            );
           } );
         }
         else {
           const filteredQueryParameters = showAll ? queryParameters : queryParameters.filter( queryParameter => {
-            // TODO: improve featured list (allow favoriting them, store in local storage)
-            if ( [
-              'ea',
-              'brand',
-              'fuzz',
-              'debugger',
-              'dev',
-              'showPointerAreas'
-            ].includes( queryParameter.name ) ) {
+            if ( favoriteQueryParametersProperty.value.includes( queryParameter.name ) ) {
               return true;
             }
 
@@ -326,7 +360,13 @@ export class QueryParametersNode extends UIAccordionBox {
           } );
 
           queryParameterNodes = filteredQueryParameters.map( queryParameter => {
-            return new QueryParameterNode( queryParameter, ( () => queryParameter.name ), this.object, this.object[ queryParameter.name ] );
+            return new QueryParameterNode(
+              queryParameter,
+              ( () => queryParameter.name ),
+              this.object,
+              this.object[ queryParameter.name ],
+              viewContext
+            );
           } );
         }
 

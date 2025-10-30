@@ -82,3 +82,12 @@ export class LocalStorageStringProperty<T extends string> extends LocalStoragePr
     } );
   }
 }
+
+export class LocalStorageStringArrayProperty<T extends string[]> extends LocalStorageProperty<T> {
+  public constructor( key: string, defaultValue: T ) {
+    super( key, {
+      serialize: value => JSON.stringify( value ),
+      deserialize: value => value ? ( JSON.parse( value ) as T ) : defaultValue
+    } );
+  }
+}
