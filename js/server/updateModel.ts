@@ -53,6 +53,11 @@ export const updateModelBranchInfo = async (
       }
     }
 
+    // Implicitly add babel as a dependency to any runnable (so that we will get updated builds on translation changes)
+    if ( runnableDependencies.length > 2 && !runnableDependencies.includes( 'babel' ) ) {
+      runnableDependencies.push( 'babel' );
+    }
+
     branchInfo.dependencyRepos = runnableDependencies;
   }
   catch( e ) {

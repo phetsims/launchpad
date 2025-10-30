@@ -6,7 +6,7 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import { Property, TReadOnlyProperty } from 'scenerystack/axon';
+import { BooleanProperty, Property, TReadOnlyProperty } from 'scenerystack/axon';
 import { FireListener, GridBox, HBox, HSeparator, Node, VBox } from 'scenerystack/scenery';
 import { BranchInfo, QueryParameter, Repo, RepoListEntry, SHA } from '../types/common-types.js';
 import moment from 'moment';
@@ -417,7 +417,9 @@ export class BranchNode extends VBox {
           if ( success ) {
             requestNewBranchInfo();
           }
-        }
+        },
+        // Hide "force re-build" button unless advanced is shown
+        visibleProperty: isBuildableWithNewSHAs ? new BooleanProperty( true ) : showAdvancedProperty
       } );
 
       if ( branchInfo.buildJobID !== null ) {
