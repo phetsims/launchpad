@@ -38,9 +38,9 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *
    * TO DO features:
    *  - Query Parameters:
-   *    - Text boxes for query parameters (when there aren't fixed values that we know)
-   *    - Search box for query parameters (multi-target search -- search docs)
-   *      - Don't dump entire list --- search activates on 2+ chars (but match/show single-char params if they exist?)
+   *    - Search
+   *      - Multi-target search (include descriptions?)
+   *      - Highlighting!!!!!
    *    - Featured query parameters
    *      - User can FAVORITE query parameters... they get featured?
    *      - localStorage which are featured, so they can also REMOVE ones they don't like
@@ -105,6 +105,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *  - Add nonce to client.js path?? Allows faster load of large launchpad download?
    *    - Optimize what is in launchpad download. Do profiling to see if that is slowing things down.
    *  - Remove blocking file reads (or other blocking operations)
+   *  - Double-check all disposal, probably missing too much right now
    *
    * TO DO cleanup:
    *  - Clean up code and documentation!!! badly needed. Reorganize

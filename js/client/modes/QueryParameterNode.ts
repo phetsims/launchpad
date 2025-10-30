@@ -17,8 +17,11 @@ import { ViewContext } from '../ViewContext.js';
 import { WaitingNode } from '../WaitingNode.js';
 import { clientSleep } from '../clientSleep.js';
 import { DOM, HBox, Node, VBox } from 'scenerystack/scenery';
-import { BooleanProperty, Property } from 'scenerystack/axon';
+import { BooleanProperty, DerivedProperty, Multilink, Property, StringProperty } from 'scenerystack/axon';
 import { getInputCSSProperty } from '../css.js';
+import { SearchBoxNode } from '../SearchBoxNode.js';
+import { UITextSwitch } from '../UITextSwitch.js';
+import fuzzysort from 'fuzzysort';
 
 class PlaceholderQueryParameterNode extends UIText {
   public constructor(
@@ -240,13 +243,58 @@ export class QueryParametersNode extends UIAccordionBox {
       // Don't synchronously do this!
       await clientSleep( 15 );
 
-      // TODO: order query parameters better (featured or non-default first)
-      // TODO: include "unknown" parameters from defaultObject
-      this.queryParameterNodes = queryParameters.map( queryParameter => {
-        const hasDefaultObjectValue = Object.hasOwn( this.defaultObject, queryParameter.name );
-        return new QueryParameterNode( queryParameter, hasDefaultObjectValue, this.defaultObject[ queryParameter.name ] );
+      const querySearchTextProperty = new StringProperty( '' );
+      const searchBoxNode = new SearchBoxNode( querySearchTextProperty );
+      const showAllProperty = new BooleanProperty( false );
+
+      const searchTextThreshold = 2;
+
+      Multilink.multilink( [ querySearchTextProperty, showAllProperty ], ( searchText, showAll ) => {
+
+        let filteredQueryParameters: QueryParameter[];
+
+        if ( searchText.length >= searchTextThreshold ) {
+
+          const searchResults = fuzzysort.go<QueryParameter>( searchText, queryParameters, { key: 'name' } );
+
+          filteredQueryParameters = searchResults.map( result => result.obj );
+        }
+        else {
+          filteredQueryParameters = showAll ? queryParameters : queryParameters.filter( queryParameter => {
+            // TODO: improve featured list (allow favoriting them, store in local storage)
+            if ( [
+              'ea',
+              'brand',
+              'fuzz',
+              'debugger',
+              'dev',
+              'showPointerAreas'
+            ].includes( queryParameter.name ) ) {
+              return true;
+            }
+
+            if ( defaultObject.hasOwnProperty( queryParameter.name ) ) {
+              return true;
+            }
+
+            return false;
+          } );
+        }
+
+        // TODO: order query parameters better (featured or non-default first)
+        // TODO: include "unknown" parameters from defaultObject
+        this.queryParameterNodes = filteredQueryParameters.map( queryParameter => {
+          const hasDefaultObjectValue = Object.hasOwn( this.defaultObject, queryParameter.name );
+          return new QueryParameterNode( queryParameter, hasDefaultObjectValue, this.defaultObject[ queryParameter.name ] );
+        } );
+        queryParameterContainer.children = [
+          searchBoxNode,
+          new UITextSwitch( showAllProperty, 'Show All Query Parameters', {
+            visibleProperty: new DerivedProperty( [ querySearchTextProperty ], searchText => searchText.length < searchTextThreshold )
+          } ),
+          ...this.queryParameterNodes
+        ];
       } );
-      queryParameterContainer.children = this.queryParameterNodes;
     } ).catch( e => { throw e; } );
   }
 
