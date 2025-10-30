@@ -12,7 +12,7 @@ import './clientQueryParameters.js';
 import { Property, stepTimer } from 'scenerystack/axon';
 import { Bounds2 } from 'scenerystack/dot';
 import { platform } from 'scenerystack/phet-core';
-import { AlignBox, Display, HBox, Image, Node, VBox } from 'scenerystack/scenery';
+import { AlignBox, AlignGroup, Display, HBox, Image, Node, Path, VBox } from 'scenerystack/scenery';
 import { SearchBoxNode } from './SearchBoxNode.js';
 import type { RepoList } from '../types/common-types.js';
 import { apiGetRepoList } from './client-api.js';
@@ -20,7 +20,7 @@ import { RepoListNode } from './RepoListNode.js';
 import { RepoNode } from './RepoNode.js';
 import { ViewContext } from './ViewContext.js';
 import { preferencesIconOnWhite_png } from 'scenerystack/joist';
-import { uiBackgroundColorProperty, uiHeaderFont } from './theme.js';
+import { uiBackgroundColorProperty, uiButtonForegroundProperty, uiHeaderFont } from './theme.js';
 import { showAdvancedProperty } from './settings.js';
 import { SettingsNode } from './SettingsNode.js';
 import { UIRectangularPushButton } from './UIRectangularPushButton.js';
@@ -28,6 +28,8 @@ import { UIText } from './UIText.js';
 import { LogNode } from './LogNode.js';
 import { UITextPushButton } from './UITextPushButton.js';
 import { launchURL } from './launchURL.js';
+import { infoCircleSolidShape } from 'scenerystack/sun';
+import { InfoNode } from './InfoNode.js';
 
 const selectedRepoProperty = new Property<string | null>( null );
 const searchBoxTextProperty = new Property( '' );
@@ -102,16 +104,33 @@ const logButton = new UITextPushButton( 'Log', {
   visibleProperty: showAdvancedProperty
 } );
 
+const topButtonAlignGroup = new AlignGroup();
+
 let settingsNode: SettingsNode | null = null;
+let infoNode: InfoNode | null = null;
 const settingsImage = new Image( preferencesIconOnWhite_png, {
   scale: 0.15
 } );
+
+// TODO: add tooltips!
 const settingsButton = new UIRectangularPushButton( {
-  content: settingsImage,
+  content: topButtonAlignGroup.createBox( settingsImage ),
   listener: () => {
     settingsNode = settingsNode || new SettingsNode( viewContext );
 
     settingsNode.show();
+  },
+  layoutOptions: { grow: 1 }
+} );
+const infoButton = new UIRectangularPushButton( {
+  content: topButtonAlignGroup.createBox( new Path( infoCircleSolidShape, {
+    scale: 0.7,
+    fill: uiButtonForegroundProperty
+  } ) ),
+  listener: () => {
+    infoNode = infoNode || new InfoNode( viewContext );
+
+    infoNode.show();
   },
   layoutOptions: { grow: 1 }
 } );
@@ -133,7 +152,8 @@ const baseBox = new VBox( {
           spacing: 10,
           children: [
             logButton,
-            settingsButton
+            settingsButton,
+            infoButton
           ]
         } )
       ]
