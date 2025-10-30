@@ -25,6 +25,7 @@ import { UIRichText } from './UIRichText.js';
 import { showAdvancedProperty } from './settings.js';
 import { CustomizationNode } from './modes/mode-types.js';
 import { launchTriggerEmitter } from './launchTriggerEmitter.js';
+import { TooltipListener } from './TooltipListener.js';
 
 let isStartup = true;
 
@@ -76,7 +77,10 @@ export class BranchNode extends VBox {
     const queryParametersPromise: Promise<QueryParameter[]> = branchInfo.isCheckedOut && repoListEntry.isRunnable ? getQueryParameters( branchInfo.repo, branchInfo.branch ) : Promise.resolve( [] );
 
     if ( branchInfo.version && branchInfo.brands && repoListEntry.isRunnable ) {
-      infoChildren.push( new UIText( `${branchInfo.version} (${branchInfo.brands.join( ', ' )})` ) );
+      infoChildren.push( new UIText( `${branchInfo.version} (${branchInfo.brands.join( ', ' )})`, {
+        accessibleName: 'Version and supported brands',
+        inputListeners: [ new TooltipListener( viewContext ) ]
+      } ) );
     }
 
     if ( branchInfo.isCheckedOut ) {

@@ -30,6 +30,7 @@ import { UITextPushButton } from './UITextPushButton.js';
 import { launchURL } from './launchURL.js';
 import { infoCircleSolidShape } from 'scenerystack/sun';
 import { InfoNode } from './InfoNode.js';
+import { TooltipListener } from './TooltipListener.js';
 
 const selectedRepoProperty = new Property<string | null>( null );
 const searchBoxTextProperty = new Property( '' );
@@ -79,8 +80,10 @@ const glassPane = new Node();
 
 const viewContext = new ViewContext( layoutBoundsProperty, glassPane, stepTimer );
 
+const tooltipListener = new TooltipListener( viewContext );
+
 const searchBoxNode = new SearchBoxNode( searchBoxTextProperty );
-const repoListNode = new RepoListNode( repoListProperty, searchBoxTextProperty, selectedRepoProperty, viewContext );
+const repoListNode = new RepoListNode( repoListProperty, searchBoxTextProperty, selectedRepoProperty, searchBoxNode.isSearchBoxFocusedProperty, viewContext );
 const repoNodeContainer = new Node();
 selectedRepoProperty.link( selectedRepo => {
   const repoListEntry = repoListProperty.value?.find( repo => repo.name === selectedRepo ) ?? null;
@@ -115,6 +118,7 @@ const settingsImage = new Image( preferencesIconOnWhite_png, {
 // TODO: add tooltips!
 const settingsButton = new UIRectangularPushButton( {
   content: topButtonAlignGroup.createBox( settingsImage ),
+  accessibleName: 'Settings',
   listener: () => {
     settingsNode = settingsNode || new SettingsNode( viewContext );
 
@@ -122,11 +126,13 @@ const settingsButton = new UIRectangularPushButton( {
   },
   layoutOptions: { grow: 1 }
 } );
+settingsButton.addInputListener( tooltipListener );
 const infoButton = new UIRectangularPushButton( {
   content: topButtonAlignGroup.createBox( new Path( infoCircleSolidShape, {
     scale: 0.7,
     fill: uiButtonForegroundProperty
   } ) ),
+  accessibleName: 'Info and Documentation',
   listener: () => {
     infoNode = infoNode || new InfoNode( viewContext );
 
@@ -134,6 +140,7 @@ const infoButton = new UIRectangularPushButton( {
   },
   layoutOptions: { grow: 1 }
 } );
+infoButton.addInputListener( tooltipListener );
 
 const baseBox = new VBox( {
   align: 'left',
@@ -152,8 +159,8 @@ const baseBox = new VBox( {
           spacing: 10,
           children: [
             logButton,
-            settingsButton,
-            infoButton
+            infoButton,
+            settingsButton
           ]
         } )
       ]

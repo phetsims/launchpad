@@ -41,7 +41,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *    - Support release branches (old styles of query parameters)
    *    - Add "wrapper" query parameters, and things for e.g. aqua
    *    -- Power shortcut for build/no-build
-   *  - Info button (next to settings): Write out power-user features in Settings UI (or an info button) (have a pop-up for it?)
    *  - Wrappers:
    *    - BUILT wrappers (for the "wrappers" list)
    *      - THEN remove the "index" since it would be the default wrapper
@@ -50,7 +49,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *  - Add babel as a dependency implicitly for every runnable (so we will get rebuilds whenever strings change
    *    - HIDE the "force re-build" button unless "show advanced" is on
    *  - KEYBOARD / a11y:
-   *    - Arrow buttons listener only activates when search box is selected
+   *    - Include search box in tab order (!) ... how will that work?
    *    - radio button group like keyboard control for lists
    *      - Check for tabs patterns: https://www.w3.org/WAI/ARIA/apg/patterns/tabs/
    *    - Focus order:

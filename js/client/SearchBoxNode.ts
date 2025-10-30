@@ -6,12 +6,13 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import { TProperty } from 'scenerystack/axon';
+import { BooleanProperty, TProperty } from 'scenerystack/axon';
 import { DOM, HBox } from 'scenerystack/scenery';
 import { getInputCSSProperty } from './css.js';
 
 export class SearchBoxNode extends HBox {
 
+  public readonly isSearchBoxFocusedProperty = new BooleanProperty( false );
   private readonly input: HTMLInputElement;
 
   public constructor( searchBoxTextProperty: TProperty<string> ) {
@@ -34,6 +35,16 @@ export class SearchBoxNode extends HBox {
     } );
 
     this.input = input;
+
+    input.addEventListener( 'focus', () => {
+      this.isSearchBoxFocusedProperty.value = true;
+      console.log( 'focused' );
+    } );
+
+    input.addEventListener( 'blur', () => {
+      this.isSearchBoxFocusedProperty.value = false;
+      console.log( 'blurred' );
+    } );
 
     input.addEventListener( 'input', () => {
       searchBoxTextProperty.value = input.value;

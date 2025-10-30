@@ -22,6 +22,7 @@ export class RepoListNode extends VBox {
     repoListProperty: TReadOnlyProperty<RepoList | null>,
     searchBoxTextProperty: TReadOnlyProperty<string>,
     selectedRepoProperty: TProperty<string | null>,
+    isSearchBoxFocusedProperty: TReadOnlyProperty<boolean>,
     viewContext: ViewContext
   ) {
     super( {
@@ -106,31 +107,34 @@ export class RepoListNode extends VBox {
       oldChildren.forEach( child => child.dispose() );
     } );
 
-    // up/down arrow key handling TODO: could we potentially FOCUS the list, and have them be traversed as a group? https://github.com/phetsims/phettest/issues/20
+    // up/down arrow key handling
     document.body.addEventListener( 'keydown', e => {
-      if ( e.keyCode === 38 || e.keyCode === 40 ) {
-        const selectedRepo = selectedRepoProperty.value;
-        if ( !filteredRepos || filteredRepos.length === 0 || !selectedRepo ) {
-          return;
-        }
+      // Only do arrow keys if the search box itself is focused
+      if ( isSearchBoxFocusedProperty.value ) {
+        if ( e.keyCode === 38 || e.keyCode === 40 ) {
+          const selectedRepo = selectedRepoProperty.value;
+          if ( !filteredRepos || filteredRepos.length === 0 || !selectedRepo ) {
+            return;
+          }
 
-        const currentIndex = filteredRepos.findIndex( repo => repo === selectedRepo );
-        if ( currentIndex < 0 ) {
-          return;
-        }
+          const currentIndex = filteredRepos.findIndex( repo => repo === selectedRepo );
+          if ( currentIndex < 0 ) {
+            return;
+          }
 
-        // TODO: these preventDefaults might be annoying to a11y? https://github.com/phetsims/phettest/issues/20
-        // if 'up' is pressed
-        if ( e.keyCode === 38 ) {
-          const newIndex = ( currentIndex - 1 + filteredRepos.length ) % filteredRepos.length;
-          selectedRepoProperty.value = filteredRepos[ newIndex ];
-          e.preventDefault();
-        }
-        // if 'down' is pressed
-        if ( e.keyCode === 40 ) {
-          const newIndex = ( currentIndex + 1 ) % filteredRepos.length;
-          selectedRepoProperty.value = filteredRepos[ newIndex ];
-          e.preventDefault();
+          // TODO: these preventDefaults might be annoying to a11y? https://github.com/phetsims/phettest/issues/20
+          // if 'up' is pressed
+          if ( e.keyCode === 38 ) {
+            const newIndex = ( currentIndex - 1 + filteredRepos.length ) % filteredRepos.length;
+            selectedRepoProperty.value = filteredRepos[ newIndex ];
+            e.preventDefault();
+          }
+          // if 'down' is pressed
+          if ( e.keyCode === 40 ) {
+            const newIndex = ( currentIndex + 1 ) % filteredRepos.length;
+            selectedRepoProperty.value = filteredRepos[ newIndex ];
+            e.preventDefault();
+          }
         }
       }
     } );

@@ -15,6 +15,7 @@ import { BranchNode } from './BranchNode.js';
 import { ViewContext } from './ViewContext.js';
 import { UIText } from './UIText.js';
 import { listSelectedColorProperty, uiBackgroundColorProperty, uiForegroundColorProperty, uiRepoNameFont } from './theme.js';
+import { TooltipListener } from './TooltipListener.js';
 
 let isStartup = true;
 
@@ -77,6 +78,7 @@ export class RepoNode extends VBox {
         createNode: () => new UIText( branch )
       };
     } ), viewContext.glassPane, {
+      accessibleName: 'Select a branch (main or a release branch)',
       xMargin: 10,
       yMargin: 3,
       buttonFill: uiBackgroundColorProperty,
@@ -85,6 +87,7 @@ export class RepoNode extends VBox {
       listStroke: uiForegroundColorProperty,
       highlightFill: listSelectedColorProperty
     } );
+    branchComboBox.addInputListener( new TooltipListener( viewContext ) );
 
     // TODO: get arrow and separator fill working (new scenerystack version): https://github.com/phetsims/phettest/issues/20
     uiForegroundColorProperty.link( color => {
@@ -102,7 +105,9 @@ export class RepoNode extends VBox {
           spacing: 20,
           children: [
             new UIText( repoListEntry.name, {
-              font: uiRepoNameFont
+              font: uiRepoNameFont,
+              accessibleName: 'Selected repository/simulation',
+              inputListeners: [ new TooltipListener( viewContext ) ]
             } ),
             branchComboBox
           ]

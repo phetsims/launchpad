@@ -138,3 +138,16 @@ export const barrierColorProperty = new LightDarkColorProperty(
   'rgba(127,127,127,0.7)',
   'rgba(60,60,60,0.7)'
 );
+
+export const keyFillColorProperty = new LightDarkColorProperty(
+  '#fff',
+  '#555'
+);
+export const keyShadowColorProperty = new LightDarkColorProperty(
+  '#000',
+  '#181818'
+);
+export const keyTextColorProperty = new LightDarkColorProperty(
+  '#000',
+  '#eee'
+);
