@@ -19,7 +19,7 @@ import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
 import basicAuth from 'basic-auth';
 import { config } from './config.js';
 import { model, saveModel } from './model.js';
-import { autoBuild, autoUpdate, numAutoBuildThreads, port, ROOT_DIR } from './options.js';
+import { autoBuild, autoCheckoutReleaseBranches, autoUpdate, numAutoBuildThreads, port, ROOT_DIR } from './options.js';
 import { buildMain, buildReleaseBranch, getLatestCommits, getLatestSHA, getNPMHash, updateMain, updateReleaseBranchCheckout } from './util.js';
 import { getQueryParameters, recomputeNodeModules, singlePassUpdate, updateModel, updateModelBranchInfo, updateNodeModules } from './updateModel.js';
 import { bundleFile, transpileTS } from './bundling.js';
@@ -78,7 +78,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *  - Clearer copy-to-clipboard (or just... make links) - copy icon or buttons?
    *  - "Advanced" button to trigger updateModel server-side?
    *    - WE MIGHT NEED A LOCK
-   *  - Auto-checkout release branches
    *  - Power shortcut for build/no-build
    *
    * TO DO internal:
@@ -416,6 +415,37 @@ const ReleaseBranch = ReleaseBranchImport.default;
       }
     }
   } )().catch( e => logger.error( `updateModel global error: ${e}` ) );
+
+  // Scan for new release branches to check out
+  if ( autoCheckoutReleaseBranches ) {
+    ( async () => {
+      while ( true ) {
+        console.log( 'beforeCheck' );
+        await sleep( 60 * 1000 ); // every 1 minute
+        console.log( 'check' );
+
+        try {
+          for ( const repo of Object.keys( model.repos ) ) {
+            for ( const branch of Object.keys( model.repos[ repo ].branches ) ) {
+              if ( branch !== 'main' ) {
+                const branchInfo = model.repos[ repo ].branches[ branch ];
+
+                if ( !branchInfo.isCheckedOut && branchInfo.updateJobID === null ) {
+                  logger.info( `Auto-checkout of release branch ${repo}/${branch}` );
+
+                  const updateJobID = nextJobID++;
+                  await updateBranch( branchInfo, updateJobID );
+                }
+              }
+            }
+          }
+        }
+        catch( e ) {
+          logger.error( `Periodic checkout release branch error: ${e}` );
+        }
+      }
+    } )().catch( e => logger.error( `updateModel global error: ${e}` ) );
+  }
 
   type JSCacheEntry = {
     mtime: number;

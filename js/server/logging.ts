@@ -11,7 +11,7 @@
 // import { createLogger, format, transports } from '../../../perennial/js/npm-dependencies/winston.js';
 // eslint-disable-next-line no-restricted-imports
 import { createLogger, format, transports } from 'winston';
-import { autoBuild, autoUpdate, checkClean, logLevel, numAutoBuildThreads, port, ROOT_DIR, useGithubAPI } from './options.js';
+import { autoBuild, autoCheckoutReleaseBranches, autoUpdate, checkClean, logLevel, numAutoBuildThreads, port, ROOT_DIR, useGithubAPI } from './options.js';
 import { default as perennialWinston } from '../../../perennial/js/npm-dependencies/winston.js';
 import { LogEvent } from '../types/common-types.js';
 
@@ -92,6 +92,7 @@ logger.info( ` - port: ${port}` );
 logger.info( ` - rootDirectory: ${ROOT_DIR}` );
 logger.info( ` - autoUpdate: ${autoUpdate}` );
 logger.info( ` - autoBuild: ${autoBuild}` );
+logger.info( ` - autoCheckoutReleaseBranches: ${autoCheckoutReleaseBranches}` );
 logger.info( ` - numAutoBuildThreads: ${numAutoBuildThreads}` );
 logger.info( ` - checkClean: ${checkClean}` );
 logger.info( ` - logLevel: ${logLevel}` );

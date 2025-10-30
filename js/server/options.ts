@@ -25,6 +25,7 @@ export const options = {
   rootDirectory: getOptionIfProvided( 'rootDirectory', resolve( __dirname, '../../..' ) ),
   autoUpdate: getOptionIfProvided( 'autoUpdate', true ),
   autoBuild: getOptionIfProvided( 'autoBuild', true ),
+  autoCheckoutReleaseBranches: getOptionIfProvided( 'autoCheckoutReleaseBranches', true ),
   numAutoBuildThreads: getOptionIfProvided( 'numAutoBuildThreads', 2 ),
   checkClean: getOptionIfProvided( 'checkClean', false ),
 
@@ -53,6 +54,11 @@ if ( typeof autoUpdate !== 'boolean' ) {
 export const autoBuild = options.autoBuild;
 if ( typeof autoBuild !== 'boolean' ) {
   throw new Error( `Invalid autoBuild: ${autoBuild}` );
+}
+
+export const autoCheckoutReleaseBranches = options.autoCheckoutReleaseBranches;
+if ( typeof autoCheckoutReleaseBranches !== 'boolean' ) {
+  throw new Error( `Invalid autoCheckoutReleaseBranches: ${autoCheckoutReleaseBranches}` );
 }
 
 export const numAutoBuildThreads = options.numAutoBuildThreads;

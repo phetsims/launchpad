@@ -9,7 +9,7 @@
   "type": "module",
   "scripts": {
     "server": "bash ../perennial/bin/sage run js/server/launchpad-server.ts",
-    "local-server": "bash ../perennial/bin/sage run js/server/launchpad-server.ts --autoUpdate=false --autoBuild=false --checkClean=true",
+    "local-server": "bash ../perennial/bin/sage run js/server/launchpad-server.ts --autoUpdate=false --autoBuild=false --autoCheckoutReleaseBranches=false --checkClean=true",
     "start-client": "NODE_ENV=development npx esbuild js/client/client.ts index.html --loader:.html=copy --bundle --outdir=dist --serve=8081",
     "build-client-dev": "NODE_ENV=development npx esbuild js/client/client.ts index.html --loader:.html=copy --bundle --outdir=dist --define:process.env.NODE_ENV='\"development\"'",
     "build-client-prod": "NODE_ENV=production npx esbuild js/client/client.ts index.html --loader:.html=copy --bundle --outdir=dist --define:process.env.NODE_ENV='\"production\"' --minify"
