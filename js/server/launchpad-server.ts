@@ -61,7 +61,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *  - KEYBOARD / a11y:
    *    - Arrow buttons listener only activates when search box is selected
    *    - radio button group like keyboard control for lists
-   *      - Check for tabs patternshttps://www.w3.org/WAI/ARIA/apg/patterns/tabs/
+   *      - Check for tabs patterns: https://www.w3.org/WAI/ARIA/apg/patterns/tabs/
    *    - Focus order:
    *      - Search box
    *      - Repo list

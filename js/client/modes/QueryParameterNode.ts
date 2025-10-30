@@ -16,8 +16,9 @@ import { UIAccordionBox } from '../UIAccordionBox.js';
 import { ViewContext } from '../ViewContext.js';
 import { WaitingNode } from '../WaitingNode.js';
 import { clientSleep } from '../clientSleep.js';
-import { HBox, Node, VBox } from 'scenerystack/scenery';
+import { DOM, HBox, Node, VBox } from 'scenerystack/scenery';
 import { BooleanProperty, Property } from 'scenerystack/axon';
+import { getInputCSSProperty } from '../css.js';
 
 class PlaceholderQueryParameterNode extends UIText {
   public constructor(
@@ -131,14 +132,39 @@ class QueryParameterNode extends VBox {
           new UIAquaRadioButtonGroup( property, queryParameter.validValues.map( ( value: unknown ) => {
             return {
               value: value,
-              createNode: () => new UIText( `${value}${queryParameter.name === 'locale' ? ` (${phet.chipper.localeData[ value ].englishName})` : ''}` )
+              createNode: () => new UIText( `${value}${queryParameter.name === 'locale' ? ` (${phet.chipper.localeData[ value as string ].englishName})` : ''}` )
             };
           } ), { layoutOptions: { leftMargin: 20 } } )
         ]
       } ) );
     }
     else {
-      this.addChild( nameInfoNode );
+      const input = document.createElement( 'input' );
+
+      getInputCSSProperty( 250, { padding: 0 } ).link( cssText => {
+        input.style.cssText = cssText;
+      } );
+      input.type = 'text';
+      // eslint-disable-next-line @typescript-eslint/no-base-to-string
+      input.placeholder = queryParameter.defaultValue !== undefined ? `${queryParameter.defaultValue}` : '';
+
+      input.addEventListener( 'input', () => {
+        this.valueProperty.value = input.value.length ? input.value : undefined;
+      } );
+
+      this.addChild( new VBox( {
+        align: 'left',
+        spacing: 3,
+        children: [
+          nameInfoNode,
+          new DOM( input, {
+            allowInput: true,
+            layoutOptions: {
+              leftMargin: 20
+            }
+          } )
+        ]
+      } ) );
     }
 
     this.addChild( new UIRichText( queryParameter.doc.split( '\n' ).map( line => line.trim() ).join( ' ' ), {
