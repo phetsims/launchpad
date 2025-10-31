@@ -7,7 +7,7 @@
  */
 
 import { DerivedProperty, TProperty } from 'scenerystack/axon';
-import { Color, FireListener, Node, Rectangle } from 'scenerystack/scenery';
+import { Color, FireListener, Node, Rectangle, Voicing } from 'scenerystack/scenery';
 import { ViewContext } from './ViewContext.js';
 import { TooltipListener } from './TooltipListener.js';
 import { autocompleteMatchColorProperty, listEvenColorProperty, listHoverColorProperty, listOddColorProperty, listSelectedColorProperty } from './theme.js';
@@ -23,6 +23,7 @@ export class ListItemNode extends Node {
     highlight: ( before: string, after: string ) => string,
     index: number,
     width: number,
+    className: string,
     description?: string
   ) {
     const fireListener = new FireListener( {
@@ -85,9 +86,23 @@ export class ListItemNode extends Node {
       inputListeners: [
         fireListener
       ],
-      tagName: 'div',
       accessibleName: item,
-      labelContent: description ?? null
+      labelContent: description ?? null,
+
+      tagName: 'input',
+      inputType: 'radio',
+      labelTagName: 'label',
+
+      containerTagName: 'div',
+
+      appendLabel: true,
+      appendDescription: true
+    } );
+
+    this.setPDOMAttribute( 'name', className );
+
+    selectedItemProperty.link( selectedItem => {
+      this.pdomChecked = item === selectedItem;
     } );
 
     this.addDisposable( fillProperty );

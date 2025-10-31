@@ -7,7 +7,7 @@
  */
 
 import { Multilink, TProperty, TReadOnlyProperty } from 'scenerystack/axon';
-import { VBox } from 'scenerystack/scenery';
+import { ParallelDOM, VBox } from 'scenerystack/scenery';
 import { Repo, RepoList, RepoListEntry } from '../types/common-types.js';
 import { ListItemNode } from './ListItemNode.js';
 import fuzzysort from 'fuzzysort';
@@ -30,8 +30,18 @@ export class RepoListNode extends VBox {
       // TODO: specify these in better places https://github.com/phetsims/phettest/issues/20
       layoutOptions: {
         minContentWidth: WIDTH
-      }
+      },
+
+      tagName: 'div',
+      ariaRole: 'radiogroup',
+      accessibleNameBehavior: ParallelDOM.HEADING_ACCESSIBLE_NAME_BEHAVIOR,
+      accessibleHelpTextBehavior: ParallelDOM.HELP_TEXT_BEFORE_CONTENT,
+      groupFocusHighlight: true,
+      accessibleName: 'Repository List',
+      accessibleHelpText: 'Select a repository from the list of available repositories.'
     } );
+
+    const className = 'repo-list';
 
     let filteredRepos: Repo[] = [];
 
@@ -102,7 +112,7 @@ export class RepoListNode extends VBox {
 
       const oldChildren = this.children.slice();
       this.children = searchResults.map( ( result, i ) => {
-        return new ListItemNode( result.obj.name, selectedRepoProperty, viewContext, result.highlight ? result.highlight.bind( result ) : () => result.obj.name, i, WIDTH );
+        return new ListItemNode( result.obj.name, selectedRepoProperty, viewContext, result.highlight ? result.highlight.bind( result ) : () => result.obj.name, i, WIDTH, className );
       } );
       oldChildren.forEach( child => child.dispose() );
     } );

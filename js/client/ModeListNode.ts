@@ -7,7 +7,7 @@
  */
 
 import { TProperty, TReadOnlyProperty } from 'scenerystack/axon';
-import { VBox } from 'scenerystack/scenery';
+import { ParallelDOM, VBox } from 'scenerystack/scenery';
 import { ListItemNode } from './ListItemNode.js';
 import fuzzysort from 'fuzzysort';
 import { ViewContext } from './ViewContext.js';
@@ -27,7 +27,15 @@ export class ModeListNode extends VBox {
       // TODO: specify these in better places https://github.com/phetsims/phettest/issues/20
       layoutOptions: {
         minContentWidth: WIDTH
-      }
+      },
+
+      tagName: 'div',
+      ariaRole: 'radiogroup',
+      accessibleNameBehavior: ParallelDOM.HEADING_ACCESSIBLE_NAME_BEHAVIOR,
+      accessibleHelpTextBehavior: ParallelDOM.HELP_TEXT_BEFORE_CONTENT,
+      groupFocusHighlight: true,
+      accessibleName: 'Mode List',
+      accessibleHelpText: 'Select a mode from the list of available mode.'
     } );
 
     const searchTextListener = ( searchText: string ) => {
@@ -57,7 +65,7 @@ export class ModeListNode extends VBox {
 
       const oldChildren = this.children.slice();
       this.children = searchResults.map( ( result, i ) => {
-        return new ListItemNode( result.obj.name, selectedModeNameProperty, viewContext, result.highlight ? result.highlight.bind( result ) : () => result.obj.name, i, WIDTH, result.obj.description );
+        return new ListItemNode( result.obj.name, selectedModeNameProperty, viewContext, result.highlight ? result.highlight.bind( result ) : () => result.obj.name, i, WIDTH, 'mode-list', result.obj.description );
       } );
       oldChildren.forEach( child => child.dispose() );
     };
