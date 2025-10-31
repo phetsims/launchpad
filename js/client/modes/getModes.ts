@@ -120,29 +120,16 @@ export const getModes = (
     }
   } );
 
-  isRunnable && isCheckedOut && supportsPhetio && ( isMainBranch || hasBuild ) && modes.push( {
-    name: 'index',
-    description: 'Runs the phet-io wrapper index',
-    createCustomizationNode: () => {
-      return new SimpleUnbuiltBuiltCustomizationNode(
-        repoListEntry,
-        branchInfo,
-        isMainBranch ? `${releaseBranchPrefix}phet-io-wrappers/index/?sim=${repo}&phetioDebug=true&phetioWrapperDebug=true` : null,
-        hasBuild ? `${repoDirectory}/build${phetioFolder}/` : null,
-        nonStudioQueryParametersPromise,
-        viewContext
-      );
-    }
-  } );
-
   isRunnable && isCheckedOut && supportsPhetio && isMainBranch && modes.push( {
     name: 'wrappers',
     description: 'Runs phet-io wrappers',
     createCustomizationNode: () => {
       return new WrappersNode(
         repo,
+        !!branchInfo.lastBuiltTime,
         simSpecificWrappers,
         releaseBranchPrefix,
+        phetioFolder,
         // TODO: will need to put other things in here to determine the URLs to use (also ... support built forms)
         viewContext
       );

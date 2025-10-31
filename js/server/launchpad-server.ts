@@ -40,11 +40,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *  - Query Parameters:
    *    - Support release branches (old styles of query parameters)
    *    - Add "wrapper" query parameters, and things for e.g. aqua
-   *  - Wrappers:
-   *    - BUILT wrappers (for the "wrappers" list)
-   *      - THEN remove the "index" since it would be the default wrapper
-   *    -- Wrapper index as "wrappers" -- but then radio button to select other wrappers
-   *      - Perhaps we should default to non-built
    *  - Top-level search:
    *    - Multi-target search (for repos, modes, branches, etc. all at once?) -- brainstorm
    *    - Search that can find modes (see if we can match two levels with the search) -- for modes that exist in one repo
@@ -58,10 +53,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *  - Unbuilt release branches (they are buggy right now)
    *  - Test on Windows
    *  - Package Lock handling
-   *  - Move over more phetmarks links (e.g. phet-io links that are missing - talk to MK)
-   *    - UNBUILT and BUILT index!!! This is this primary thing
-   *    - Migration and State are the two main things I'm missing
-   *    - Have a "wrappers"
    *  - Clearer copy-to-clipboard (or just... make links) - copy icon or buttons?
    *  - "Advanced" button to trigger updateModel server-side?
    *    - WE MIGHT NEED A LOCK

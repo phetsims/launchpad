@@ -7,25 +7,35 @@
  */
 
 import { Repo } from '../../types/common-types.js';
-import { HBox, Node } from 'scenerystack/scenery';
+import { HBox, VBox } from 'scenerystack/scenery';
 import { WaitingNode } from '../WaitingNode.js';
 import { ViewContext } from '../ViewContext.js';
 import { UIText } from '../UIText.js';
 import { UIAquaRadioButtonGroup } from '../UIAquaRadioButtonGroup.js';
-import { Property } from 'scenerystack/axon';
+import { BooleanProperty, Property } from 'scenerystack/axon';
 import { getWrappers } from '../client-api.js';
 import { getWrapperName } from './getWrapperName.js';
+import { useBuiltProperty } from '../settings.js';
+import { UITextSwitch } from '../UITextSwitch.js';
 
-export class WrappersNode extends Node {
+export class WrappersNode extends VBox {
   private readonly wrapperProperty = new Property( 'phet-io-wrappers/index' );
+  private readonly showBuiltProperty!: Property<boolean>;
 
   public constructor(
     public readonly repo: Repo,
+    public readonly isBuilt: boolean,
     public readonly simSpecificWrappers: string[],
     private readonly releaseBranchPrefix: string,
+    private readonly phetioFolder: string,
     viewContext: ViewContext
   ) {
-    super();
+    super( {
+      align: 'left',
+      spacing: 15
+    } );
+
+    this.showBuiltProperty = isBuilt ? useBuiltProperty : new BooleanProperty( false );
 
     const waitingNode = new WaitingNode( viewContext );
 
@@ -60,7 +70,16 @@ export class WrappersNode extends Node {
         return a.localeCompare( b );
       } );
 
+      const textSwitch = new UITextSwitch( this.showBuiltProperty, 'Use Built Version', {
+        onOffSwitchOptions: {
+          enabled: isBuilt
+        }
+      } );
+
+      this.addDisposable( textSwitch );
+
       this.children = [
+        textSwitch,
         new UIAquaRadioButtonGroup( this.wrapperProperty, wrappers.map( wrapper => {
           return {
             value: wrapper,
@@ -76,16 +95,28 @@ export class WrappersNode extends Node {
     const wrapperName = getWrapperName( wrapper );
     let url: string;
 
-    // Process for dedicated wrapper repos
-    if ( wrapper.startsWith( 'phet-io-wrapper-' ) ) {
+    // TODO: &phetioDebug=true&phetioWrapperDebug=true ???
 
-      // Special use case for the sonification wrapper
-      url = wrapperName === 'sonification' ? `${this.releaseBranchPrefix}phet-io-wrapper-${wrapperName}/${this.repo}-sonification.html?sim=${this.repo}` :
-            `${this.releaseBranchPrefix}${wrapper}/?sim=${this.repo}`;
+    if ( this.showBuiltProperty.value ) {
+      if ( wrapperName === 'index' ) {
+        url = `${this.releaseBranchPrefix}${this.repo}/build${this.phetioFolder}/`;
+      }
+      else {
+        url = `${this.releaseBranchPrefix}${this.repo}/build${this.phetioFolder}/wrappers/${wrapperName}/`;
+      }
     }
-    // Load the wrapper urls for the phet-io-wrappers/
     else {
-      url = `${this.releaseBranchPrefix}${wrapper}/?sim=${this.repo}`;
+      // Process for dedicated wrapper repos
+      if ( wrapper.startsWith( 'phet-io-wrapper-' ) ) {
+
+        // Special use case for the sonification wrapper
+        url = wrapperName === 'sonification' ? `${this.releaseBranchPrefix}phet-io-wrapper-${wrapperName}/${this.repo}-sonification.html?sim=${this.repo}` :
+              `${this.releaseBranchPrefix}${wrapper}/?sim=${this.repo}`;
+      }
+      // Load the wrapper urls for the phet-io-wrappers/
+      else {
+        url = `${this.releaseBranchPrefix}${wrapper}/?sim=${this.repo}`;
+      }
     }
 
     // add recording to the console by default
