@@ -1,7 +1,7 @@
 // Copyright 2025, University of Colorado Boulder
 
 /**
- * Search box for launchpad
+ * TODO: doc
  *
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
@@ -63,7 +63,28 @@ export class FocusableDOMNode extends DOM {
       }
 
       // gets ALL descendant children for the element
-      const children = Array.from( display.pdomRootElement!.getElementsByTagName( '*' ) ).filter( PDOMUtils.isElementFocusable );
+      const initialChildren = Array.from( display.pdomRootElement!.getElementsByTagName( '*' ) ).filter( PDOMUtils.isElementFocusable );
+
+      // Filter out unchecked radio buttons
+      const children = initialChildren.filter( element => {
+        // If we are a radio button
+        if ( element.tagName === 'INPUT' && ( element as HTMLInputElement ).type === 'radio' ) {
+          const name = ( element as HTMLInputElement ).name;
+
+          // And have a name and are NOT checked
+          if ( name && !( element as HTMLInputElement ).checked ) {
+
+            // Only allow us to be in the order if there is not a checked radio button with the same name
+            return !initialChildren.some( otherElement => {
+              return otherElement.tagName === 'INPUT' && ( otherElement as HTMLInputElement ).type === 'radio' &&
+                     ( otherElement as HTMLInputElement ).name === name &&
+                     ( otherElement as HTMLInputElement ).checked;
+            } );
+          }
+        }
+
+        return true;
+      } );
 
       const linearDOM = [];
       for ( let i = 0; i < children.length; i++ ) {

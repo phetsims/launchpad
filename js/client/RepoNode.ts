@@ -6,7 +6,7 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import { Property, TReadOnlyProperty } from 'scenerystack/axon';
+import { Property, TProperty, TReadOnlyProperty } from 'scenerystack/axon';
 import { HBox, Node, VBox } from 'scenerystack/scenery';
 import { ComboBox } from 'scenerystack/sun';
 import { BranchInfo, RepoListEntry } from '../types/common-types.js';
@@ -16,6 +16,7 @@ import { ViewContext } from './ViewContext.js';
 import { UIText } from './UIText.js';
 import { listSelectedColorProperty, uiBackgroundColorProperty, uiForegroundColorProperty, uiRepoNameFont } from './theme.js';
 import { TooltipListener } from './TooltipListener.js';
+import { ModeListNode } from './ModeListNode.js';
 
 let isStartup = true;
 
@@ -23,6 +24,7 @@ export class RepoNode extends VBox {
   public constructor(
     repoListEntry: RepoListEntry,
     searchBoxTextProperty: TReadOnlyProperty<string>,
+    modeListNodeProperty: TProperty<ModeListNode | null>,
     launchURL: ( url: string ) => void,
     viewContext: ViewContext
   ) {
@@ -130,7 +132,7 @@ export class RepoNode extends VBox {
 
     const branchInfoListener = ( branchInfo: BranchInfo | null ) => {
       const oldChildren = contentContainer.children.slice();
-      contentContainer.children = [ branchInfo ? new BranchNode( repoListEntry, branchInfo, searchBoxTextProperty, launchURL, requestNewBranchInfo, viewContext ) : new UIText( 'Loading...', { opacity: 0.5 } ) ];
+      contentContainer.children = [ branchInfo ? new BranchNode( repoListEntry, branchInfo, searchBoxTextProperty, modeListNodeProperty, launchURL, requestNewBranchInfo, viewContext ) : new UIText( 'Loading...', { opacity: 0.5 } ) ];
       oldChildren.forEach( child => child.dispose() );
     };
 

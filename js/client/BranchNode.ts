@@ -6,7 +6,7 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import { BooleanProperty, Property, TReadOnlyProperty } from 'scenerystack/axon';
+import { BooleanProperty, Property, TProperty, TReadOnlyProperty } from 'scenerystack/axon';
 import { FireListener, GridBox, HBox, HSeparator, Node, VBox } from 'scenerystack/scenery';
 import { BranchInfo, QueryParameter, Repo, RepoListEntry, SHA } from '../types/common-types.js';
 import moment from 'moment';
@@ -34,6 +34,7 @@ export class BranchNode extends VBox {
     repoListEntry: RepoListEntry,
     branchInfo: BranchInfo,
     searchBoxTextProperty: TReadOnlyProperty<string>,
+    modeListNodeProperty: TProperty<ModeListNode | null>,
     launchURL: ( url: string ) => void,
     requestNewBranchInfo: () => void,
     viewContext: ViewContext
@@ -291,6 +292,8 @@ export class BranchNode extends VBox {
     };
 
     const modeListNode = new ModeListNode( availableModes, searchBoxTextProperty, selectedModeNameProperty, viewContext );
+
+    modeListNodeProperty.value = modeListNode;
 
     if ( branchInfo.branch !== 'main' ) {
       const updateContainer = new HBox();

@@ -46,16 +46,8 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *    -- Wrapper index as "wrappers" -- but then radio button to select other wrappers
    *      - Perhaps we should default to non-built
    *  - KEYBOARD / a11y:
-   *    - radio button group like keyboard control for lists
-   *      - Check for tabs patterns: https://www.w3.org/WAI/ARIA/apg/patterns/tabs/
-   *    - Focus order:
-   *      - Search box
-   *      - Repo list
-   *      - Mode list
-   *      - Launch button???
-   *      - Main branch content (accordion boxes)
-   *      - Customization node
    *    - Scroll to the focus (soft scroll?) for when it changes
+   *    - Be able to close dialogs (oof)
    *  - Top-level search:
    *    - Multi-target search (for repos, modes, branches, etc. all at once?) -- brainstorm
    *    - Search that can find modes (see if we can match two levels with the search) -- for modes that exist in one repo
@@ -111,6 +103,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *      - then sync --transpile=true --status=false logPull=false logFormatting=false --npmUpdate=false --checkoutMain=true (????)
    *      - Then check lists?
    *  - per-main-repo LOCKS for git mutating commands (includes getFileAtBranch... unfortunately)
+   *  - A11y tab navigation proper aria roles, see https://www.w3.org/WAI/ARIA/apg/patterns/tabs/
    */
 
   // These will get stat'ed all at once

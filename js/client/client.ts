@@ -31,10 +31,12 @@ import { launchURL } from './launchURL.js';
 import { infoCircleSolidShape } from 'scenerystack/sun';
 import { InfoNode } from './InfoNode.js';
 import { TooltipListener } from './TooltipListener.js';
+import { ModeListNode } from './ModeListNode.js';
 
 const selectedRepoProperty = new Property<string | null>( null );
 const searchBoxTextProperty = new Property( '' );
 const repoListProperty = new Property<RepoList | null>( null );
+const modeListNodeProperty = new Property<ModeListNode | null>( null );
 
 selectedRepoProperty.lazyLink( repo => {
   if ( repo ) {
@@ -91,7 +93,7 @@ selectedRepoProperty.link( selectedRepo => {
   if ( repoListEntry ) {
     const oldChildren = repoNodeContainer.children.slice();
     repoNodeContainer.children = selectedRepo ? [
-      new RepoNode( repoListEntry, searchBoxTextProperty, launchURL, viewContext )
+      new RepoNode( repoListEntry, searchBoxTextProperty, modeListNodeProperty, launchURL, viewContext )
     ] : [];
     oldChildren.forEach( child => child.dispose() );
   }
@@ -188,6 +190,19 @@ const baseBox = new VBox( {
       ]
     } )
   ]
+} );
+
+modeListNodeProperty.link( modeListNode => {
+  baseBox.pdomOrder = [
+    searchBoxNode,
+    repoListNode,
+    ...( modeListNode ? [ modeListNode ] : [] ),
+    logButton,
+    infoButton,
+    settingsButton,
+    repoNodeContainer,
+    null
+  ];
 } );
 
 const MAIN_MARGIN = 10;
