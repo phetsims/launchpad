@@ -12,7 +12,7 @@ import './clientQueryParameters.js';
 import { Property, stepTimer } from 'scenerystack/axon';
 import { Bounds2 } from 'scenerystack/dot';
 import { platform } from 'scenerystack/phet-core';
-import { AlignBox, AlignGroup, Display, HBox, Image, Node, Path, VBox } from 'scenerystack/scenery';
+import { AlignBox, AlignGroup, Display, HBox, Image, Node, Path, Rectangle, VBox } from 'scenerystack/scenery';
 import { SearchBoxNode } from './SearchBoxNode.js';
 import type { RepoList } from '../types/common-types.js';
 import { apiGetRepoList } from './client-api.js';
