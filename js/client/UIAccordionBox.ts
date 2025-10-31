@@ -27,4 +27,13 @@ export class UIAccordionBox extends AccordionBox {
 
     super( contentNode, options );
   }
+
+  public override dispose(): void {
+    // TODO: Don't require this!!!! --- AccordionBox should note if it has no children, don't do layout then (even if it isn't disposed yet)
+    // TODO: update to a new scenerystack version for this?
+    // @ts-expect-error
+    this.constraint.enabled = false;
+
+    super.dispose();
+  }
 }

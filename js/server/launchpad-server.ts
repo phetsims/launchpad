@@ -32,7 +32,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
 ( async () => {
   /*
    * TO DO bugs:
-   *  - Layout crash on switch to built version (WOAS at least)
    *  - Log button crash!!
    *  - Allow https://bayes.colorado.edu/launchpad (redirect... if no slash!) -- server config?
    *  - Spam random things with no matches in search bar ... caused modes to disappear once
