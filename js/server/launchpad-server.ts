@@ -45,8 +45,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *      - THEN remove the "index" since it would be the default wrapper
    *    -- Wrapper index as "wrappers" -- but then radio button to select other wrappers
    *      - Perhaps we should default to non-built
-   *  - KEYBOARD / a11y:
-   *    - Be able to close dialogs (oof)
    *  - Top-level search:
    *    - Multi-target search (for repos, modes, branches, etc. all at once?) -- brainstorm
    *    - Search that can find modes (see if we can match two levels with the search) -- for modes that exist in one repo
@@ -104,6 +102,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *      - Then check lists?
    *  - per-main-repo LOCKS for git mutating commands (includes getFileAtBranch... unfortunately)
    *  - A11y tab navigation proper aria roles, see https://www.w3.org/WAI/ARIA/apg/patterns/tabs/
+   *  - A11y proper dialog focus management (don't focus things not in the dialog)
    */
 
   // These will get stat'ed all at once

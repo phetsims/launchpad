@@ -10,14 +10,17 @@
 import { ViewContext } from './ViewContext.js';
 
 import { optionize } from 'scenerystack/phet-core';
-import { AlignBox, Node, Rectangle } from 'scenerystack/scenery';
+import { AlignBox, ManualConstraint, Node, NodeOptions, ParallelDOM, Rectangle } from 'scenerystack/scenery';
 import { Panel, PanelOptions } from 'scenerystack/sun';
 import { barrierColorProperty, uiBackgroundColorProperty, uiForegroundColorProperty } from './theme.js';
+import { CloseButton } from 'scenerystack/scenery-phet';
 
-export type PopupNodeOptions = {
+type SelfOptions = {
   allowBarrierClickToHide?: boolean;
   panelOptions?: PanelOptions;
 };
+
+export type PopupNodeOptions = SelfOptions & NodeOptions;
 
 export class PopupNode extends Node {
   public constructor(
@@ -25,7 +28,7 @@ export class PopupNode extends Node {
     public readonly viewContext: ViewContext,
     providedOptions?: PopupNodeOptions
   ) {
-    const options = optionize<PopupNodeOptions>()(
+    const options = optionize<PopupNodeOptions, SelfOptions, NodeOptions>()(
       {
         allowBarrierClickToHide: true,
         panelOptions: {
@@ -33,7 +36,12 @@ export class PopupNode extends Node {
           yMargin: 15,
           fill: uiBackgroundColorProperty,
           stroke: uiForegroundColorProperty
-        }
+        },
+
+        tagName: 'div',
+        ariaRole: 'dialog',
+        positionInPDOM: true,
+        accessibleNameBehavior: ParallelDOM.HEADING_ACCESSIBLE_NAME_BEHAVIOR
       },
       providedOptions
     );
@@ -56,6 +64,10 @@ export class PopupNode extends Node {
 
     const panel = new Panel( content, options.panelOptions );
 
+    const closeButton = new CloseButton( {
+      listener: () => this.hide()
+    } );
+
     viewContext.layoutBoundsProperty.link( layoutBounds => {
       panel.maxWidth = layoutBounds.width * 0.9;
       panel.maxHeight = layoutBounds.height * 0.9;
@@ -68,6 +80,15 @@ export class PopupNode extends Node {
         topMargin: 50
       } )
     );
+
+    this.addChild( closeButton );
+
+    this.pdomOrder = [ closeButton, panel ];
+
+    ManualConstraint.create( this, [ panel, closeButton ], ( panelProxy, closeButtonProxy ) => {
+      closeButtonProxy.right = panelProxy.right - 10;
+      closeButtonProxy.top = panelProxy.top + 10;
+    } );
   }
 
   public show(): void {
