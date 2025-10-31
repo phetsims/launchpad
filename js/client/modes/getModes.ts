@@ -253,8 +253,7 @@ export const getModes = (
     name: 'unit tests (unbuilt)',
     description: 'Runs unit tests in unbuilt mode',
     createCustomizationNode: () => {
-      // TODO: provide phet-io brand if phet-io/tandem/phet-io-wrappers?
-      return new EmptyCustomizationNode( `${repoDirectory}/${repo}-tests.html` );
+      return new EmptyCustomizationNode( `${repoDirectory}/${repo}-tests.html${[ 'phet-io', 'tandem', 'phet-io-wrappers' ].includes( repo ) ? '?brand=phet-io' : ''}` );
     }
   } );
 
