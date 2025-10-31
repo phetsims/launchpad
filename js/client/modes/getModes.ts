@@ -92,14 +92,20 @@ export const getModes = (
       return new SimpleUnbuiltBuiltCustomizationNode(
         repoListEntry,
         branchInfo,
-        isMainBranch ? `${repoDirectory}/${repo}_en.html?ea&brand=phet-io&${phetioStandaloneQueryParameters}&debugger` : null,
-        hasBuild ? `${repoDirectory}/build${phetioFolder}/${repo}${phetioSuffix}.html?${phetioStandaloneQueryParameters}` : null,
+        isMainBranch ? `${repoDirectory}/${repo}_en.html` : null,
+        hasBuild ? `${repoDirectory}/build${phetioFolder}/${repo}${phetioSuffix}.html` : null,
         nonStudioQueryParametersPromise,
         viewContext,
 
-        // TODO: phetioStandaloneQueryParameters and such
-        {},
-        {}
+        {
+          ea: undefined,
+          brand: 'phet-io',
+          [ phetioStandaloneQueryParameters ]: undefined,
+          debugger: undefined
+        },
+        {
+          [ phetioStandaloneQueryParameters ]: undefined
+        }
       );
     }
   } );
@@ -111,11 +117,18 @@ export const getModes = (
       return new SimpleUnbuiltBuiltCustomizationNode(
         repoListEntry,
         branchInfo,
-        // TODO: likely this URL won't work for older cases https://github.com/phetsims/phettest/issues/20
-        isMainBranch ? `${releaseBranchPrefix}studio/?sim=${repo}&phetioWrapperDebug=true&phetioElementsDisplay=all` : null,
+        isMainBranch ? `${releaseBranchPrefix}studio/` : null,
         hasBuild ? `${repoDirectory}/build${phetioFolder}/wrappers/${studioName}${studioPathSuffix}` : null,
         queryParametersPromise,
-        viewContext
+        viewContext,
+        {
+          sim: repo,
+          phetioElementsDisplay: 'all',
+          phetioWrapperDebug: true
+        },
+        {
+          phetioElementsDisplay: 'all'
+        }
       );
     }
   } );
@@ -130,7 +143,6 @@ export const getModes = (
         simSpecificWrappers,
         releaseBranchPrefix,
         phetioFolder,
-        // TODO: will need to put other things in here to determine the URLs to use (also ... support built forms)
         viewContext
       );
     }
@@ -151,10 +163,17 @@ export const getModes = (
       return new SimpleUnbuiltBuiltCustomizationNode(
         repoListEntry,
         branchInfo,
-        isMainBranch ? `${releaseBranchPrefix}chipper/wrappers/a11y-view/?sim=${repo}&brand=phet&ea&debugger` : null,
+        isMainBranch ? `${releaseBranchPrefix}chipper/wrappers/a11y-view/` : null,
         hasBuild ? `${repoDirectory}/build${phetFolder}/${repo}_a11y_view.html` : null,
         nonStudioQueryParametersPromise,
-        viewContext
+        viewContext,
+        {
+          sim: repo,
+          brand: 'phet',
+          ea: undefined,
+          debugger: undefined
+        },
+        {}
       );
     }
   } );
