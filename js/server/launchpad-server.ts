@@ -46,7 +46,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *    -- Wrapper index as "wrappers" -- but then radio button to select other wrappers
    *      - Perhaps we should default to non-built
    *  - KEYBOARD / a11y:
-   *    - Scroll to the focus (soft scroll?) for when it changes
    *    - Be able to close dialogs (oof)
    *  - Top-level search:
    *    - Multi-target search (for repos, modes, branches, etc. all at once?) -- brainstorm
@@ -69,6 +68,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *  - "Advanced" button to trigger updateModel server-side?
    *    - WE MIGHT NEED A LOCK
    *  - Power shortcut for build/no-build
+   *  - Proper horizontal sizing that won't overflow
    *
    * TO DO internal:
    *  - Persistence and saveModel usage is a mess (server-side)

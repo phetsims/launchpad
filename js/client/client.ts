@@ -12,7 +12,7 @@ import './clientQueryParameters.js';
 import { Property, stepTimer } from 'scenerystack/axon';
 import { Bounds2 } from 'scenerystack/dot';
 import { platform } from 'scenerystack/phet-core';
-import { AlignBox, AlignGroup, Display, HBox, Image, Node, Path, Rectangle, VBox } from 'scenerystack/scenery';
+import { AlignBox, AlignGroup, Display, HBox, Image, Node, Path, pdomFocusProperty, Rectangle, VBox } from 'scenerystack/scenery';
 import { SearchBoxNode } from './SearchBoxNode.js';
 import type { RepoList } from '../types/common-types.js';
 import { apiGetRepoList } from './client-api.js';
@@ -213,6 +213,38 @@ layoutBoundsProperty.link( layoutBounds => {
 
 const alignBox = new AlignBox( baseBox, {
   margin: MAIN_MARGIN
+} );
+
+pdomFocusProperty.lazyLink( focus => {
+  if ( focus ) {
+    const trail = focus.trail;
+
+    const bounds = trail.parentToGlobalBounds( focus.trail.lastNode().bounds );
+
+    const currentWindowBounds = new Bounds2( window.scrollX, window.scrollY, window.scrollX + window.innerWidth, window.scrollY + window.innerHeight );
+
+    if ( !currentWindowBounds.containsBounds( bounds ) ) {
+      // current values
+      const x = window.scrollX;
+      let y = window.scrollY;
+
+      const topMatchY = bounds.top;
+      const bottomMatchY = bounds.bottom - window.innerHeight;
+
+      if ( y < bottomMatchY ) {
+        y = bottomMatchY;
+      }
+      if ( y > topMatchY ) {
+        y = topMatchY;
+      }
+
+      scrollTo( {
+        top: y,
+        left: x,
+        behavior: 'smooth'
+      } );
+    }
+  }
 } );
 
 alignBox.localBoundsProperty.link( () => {
