@@ -32,6 +32,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
 ( async () => {
   /*
    * TO DO bugs:
+   *  - Layout crash on switch to built version (WOAS at least)
    *  - Log button crash!!
    *  - Allow https://bayes.colorado.edu/launchpad (redirect... if no slash!) -- server config?
    *  - Spam random things with no matches in search bar ... caused modes to disappear once
@@ -46,8 +47,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *    -- Wrapper index as "wrappers" -- but then radio button to select other wrappers
    *      - Perhaps we should default to non-built
    *  - KEYBOARD / a11y:
-   *    - Include search box in tab order (!) ... how will that work?
-   *      - NEED to take backbone z-index and actually place the content ... in the PDOM? Should certain backbones be in the PDOM?
    *    - radio button group like keyboard control for lists
    *      - Check for tabs patterns: https://www.w3.org/WAI/ARIA/apg/patterns/tabs/
    *    - Focus order:

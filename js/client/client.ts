@@ -83,7 +83,7 @@ const viewContext = new ViewContext( layoutBoundsProperty, glassPane, stepTimer 
 const tooltipListener = new TooltipListener( viewContext );
 
 const searchBoxNode = new SearchBoxNode( searchBoxTextProperty );
-const repoListNode = new RepoListNode( repoListProperty, searchBoxTextProperty, selectedRepoProperty, searchBoxNode.isSearchBoxFocusedProperty, viewContext );
+const repoListNode = new RepoListNode( repoListProperty, searchBoxTextProperty, selectedRepoProperty, searchBoxNode.isElementFocusedProperty, viewContext );
 const repoNodeContainer = new Node();
 selectedRepoProperty.link( selectedRepo => {
   const repoListEntry = repoListProperty.value?.find( repo => repo.name === selectedRepo ) ?? null;
@@ -246,4 +246,4 @@ display.updateOnRequestAnimationFrame( () => {
 
 display.initializeEvents();
 display.updateDisplay();
-searchBoxNode.focusSearchBox();
+searchBoxNode.focus();

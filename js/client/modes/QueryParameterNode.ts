@@ -26,6 +26,7 @@ import { UIBooleanRectangularStickyToggleButton } from '../UIBooleanRectangularS
 import { Shape } from 'scenerystack/kite';
 import { Matrix3 } from 'scenerystack/dot';
 import { TooltipListener } from '../TooltipListener.js';
+import { FocusableDOMNode } from '../FocusableDOMNode.js';
 
 class PlaceholderQueryParameterNode extends UIText {
   public constructor(
@@ -192,6 +193,7 @@ class QueryParameterNode extends VBox {
     }
     else {
       const input = document.createElement( 'input' );
+      const accessibleName = `${queryParameter.name} input text`;
 
       getInputCSSProperty( 250, { padding: 0 } ).link( cssText => {
         input.style.cssText = cssText;
@@ -199,6 +201,7 @@ class QueryParameterNode extends VBox {
       input.type = 'text';
       // eslint-disable-next-line @typescript-eslint/no-base-to-string
       input.placeholder = queryParameter.defaultValue !== undefined ? `${queryParameter.defaultValue}` : '';
+      input.ariaLabel = accessibleName;
 
       input.addEventListener( 'input', () => {
         this.valueProperty.value = input.value.length ? input.value : undefined;
@@ -209,7 +212,10 @@ class QueryParameterNode extends VBox {
         spacing: 3,
         children: [
           nameInfoNode,
-          new DOM( input, {
+          new FocusableDOMNode( input, {
+            tagName: 'input',
+            inputType: 'text',
+            accessibleName: accessibleName,
             allowInput: true,
             layoutOptions: {
               leftMargin: 20
