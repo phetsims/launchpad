@@ -31,9 +31,11 @@ const ReleaseBranch = ReleaseBranchImport.default;
 
 ( async () => {
   /*
+   * TO DO collab:
+   *  - Work with SR on phet-io wrapper query parameters (and phet-io in general)
+   *
    * TO DO bugs:
    *  - Log button crash!!
-   *  - Allow https://bayes.colorado.edu/launchpad (redirect... if no slash!) -- server config?
    *  - Spam random things with no matches in search bar ... caused modes to disappear once
    *
    * TO DO features:

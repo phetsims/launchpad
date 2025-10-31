@@ -261,9 +261,6 @@ export class QueryParametersNode extends UIAccordionBox {
   private object: Record<string, unknown> = {};
 
   public constructor(
-    // TODO: remove unused?
-    public readonly repoListEntry: RepoListEntry,
-    public readonly branchInfo: BranchInfo,
     initialObject: Record<string, unknown>,
     public readonly queryParametersPromise: Promise<QueryParameter[]>,
     viewContext: ViewContext

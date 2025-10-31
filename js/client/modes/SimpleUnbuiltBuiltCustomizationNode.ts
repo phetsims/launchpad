@@ -50,7 +50,7 @@ export class SimpleUnbuiltBuiltCustomizationNode extends VBox {
         this.queryParametersNode.dispose();
       }
 
-      this.queryParametersNode = new QueryParametersNode( repoListEntry, branchInfo, built ? defaultBuiltObject : defaultUnbuiltObject, queryParametersPromise, viewContext );
+      this.queryParametersNode = new QueryParametersNode( built ? defaultBuiltObject : defaultUnbuiltObject, queryParametersPromise, viewContext );
 
       this.addChild( this.queryParametersNode );
     };
