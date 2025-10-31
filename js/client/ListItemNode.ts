@@ -7,7 +7,7 @@
  */
 
 import { DerivedProperty, TProperty } from 'scenerystack/axon';
-import { Color, FireListener, Node, Rectangle, Voicing } from 'scenerystack/scenery';
+import { Color, FireListener, Node, Rectangle, SceneryEvent, Voicing } from 'scenerystack/scenery';
 import { ViewContext } from './ViewContext.js';
 import { TooltipListener } from './TooltipListener.js';
 import { autocompleteMatchColorProperty, listEvenColorProperty, listHoverColorProperty, listOddColorProperty, listSelectedColorProperty } from './theme.js';
@@ -26,8 +26,15 @@ export class ListItemNode extends Node {
     className: string,
     description?: string
   ) {
+
+    let lastEvent: SceneryEvent | null;
+
     const fireListener = new FireListener( {
-      fire: () => {
+      fire: event => {
+        // Workaround for mode-select immediately firing it with a NEW scenery event but SAME domEvent
+        if ( lastEvent && event && lastEvent.domEvent === event.domEvent ) {
+          return;
+        }
         if ( selectedItemProperty.value === item ) {
           // Fire on double-click
           launchTriggerEmitter.emit();
@@ -35,6 +42,7 @@ export class ListItemNode extends Node {
         else {
           selectedItemProperty.value = item;
         }
+        lastEvent = event;
       }
     } );
 
