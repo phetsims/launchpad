@@ -64,14 +64,14 @@ export const getModes = (
   // `](https://phet-dev.colorado.edu/html/${this.repo}/${versionString}${phetFolder}/${this.repo}_all${phetSuffix}.html)`
 
   // TODO: locale-specific versions perhaps? https://github.com/phetsims/phettest/issues/20
-  isRunnable && isCheckedOut && supportsPhet && ( isMainBranch || hasBuild ) && modes.push( {
+  isRunnable && isCheckedOut && supportsPhet && modes.push( {
     name: 'phet',
     description: 'Runs the PhET-brand simulation',
     createCustomizationNode: () => {
       return new SimpleUnbuiltBuiltCustomizationNode(
         repoListEntry,
         branchInfo,
-        isMainBranch ? `${repoDirectory}/${repo}_en.html` : null,
+        `${repoDirectory}/${repo}_en.html`,
         hasBuild ? `${repoDirectory}/build${phetFolder}/${repo}_all${phetSuffix}.html` : null,
         nonStudioQueryParametersPromise,
         viewContext,
@@ -85,14 +85,14 @@ export const getModes = (
     }
   } );
 
-  isRunnable && isCheckedOut && supportsPhetio && ( isMainBranch || hasBuild ) && modes.push( {
+  isRunnable && isCheckedOut && supportsPhetio && modes.push( {
     name: 'phet-io',
     description: 'Runs the simulation in phet-io standalone mode',
     createCustomizationNode: () => {
       return new SimpleUnbuiltBuiltCustomizationNode(
         repoListEntry,
         branchInfo,
-        isMainBranch ? `${repoDirectory}/${repo}_en.html` : null,
+        `${repoDirectory}/${repo}_en.html`,
         hasBuild ? `${repoDirectory}/build${phetioFolder}/${repo}${phetioSuffix}.html` : null,
         nonStudioQueryParametersPromise,
         viewContext,
@@ -110,14 +110,14 @@ export const getModes = (
     }
   } );
 
-  isRunnable && isCheckedOut && supportsPhetio && ( isMainBranch || hasBuild ) && modes.push( {
+  isRunnable && isCheckedOut && supportsPhetio && modes.push( {
     name: 'studio',
     description: `Runs the simulation in ${studioNameBeautified}`,
     createCustomizationNode: () => {
       return new SimpleUnbuiltBuiltCustomizationNode(
         repoListEntry,
         branchInfo,
-        isMainBranch ? `${releaseBranchPrefix}studio/` : null,
+        `${releaseBranchPrefix}studio/`,
         hasBuild ? `${repoDirectory}/build${phetioFolder}/wrappers/${studioName}${studioPathSuffix}` : null,
         queryParametersPromise,
         viewContext,
@@ -133,7 +133,7 @@ export const getModes = (
     }
   } );
 
-  isRunnable && isCheckedOut && supportsPhetio && isMainBranch && modes.push( {
+  isRunnable && isCheckedOut && supportsPhetio && modes.push( {
     name: 'wrappers',
     description: 'Runs phet-io wrappers',
     createCustomizationNode: () => {
@@ -148,7 +148,7 @@ export const getModes = (
     }
   } );
 
-  isRunnable && isCheckedOut && supportsPhetio && isMainBranch && showAdvanced && modes.push( {
+  isRunnable && isCheckedOut && supportsPhetio && showAdvanced && modes.push( {
     name: 'wrapper unit tests',
     description: 'Runs the phet-io wrapper unit tests',
     createCustomizationNode: () => {
@@ -156,14 +156,14 @@ export const getModes = (
     }
   } );
 
-  isRunnable && isCheckedOut && supportsInteractiveDescription && ( isMainBranch || hasBuild ) && modes.push( {
+  isRunnable && isCheckedOut && supportsInteractiveDescription && modes.push( {
     name: 'a11y view',
     description: 'Runs the simulation in an iframe next to a copy of the PDOM to easily inspect accessible content',
     createCustomizationNode: () => {
       return new SimpleUnbuiltBuiltCustomizationNode(
         repoListEntry,
         branchInfo,
-        isMainBranch ? `${releaseBranchPrefix}chipper/wrappers/a11y-view/` : null,
+        `${releaseBranchPrefix}chipper/wrappers/a11y-view/`,
         hasBuild ? `${repoDirectory}/build${phetFolder}/${repo}_a11y_view.html` : null,
         nonStudioQueryParametersPromise,
         viewContext,
@@ -186,7 +186,7 @@ export const getModes = (
     }
   } );
 
-  isRunnable && isMainBranch && modes.push( {
+  isRunnable && modes.push( {
     name: 'color editor',
     description: 'Runs the top-level -colors.html file (allows editing/viewing different profile colors)',
     createCustomizationNode: () => {
@@ -194,7 +194,7 @@ export const getModes = (
     }
   } );
 
-  isRunnable && isMainBranch && modes.push( {
+  isRunnable && modes.push( {
     name: 'production',
     description: 'Runs production versions (defaults to the latest)',
     createCustomizationNode: () => {
@@ -202,7 +202,7 @@ export const getModes = (
     }
   } );
 
-  isRunnable && isMainBranch && modes.push( {
+  isRunnable && modes.push( {
     name: 'dev (bayes)',
     description: 'Loads the location on phet-dev.colorado.edu with versions for each dev deploy',
     createCustomizationNode: () => {
