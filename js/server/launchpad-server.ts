@@ -39,6 +39,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *  - Spam random things with no matches in search bar ... caused modes to disappear once
    *
    * TO DO features:
+   *  - Mobile viewport and usability!
    *  - Query Parameters:
    *    - Support release branches (old styles of query parameters)
    *    - Add "wrapper" query parameters, and things for e.g. aqua
