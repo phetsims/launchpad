@@ -43,6 +43,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *  - Query Parameters:
    *    - Support release branches (old styles of query parameters)
    *    - Add "wrapper" query parameters, and things for e.g. aqua
+   *    - Paragraph breaks for when docs have two newlines in a row
    *  - Top-level search:
    *    - Multi-target search (for repos, modes, branches, etc. all at once?) -- brainstorm
    *    - Search that can find modes (see if we can match two levels with the search) -- for modes that exist in one repo
