@@ -493,58 +493,62 @@ export const getQueryParameters = async ( model: Model, branchInfo: ModelBranchI
 
   const locales = await localesPromise;
 
-  // TODO: don't use filters (for performance)
-
   queryParameters.sort( ( a, b ) => a.name.localeCompare( b.name ) );
 
   // Overrides section (for things we can and should fill in that would be otherwise computed in runtime sim code)
-  queryParameters.filter( queryParameter => queryParameter.name === 'brand' ).forEach( queryParameter => {
-    queryParameter.validValues = [ ...branchInfo.brands, 'adapted-from-phet' ];
-  } );
-  queryParameters.filter( queryParameter => queryParameter.name === 'colorProfiles' ).forEach( queryParameter => {
-    queryParameter.defaultValue = 'default';
-    queryParameter.validValues = branchInfo.phetPackageJSON?.simFeatures?.colorProfiles ?? [ 'default' ];
-  } );
-  queryParameters.filter( queryParameter => queryParameter.name === 'interruptMultitouch' ).forEach( queryParameter => {
-    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.interruptMultitouch ?? false;
-  } );
-  queryParameters.filter( queryParameter => queryParameter.name === 'locale' ).forEach( queryParameter => {
-    queryParameter.defaultValue = 'en';
-    queryParameter.validValues = locales;
-  } );
-  queryParameters.filter( queryParameter => queryParameter.name === 'supportsDynamicLocale' ).forEach( queryParameter => {
-    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsDynamicLocale ?? false;
-  } );
-  queryParameters.filter( queryParameter => queryParameter.name === 'preventMultitouch' ).forEach( queryParameter => {
-    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.preventMultitouch ?? false;
-  } );
-  queryParameters.filter( queryParameter => queryParameter.name === 'regionAndCulture' ).forEach( queryParameter => {
-    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.defaultRegionAndCulture ?? 'usa';
-  } );
-  queryParameters.filter( queryParameter => queryParameter.name === 'supportsInteractiveDescription' ).forEach( queryParameter => {
-    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsInteractiveDescription ?? false;
-  } );
-  queryParameters.filter( queryParameter => queryParameter.name === 'supportsInteractiveHighlights' ).forEach( queryParameter => {
-    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsInteractiveHighlights ?? branchInfo.phetPackageJSON?.simFeatures?.supportsInteractiveDescription;
-  } );
-  queryParameters.filter( queryParameter => queryParameter.name === 'supportsGestureControl' ).forEach( queryParameter => {
-    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsGestureControl ?? false;
-  } );
-  queryParameters.filter( queryParameter => queryParameter.name === 'supportsVoicing' ).forEach( queryParameter => {
-    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsVoicing ?? false;
-  } );
-  queryParameters.filter( queryParameter => queryParameter.name === 'supportsCoreVoicing' ).forEach( queryParameter => {
-    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsCoreVoicing ?? false;
-  } );
-  queryParameters.filter( queryParameter => queryParameter.name === 'supportsPanAndZoom' ).forEach( queryParameter => {
-    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsPanAndZoom ?? true;
-  } );
-  queryParameters.filter( queryParameter => queryParameter.name === 'supportsSound' ).forEach( queryParameter => {
-    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsSound ?? false;
-  } );
-  queryParameters.filter( queryParameter => queryParameter.name === 'supportsExtraSound' ).forEach( queryParameter => {
-    queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsExtraSound ?? false;
-  } );
+  for ( const queryParameter of queryParameters ) {
+    switch( queryParameter.name ) {
+      case 'brand':
+        queryParameter.validValues = [ ...branchInfo.brands, 'adapted-from-phet' ];
+        break;
+      case 'colorProfiles':
+        queryParameter.defaultValue = 'default';
+        queryParameter.validValues = branchInfo.phetPackageJSON?.simFeatures?.colorProfiles ?? [ 'default' ];
+        break;
+      case 'interruptMultitouch':
+        queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.interruptMultitouch ?? false;
+        break;
+      case 'locale':
+        queryParameter.defaultValue = 'en';
+        queryParameter.validValues = locales;
+        break;
+      case 'supportsDynamicLocale':
+        queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsDynamicLocale ?? false;
+        break;
+      case 'preventMultitouch':
+        queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.preventMultitouch ?? false;
+        break;
+      case 'regionAndCulture':
+        queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.defaultRegionAndCulture ?? 'usa';
+        break;
+      case 'supportsInteractiveDescription':
+        queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsInteractiveDescription ?? false;
+        break;
+      case 'supportsInteractiveHighlights':
+        queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsInteractiveHighlights ?? branchInfo.phetPackageJSON?.simFeatures?.supportsInteractiveDescription;
+        break;
+      case 'supportsGestureControl':
+        queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsGestureControl ?? false;
+        break;
+      case 'supportsVoicing':
+        queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsVoicing ?? false;
+        break;
+      case 'supportsCoreVoicing':
+        queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsCoreVoicing ?? false;
+        break;
+      case 'supportsPanAndZoom':
+        queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsPanAndZoom ?? true;
+        break;
+      case 'supportsSound':
+        queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsSound ?? false;
+        break;
+      case 'supportsExtraSound':
+        queryParameter.defaultValue = branchInfo.phetPackageJSON?.simFeatures?.supportsExtraSound ?? false;
+        break;
+      default:
+        // nothing
+    }
+  }
 
   return queryParameters;
 };
