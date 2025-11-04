@@ -3,6 +3,9 @@
 /**
  * Logging for launchpad
  *
+ * NOTE: This is meant to be used both from the main thread (actually logs) and through the Piscina worker threads
+ * (will forward them to the main thread, which will log).
+ *
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
@@ -11,11 +14,13 @@
 // import { createLogger, format, transports } from '../../../perennial/js/npm-dependencies/winston.js';
 // eslint-disable-next-line no-restricted-imports
 import { createLogger, format, transports } from 'winston';
-import { autoBuild, autoCheckoutReleaseBranches, autoUpdate, checkClean, logLevel, numAutoBuildThreads, port, ROOT_DIR, useGithubAPI } from './options.js';
+import { logLevel } from './options.js';
 import { default as perennialWinston } from '../../../perennial/js/npm-dependencies/winston.js';
-import { LogEvent } from '../types/common-types.js';
+import { isMainThread, threadId, parentPort } from 'node:worker_threads';
+// NOTE: Don't import anything that isn't safe to import from worker threads!!!
 
-export const logger = createLogger( {
+// If we are on the main thread, we'll return a normal logger (with timestamps)
+export const logger = isMainThread ? createLogger( {
   format: format.combine(
     format.timestamp( { format: 'YYYY-MM-DD HH:mm:ss.SSS' } ),
     format.printf( ( { level, message, timestamp } ) => {
@@ -27,54 +32,28 @@ export const logger = createLogger( {
       level: logLevel
     } )
   ]
-} );
+} ) : {
+  // Otherwise, in a worker thread we'll forward the logs to the parent thread
 
-const LAST_LOG_QUANTITY = 20;
-export const lastErrorLogEvents: LogEvent[] = [];
-export const lastWarnLogEvents: LogEvent[] = [];
-
-const logCallbacks: ( ( event: LogEvent ) => void )[] = [
-  ( event: LogEvent ) => {
-    if ( event.level === 'error' ) {
-      lastErrorLogEvents.push( event );
-      while ( lastErrorLogEvents.length > LAST_LOG_QUANTITY ) {
-        lastErrorLogEvents.shift();
-      }
-    }
-    if ( event.level === 'warn' ) {
-      lastWarnLogEvents.push( event );
-      while ( lastWarnLogEvents.length > LAST_LOG_QUANTITY ) {
-        lastWarnLogEvents.shift();
-      }
-    }
+  silly: ( message: string ) => {
+    parentPort?.postMessage( { logLevel: 'silly', message: `[worker ${threadId}] ${message}` } );
+  },
+  debug: ( message: string ) => {
+    parentPort?.postMessage( { logLevel: 'debug', message: `[worker ${threadId}] ${message}` } );
+  },
+  verbose: ( message: string ) => {
+    parentPort?.postMessage( { logLevel: 'verbose', message: `[worker ${threadId}] ${message}` } );
+  },
+  info: ( message: string ) => {
+    parentPort?.postMessage( { logLevel: 'info', message: `[worker ${threadId}] ${message}` } );
+  },
+  warn: ( message: string ) => {
+    parentPort?.postMessage( { logLevel: 'warn', message: `[worker ${threadId}] ${message}` } );
+  },
+  error: ( message: string ) => {
+    parentPort?.postMessage( { logLevel: 'error', message: `[worker ${threadId}] ${message}` } );
   }
-];
-export const addLogCallback = ( callback: ( event: LogEvent ) => void ): void => {
-  logger.info( 'adding logger' );
-  logCallbacks.push( callback );
 };
-export const removeLogCallback = ( callback: ( event: LogEvent ) => void ): void => {
-  const index = logCallbacks.indexOf( callback );
-  if ( index >= 0 ) {
-    logCallbacks.splice( index, 1 );
-  }
-  logger.info( 'removing logger' );
-};
-
-logger.on( 'data', info => {
-  for ( const callback of logCallbacks ) {
-    try {
-      callback( {
-        message: info.message,
-        level: info.level,
-        timestamp: info.timestamp
-      } );
-    }
-    catch( e ) {
-      console.error( 'Error in log callback:', e );
-    }
-  }
-} );
 
 // also try to hit the default logger
 // NOTE: why did winston switch from "Console" to "console"??? --- npm update seemed to break it.
@@ -86,14 +65,3 @@ if ( perennialWinston.default.transports.console ) {
 if ( perennialWinston.default.transports.Console ) {
   perennialWinston.default.transports.Console.level = logLevel;
 }
-
-logger.info( 'options:' );
-logger.info( ` - port: ${port}` );
-logger.info( ` - rootDirectory: ${ROOT_DIR}` );
-logger.info( ` - autoUpdate: ${autoUpdate}` );
-logger.info( ` - autoBuild: ${autoBuild}` );
-logger.info( ` - autoCheckoutReleaseBranches: ${autoCheckoutReleaseBranches}` );
-logger.info( ` - numAutoBuildThreads: ${numAutoBuildThreads}` );
-logger.info( ` - checkClean: ${checkClean}` );
-logger.info( ` - logLevel: ${logLevel}` );
-logger.info( ` - useGithubAPI: ${useGithubAPI}` );

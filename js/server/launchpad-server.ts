@@ -12,20 +12,20 @@ import fsPromises from 'fs/promises'; // eslint-disable-line phet/default-import
 import express, { NextFunction, Request, Response } from 'express';
 import http from 'node:http';
 import serveIndex from 'serve-index';
-import crypto from 'crypto';
 import type { Branch, BranchInfo, LogEvent, ModelBranchInfo, Repo, RepoListEntry, SHA } from '../types/common-types.js';
 // eslint-disable-next-line phet/default-import-match-filename
 import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
 import basicAuth from 'basic-auth';
 import { config } from './config.js';
 import { model, saveModel } from './model.js';
-import { autoBuild, autoCheckoutReleaseBranches, autoUpdate, numAutoBuildThreads, port, ROOT_DIR } from './options.js';
+import { autoBuild, autoCheckoutReleaseBranches, autoUpdate, checkClean, logLevel, numAutoBuildThreads, port, ROOT_DIR, useGithubAPI } from './options.js';
 import { buildMain, buildReleaseBranch, getLatestCommits, getLatestSHA, getNPMHash, updateMain, updateReleaseBranchCheckout } from './util.js';
 import { getQueryParameters, recomputeNodeModules, singlePassUpdate, updateModel, updateModelBranchInfo, updateNodeModules } from './updateModel.js';
-import { bundleFile, transpileTS } from './bundling.js';
 import sleep from '../../../perennial/js/common/sleep.js';
-import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, logger, removeLogCallback } from './logging.js';
+import { logger } from './logging.js';
 import getRepoList from '../../../perennial/js/common/getRepoList.js';
+import { bundlePool, getStrongEtagPool, transpilePool } from './worker-pools.js';
+import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, removeLogCallback } from './log-watcher.js';
 
 const ReleaseBranch = ReleaseBranchImport.default;
 
@@ -98,6 +98,17 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *  - A11y tab navigation proper aria roles, see https://www.w3.org/WAI/ARIA/apg/patterns/tabs/
    *  - A11y proper dialog focus management (don't focus things not in the dialog)
    */
+
+  logger.info( 'options:' );
+  logger.info( ` - port: ${port}` );
+  logger.info( ` - rootDirectory: ${ROOT_DIR}` );
+  logger.info( ` - autoUpdate: ${autoUpdate}` );
+  logger.info( ` - autoBuild: ${autoBuild}` );
+  logger.info( ` - autoCheckoutReleaseBranches: ${autoCheckoutReleaseBranches}` );
+  logger.info( ` - numAutoBuildThreads: ${numAutoBuildThreads}` );
+  logger.info( ` - checkClean: ${checkClean}` );
+  logger.info( ` - logLevel: ${logLevel}` );
+  logger.info( ` - useGithubAPI: ${useGithubAPI}` );
 
   // These will get stat'ed all at once
   const PREFERRED_EXTENSIONS = [ 'js', 'ts' ];
@@ -442,10 +453,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
 
   const getWeakEtag = ( mtime: number, size: number ): string => {
     return `W/"${size}-${Math.trunc( mtime )}"`; // weak is fine
-  };
-
-  const getStrongEtag = ( input: string, algorithm: 'sha1' | 'sha256' | 'md5' = 'sha256' ): string => {
-    return `"${algorithm}-${crypto.createHash( algorithm ).update( input ).digest( 'base64' )}"`;
   };
 
   const safeConditionalStat = async (
@@ -996,7 +1003,6 @@ const ReleaseBranch = ReleaseBranchImport.default;
   app.get( /^\/(.+)\.js$/, async ( req: Request, res: Response, next: NextFunction ) => {
     try {
       const key = req.params[ 0 ].replace( 'chipper/dist/js/', '' ).replace( /^\/+/, '' );
-      const reqPath = req.path.replace( 'chipper/dist/js/', '' );
 
       const statWithExtension = await getStatWithExtension( key );
 
@@ -1036,18 +1042,16 @@ const ReleaseBranch = ReleaseBranchImport.default;
           res.send( cacheEntry.contents );
         }
         else if ( !isEntryPoint ) {
-          const originalSource = await fsPromises.readFile( pathWithExtension, 'utf8' );
-
-          const finalSource = isJS ? originalSource : await transpileTS( originalSource, pathWithExtension, reqPath );
+          const finalSource = isJS ? await fsPromises.readFile( pathWithExtension, 'utf8' ) : await transpilePool.run( pathWithExtension );
 
           jsCache.set( key, { mtime: stat.mtimeMs, size: stat.size, etag: singleFileEtag, contents: finalSource } );
 
           res.send( finalSource );
         }
         else {
-          const finalSource = await bundleFile( pathWithExtension, reqPath );
+          const finalSource = await bundlePool.run( pathWithExtension );
 
-          const etag = getStrongEtag( finalSource );
+          const etag = await getStrongEtagPool.run( finalSource );
 
           res.setHeader( 'ETag', etag );
 

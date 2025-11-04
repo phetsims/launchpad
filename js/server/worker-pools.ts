@@ -1,0 +1,52 @@
+// Copyright 2025, University of Colorado Boulder
+
+/**
+ * Pools of workers for asynchronous tasks.
+ *
+ * @author Jonathan Olson <jonathan.olson@colorado.edu>
+ */
+
+import Piscina from 'piscina';
+import { ROOT_DIR } from './options.js';
+import { logger } from './logging.js';
+
+export const bundlePool = new Piscina<string, string>( {
+  filename: new URL( './workers/entry-points/bundle.js', import.meta.url ).href,
+  minThreads: 1,
+  maxThreads: 8,
+  idleTimeout: 60 * 60 * 1000,
+  workerData: {
+    ROOT_DIR: ROOT_DIR
+  }
+} );
+export const transpilePool = new Piscina<string, string>( {
+  filename: new URL( './workers/entry-points/transpile.js', import.meta.url ).href,
+  minThreads: 1,
+  maxThreads: 8,
+  idleTimeout: 60 * 60 * 1000,
+  workerData: {
+    ROOT_DIR: ROOT_DIR
+  }
+} );
+export const getStrongEtagPool = new Piscina<string, string>( {
+  filename: new URL( './workers/entry-points/strong-etag.js', import.meta.url ).href,
+  minThreads: 1,
+  maxThreads: 8,
+  idleTimeout: 60 * 60 * 1000,
+  workerData: {
+    ROOT_DIR: ROOT_DIR
+  }
+} );
+
+const attachLogging = ( pool: Piscina, name: string ) => {
+  pool.on( 'message', ( message: { logLevel: string; message: string } ) => {
+    if ( message.logLevel ) {
+      // @ts-expect-error dynamic access
+      logger[ message.logLevel ]( `[${name} worker] ${message.message}` );
+    }
+  } );
+};
+
+attachLogging( bundlePool, 'bundle' );
+attachLogging( transpilePool, 'transpile' );
+attachLogging( getStrongEtagPool, 'strong-etag' );

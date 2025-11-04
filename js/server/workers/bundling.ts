@@ -1,7 +1,7 @@
 // Copyright 2025, University of Colorado Boulder
 
 /**
- * TODO: doc https://github.com/phetsims/phettest/issues/20
+ * Bundling and Transpiling using esbuild.
  *
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
@@ -9,8 +9,6 @@
 import fsPromises from 'fs/promises'; // eslint-disable-line phet/default-import-match-filename
 import esbuild from 'esbuild';
 import os from 'os';
-import { ROOT_DIR } from './options.js';
-import { logger } from './logging.js';
 
 // --- esbuild Plugins (Hacks) ---
 const simLauncherRewrite: esbuild.Plugin = {
@@ -56,47 +54,35 @@ const peggyRewrite: esbuild.Plugin = {
 };
 
 // Bundles a TS (or JS) entry point using esbuild, throws an error on failure.
-export const bundleFile = async ( filePath: string, originalPathname: string ): Promise<string> => {
-  try {
-    const result = await esbuild.build( {
-      entryPoints: [ filePath ],
-      bundle: true,
-      format: 'esm',
-      // minify: true, TODO: consider better minification? https://github.com/phetsims/phettest/issues/20
-      minifyWhitespace: true,
-      minifySyntax: true,
-      write: false, // We handle writing/sending the response
-      sourcemap: 'inline', // Keep source maps inline for dev
-      plugins: [ simLauncherRewrite, himalayaRewrite, peggyRewrite ],
-      absWorkingDir: ROOT_DIR // Needed to resolve files relative to the entry point's directory
-    } );
-    const output = result.outputFiles[ 0 ];
+export const bundleFile = async ( rootDir: string, filePath: string ): Promise<string> => {
+  const result = await esbuild.build( {
+    entryPoints: [ filePath ],
+    bundle: true,
+    format: 'esm',
+    // minify: true, TODO: consider better minification? https://github.com/phetsims/phettest/issues/20
+    minifyWhitespace: true,
+    minifySyntax: true,
+    write: false, // We handle writing/sending the response
+    sourcemap: 'inline', // Keep source maps inline for dev
+    plugins: [ simLauncherRewrite, himalayaRewrite, peggyRewrite ],
+    absWorkingDir: rootDir // Needed to resolve files relative to the entry point's directory
+  } );
+  const output = result.outputFiles[ 0 ];
 
-    return output.text;
-  }
-  catch( err: unknown ) {
-    logger.error( 'Esbuild bundling error:', err );
-    throw err;
-  }
+  return output.text;
 };
 
 // Transpiles a single TS file in-memory, throws an error on failure.
-export const transpileTS = async ( tsCode: string, filePath: string, originalPathname: string ): Promise<string> => {
-  try {
-    const loader = filePath.endsWith( 'tsx' ) ? 'tsx' :
-                   filePath.endsWith( 'jsx' ) ? 'jsx' :
-                   'ts';
-    const result = await esbuild.transform( tsCode, {
-      loader: loader,
-      format: 'esm', // Output ESM
-      sourcemap: 'inline', // Keep source maps inline for dev
-      target: 'esnext' // Use modern JS features
-    } );
+export const transpileTS = async ( tsCode: string, filePath: string ): Promise<string> => {
+  const loader = filePath.endsWith( 'tsx' ) ? 'tsx' :
+                 filePath.endsWith( 'jsx' ) ? 'jsx' :
+                 'ts';
+  const result = await esbuild.transform( tsCode, {
+    loader: loader,
+    format: 'esm', // Output ESM
+    sourcemap: 'inline', // Keep source maps inline for dev
+    target: 'esnext' // Use modern JS features
+  } );
 
-    return result.code;
-  }
-  catch( err: unknown ) {
-    logger.error( 'Esbuild transform error:', err );
-    throw err;
-  }
+  return result.code;
 };
