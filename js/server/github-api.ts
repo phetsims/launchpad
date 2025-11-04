@@ -7,8 +7,7 @@
  */
 
 import { Octokit } from 'octokit';
-import fs from 'fs';
-import { config } from './config.js';
+import { buildLocalObject, config } from './config.js';
 import pLimit from 'p-limit';
 import { useGithubAPI } from './options.js';
 
@@ -16,12 +15,8 @@ const githubRequestLimit = pLimit( 10 );
 
 let githubAuth = '';
 
-const buildLocalFile = `${process.env.HOME}/.phet/build-local.json`;
-if ( fs.existsSync( buildLocalFile ) ) {
-  const buildLocalObject = JSON.parse( fs.readFileSync( buildLocalFile, 'utf8' ) );
-  if ( buildLocalObject.developerGithubAccessToken ) {
-    githubAuth = buildLocalObject.developerGithubAccessToken;
-  }
+if ( buildLocalObject.developerGithubAccessToken ) {
+  githubAuth = buildLocalObject.developerGithubAccessToken;
 }
 
 if ( !githubAuth ) {

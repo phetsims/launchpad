@@ -25,6 +25,9 @@ import getRemoteBranchSHAs from '../../../perennial/js/common/getRemoteBranchSHA
 import gitPullRebase from '../../../perennial/js/common/gitPullRebase.js';
 import crypto from 'crypto';
 import { logger } from './logging.js';
+import * as ig from 'isomorphic-git';
+import igHttp from 'isomorphic-git/http/node';
+import { buildLocalObject, config } from './config.js';
 
 const execute = executeImport.default;
 const getBuildArguments = getBuildArgumentsImport.default;
@@ -125,6 +128,34 @@ export const buildMain = async ( branchInfo: ModelBranchInfo, onOutput: ( str: s
 export const getLatestSHA = async ( model: Model, repo: Repo, branch: Branch ): Promise<SHA> => {
   if ( useGithubAPI ) {
     return githubGetLatestBranchSHA( model.repos[ repo ].owner, repo, branch );
+  }
+  else if (
+    ( config.gitHttpsUser || buildLocalObject.developerGithubUsername ) &&
+    ( config.gitHttpsPassword || buildLocalObject.developerGithubAccessToken )
+  ) {
+    try {
+      const refs = await ig.listServerRefs( {
+        http: igHttp,
+        url: `https://github.com/${model.repos[ repo ].owner}/${repo === 'perennial-alias' ? 'perennial' : repo}.git`,
+        protocolVersion: 2,
+        onAuth: () => ( {
+          username: config.gitHttpsUser ?? buildLocalObject.developerGithubUsername,
+          password: config.gitHttpsPassword ?? buildLocalObject.developerGithubAccessToken
+        } )
+      } );
+
+      const ref = refs.find( r => r.ref === `refs/heads/${branch}` );
+      if ( ref ) {
+        return ref.oid;
+      }
+      else {
+        throw new Error( `Branch ${branch} not found for repo ${repo}` );
+      }
+    }
+    catch( e ) {
+      console.error( `Error fetching refs for ${repo}: ${e}` );
+      throw e;
+    }
   }
   else {
     return ( await getRemoteBranchSHAs( repo ) as Record<Repo, string> )[ branch ];

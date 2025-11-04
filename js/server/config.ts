@@ -15,6 +15,8 @@ export type Config = {
   basicAuthUser?: string;
   basicAuthPassword?: string;
   githubToken?: string;
+  gitHttpsUser?: string;
+  gitHttpsPassword?: string;
 };
 
 const __filename = fileURLToPath( import.meta.url );
@@ -29,3 +31,7 @@ if ( fs.existsSync( configFile ) ) {
 else {
   logger.warn( `No config file found at ${configFile}, proceeding with defaults.` );
 }
+
+const buildLocalFile = `${process.env.HOME}/.phet/build-local.json`;
+
+export const buildLocalObject = fs.existsSync( buildLocalFile ) ? JSON.parse( fs.readFileSync( buildLocalFile, 'utf8' ) ) : {};
