@@ -26,6 +26,7 @@ import gitPullRebase from '../../../perennial/js/common/gitPullRebase.js';
 import crypto from 'crypto';
 import { logger } from './logging.js';
 import * as ig from 'isomorphic-git';
+// eslint-disable-next-line phet/default-import-match-filename
 import igHttp from 'isomorphic-git/http/node';
 import { buildLocalObject, config } from './config.js';
 
@@ -62,17 +63,32 @@ export const getPackageJSON = async ( directory: string ): Promise<PackageJSON |
 };
 
 export const getDirectoryBranch = async ( directory: string ): Promise<Branch> => {
-  return execute( 'git', [ 'symbolic-ref', '-q', 'HEAD' ], directory ).then( stdout => stdout.trim().replace( 'refs/heads/', '' ) );
+  return ig.currentBranch( {
+    fs: fs,
+    dir: directory
+  } ) as Promise<Branch>;
 };
 
 export const getDirectorySHA = async ( directory: string ): Promise<SHA> => {
-  return ( await execute( 'git', [ 'rev-parse', 'HEAD' ], directory ) ).trim();
+  return ig.resolveRef( {
+    fs: fs,
+    dir: directory,
+    ref: 'HEAD'
+  } );
 };
 
 export const getDirectoryTimestampBranch = async ( directory: string, branch: Branch ): Promise<number> => {
-  return execute( 'git', [ 'show', '-s', '--format=%cd', '--date=iso', branch ], directory ).then( stdout => {
-    return Promise.resolve( new Date( stdout.trim() ).getTime() );
+  const sha = await ig.resolveRef( {
+    fs: fs,
+    dir: directory,
+    ref: branch
   } );
+
+  return ( await ig.readCommit( {
+    fs: fs,
+    dir: directory,
+    oid: sha
+  } ) ).commit.committer.timestamp * 1000;
 };
 
 export const getCurrentChipperVersion = (): ChipperVersion => {
@@ -82,7 +98,14 @@ export const getCurrentChipperVersion = (): ChipperVersion => {
 };
 
 export const isDirectoryClean = async ( directory: string ): Promise<boolean> => {
-  return execute( 'git', [ 'status', '--porcelain' ], directory ).then( stdout => Promise.resolve( stdout.length === 0 ) );
+  const matrix = await ig.statusMatrix( {
+    fs: fs,
+    dir: directory
+  } );
+
+  return matrix.every( ( [ , head, workdir, stage ] ) =>
+    head === workdir && workdir === stage
+  );
 };
 
 export const updateMain = async ( repo: Repo ): Promise<void> => {
@@ -177,30 +200,22 @@ export const getNPMHash = async ( repo: Repo ): Promise<string> => {
 };
 
 export const getLatestCommits = async ( repo: Repo, branch: Branch, count: number ): Promise<Commit[]> => {
-  const output = await execute( 'git', [
-    'log',
-    branch,
-    '-n',
-    `${count}`,
-    '--date=iso-strict',
-    '--pretty=format:%x1e%H%x1f%h%x1f%an%x1f%ae%x1f%ad%x1f%s'
-  ], getRepoDirectory( repo, branch ) );
+  const igCommits = await ig.log( {
+    fs: fs,
+    dir: getRepoDirectory( repo, branch ),
+    ref: branch,
+    depth: count
+  } );
 
-  return output
-    .split( '\x1e' )
-    .filter( Boolean )
-    .map( line => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const [ sha, _, authorName, authorEmail, date, message ] =
-        line.split( '\x1f' );
-      return {
-        sha: sha,
-        date: date,
-        authorName: authorName,
-        authorEmail: authorEmail,
-        message: message
-      };
-    } );
+  return igCommits.map( commit => {
+    return {
+      sha: commit.oid,
+      date: new Date( commit.commit.committer.timestamp * 1000 ).toISOString(),
+      authorName: commit.commit.author.name,
+      authorEmail: commit.commit.author.email,
+      message: commit.commit.message
+    };
+  } );
 };
 
 export const getLocalesForRepo = async ( repo: Repo ): Promise<string[]> => {

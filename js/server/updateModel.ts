@@ -28,6 +28,7 @@ import getRemoteBranchSHAs from '../../../perennial/js/common/getRemoteBranchSHA
 import { githubGetLatestBranchSHA } from './github-api.js';
 import { logger } from './logging.js';
 import { extractQueryParameters } from './extractQueryParameters.js';
+import * as ig from 'isomorphic-git';
 
 const execute = executeImport.default;
 const ReleaseBranch = ReleaseBranchImport.default;
@@ -181,8 +182,17 @@ export const searchForNewReleaseBranches = async (): Promise<void> => {
 
     if ( !model.repos[ repo ].branches[ branch ] ) {
       try {
-        // const packageJSON = JSON.parse( await getFileAtBranch( repo, branch, 'package.json' ) );
-        const packageJSON = JSON.parse( await execute( 'git', [ 'show', `origin/${branch}:./package.json` ], `../${repo}` ) );
+        const blob = await ig.readBlob( {
+          fs: fs,
+          dir: path.join( ROOT_DIR, repo ),
+          oid: await ig.resolveRef( {
+            fs: fs,
+            dir: path.join( ROOT_DIR, repo ),
+            ref: 'refs/heads/main'
+          } ),
+          filepath: 'package.json'
+        } );
+        const packageJSON = Buffer.from( blob.blob ).toString( 'utf-8' );
 
         // eslint-disable-next-line require-atomic-updates
         model.repos[ repo ].branches[ branch ] = {
