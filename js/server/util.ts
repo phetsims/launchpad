@@ -91,9 +91,9 @@ export const getDirectoryTimestampBranch = async ( directory: string, branch: Br
   } ) ).commit.committer.timestamp * 1000;
 };
 
-export const getCurrentChipperVersion = (): ChipperVersion => {
+export const getCurrentChipperVersion = async (): Promise<ChipperVersion> => {
   return ChipperVersion.getFromPackageJSON(
-    JSON.parse( fs.readFileSync( `${ROOT_DIR}/chipper/package.json`, 'utf8' ) )
+    JSON.parse( await fsPromises.readFile( `${ROOT_DIR}/chipper/package.json`, 'utf8' ) )
   );
 };
 
@@ -133,7 +133,7 @@ export const buildReleaseBranch = async ( releaseBranch: ReleaseBranch, onOutput
 };
 
 export const buildMain = async ( branchInfo: ModelBranchInfo, onOutput: ( str: string ) => void ): Promise<void> => {
-  const args = getBuildArguments( getCurrentChipperVersion(), {
+  const args = getBuildArguments( await getCurrentChipperVersion(), {
     brands: branchInfo.brands,
     lint: false,
     typeCheck: false,

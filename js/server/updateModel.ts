@@ -8,6 +8,7 @@
 
 import path from 'path';
 import fs from 'fs';
+import fsPromises from 'fs/promises';
 import getActiveRepos from '../../../perennial/js/common/getActiveRepos.js';
 import getActiveRunnables from '../../../perennial/js/common/getActiveRunnables.js';
 import getActiveSceneryStackRepos from '../../../perennial/js/common/getActiveSceneryStackRepos.js';
@@ -121,7 +122,7 @@ export const updateModelBranchInfo = async (
           let brands: string[] = [];
           if ( fs.existsSync( path.join( ROOT_DIR, repo, 'package.json' ) ) ) {
             try {
-              const packageJSON = JSON.parse( fs.readFileSync( path.join( ROOT_DIR, repo, 'package.json' ), 'utf8' ) );
+              const packageJSON = JSON.parse( await fsPromises.readFile( path.join( ROOT_DIR, repo, 'package.json' ), 'utf8' ) );
               if ( packageJSON.phet && Array.isArray( packageJSON.phet.supportedBrands ) ) {
                 brands = packageJSON.phet.supportedBrands.filter( ( brand: string ) => brand !== 'adapted-from-phet' );
               }
