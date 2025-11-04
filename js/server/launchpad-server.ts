@@ -414,9 +414,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
   if ( autoCheckoutReleaseBranches ) {
     ( async () => {
       while ( true ) {
-        console.log( 'beforeCheck' );
         await sleep( 60 * 1000 ); // every 1 minute
-        console.log( 'check' );
 
         try {
           for ( const repo of Object.keys( model.repos ) ) {
