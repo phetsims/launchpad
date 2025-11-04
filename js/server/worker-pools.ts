@@ -9,6 +9,7 @@
 import Piscina from 'piscina';
 import { ROOT_DIR } from './options.js';
 import { logger } from './logging.js';
+import { QueryParameter, Repo } from '../types/common-types.js';
 
 export const bundlePool = new Piscina<string, string>( {
   filename: new URL( './workers/entry-points/bundle.js', import.meta.url ).href,
@@ -37,6 +38,15 @@ export const getStrongEtagPool = new Piscina<string, string>( {
     ROOT_DIR: ROOT_DIR
   }
 } );
+export const getExtractQueryParametersPool = new Piscina<{ repo: Repo; directory: string }, QueryParameter[]>( {
+  filename: new URL( './workers/entry-points/extract-query-parameters.js', import.meta.url ).href,
+  minThreads: 1,
+  maxThreads: 8,
+  idleTimeout: 60 * 60 * 1000,
+  workerData: {
+    ROOT_DIR: ROOT_DIR
+  }
+} );
 
 const attachLogging = ( pool: Piscina, name: string ) => {
   pool.on( 'message', ( message: { logLevel: string; message: string } ) => {
@@ -50,3 +60,4 @@ const attachLogging = ( pool: Piscina, name: string ) => {
 attachLogging( bundlePool, 'bundle' );
 attachLogging( transpilePool, 'transpile' );
 attachLogging( getStrongEtagPool, 'strong-etag' );
+attachLogging( getExtractQueryParametersPool, 'extract-query-parameters' );

@@ -8,6 +8,7 @@
 
 import path from 'path';
 import fs from 'fs';
+// eslint-disable-next-line phet/default-import-match-filename
 import fsPromises from 'fs/promises';
 import getActiveRepos from '../../../perennial/js/common/getActiveRepos.js';
 import getActiveRunnables from '../../../perennial/js/common/getActiveRunnables.js';
@@ -28,8 +29,8 @@ import npmUpdateDirectory from '../../../perennial/js/common/npmUpdateDirectory.
 import getRemoteBranchSHAs from '../../../perennial/js/common/getRemoteBranchSHAs.js';
 import { githubGetLatestBranchSHA } from './github-api.js';
 import { logger } from './logging.js';
-import { extractQueryParameters } from './extractQueryParameters.js';
 import * as ig from 'isomorphic-git';
+import { getExtractQueryParametersPool } from './worker-pools.js';
 
 const execute = executeImport.default;
 const ReleaseBranch = ReleaseBranchImport.default;
@@ -490,7 +491,7 @@ export const getQueryParameters = async ( model: Model, branchInfo: ModelBranchI
       }
       else {
         logger.debug( `extracting query parameters for ${cacheKey}` );
-        const repoQueryParameters = await extractQueryParameters( dependencyRepo, directory );
+        const repoQueryParameters = await getExtractQueryParametersPool.run( { repo: dependencyRepo, directory: directory } );
         queryParameters.push( ...repoQueryParameters );
 
         // eslint-disable-next-line require-atomic-updates

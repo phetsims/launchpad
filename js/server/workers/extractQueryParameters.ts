@@ -10,12 +10,9 @@ import os from 'os';
 import ts from 'typescript';
 // eslint-disable-next-line phet/default-import-match-filename
 import fsPromises from 'fs/promises';
-import { QueryParameter, QueryParameterType, Repo } from '../types/common-types.js';
-import { logger } from './logging.js';
-// eslint-disable-next-line phet/default-import-match-filename
-import executeImport from '../../../perennial/js/common/execute.js';
-
-const execute = executeImport.default;
+import { QueryParameter, QueryParameterType, Repo } from '../../types/common-types.js';
+import { logger } from '../logging.js';
+import execute from '../../../../perennial/js/common/execute.js';
 
 export const kindOf = ( node: ts.Node ): string => ts.SyntaxKind[ node.kind ];
 
