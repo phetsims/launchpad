@@ -10,9 +10,6 @@ import path from 'path';
 import fs from 'fs';
 // eslint-disable-next-line phet/default-import-match-filename
 import fsPromises from 'fs/promises';
-import getActiveRepos from '../../../perennial/js/common/getActiveRepos.js';
-import getActiveRunnables from '../../../perennial/js/common/getActiveRunnables.js';
-import getActiveSceneryStackRepos from '../../../perennial/js/common/getActiveSceneryStackRepos.js';
 import tsxCommand from '../../../perennial/js/common/tsxCommand.js';
 import type { ModelBranchInfo, QueryParameter, Repo } from '../types/common-types.js';
 import pLimit from 'p-limit';
@@ -22,7 +19,7 @@ import executeImport from '../../../perennial/js/common/execute.js';
 import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
 import { model, Model, saveModel } from './model.js';
 import { checkClean, ROOT_DIR, useGithubAPI } from './options.js';
-import { getBranchRootDirectory, getDirectoryBranch, getDirectorySHA, getDirectoryTimestampBranch, getLocalesForRepo, getPackageJSON, getRepoDirectory, isDirectoryClean } from './util.js';
+import { getAsyncActiveRepos, getAsyncActiveRunnables, getAsyncActiveSceneryStackRepos, getBranchRootDirectory, getDirectoryBranch, getDirectorySHA, getDirectoryTimestampBranch, getLocalesForRepo, getPackageJSON, getRepoDirectory, isDirectoryClean } from './util.js';
 import gitCloneDirectory from '../../../perennial/js/common/gitCloneDirectory.js';
 import { npmLimit } from './globals.js';
 import npmUpdateDirectory from '../../../perennial/js/common/npmUpdateDirectory.js';
@@ -42,7 +39,7 @@ export const updateModelBranchInfo = async (
   // If we don't provide runnableDependencies, recompute it (in a separate try-catch for error handling)
   try {
     if ( runnableDependencies === undefined ) {
-      if ( getActiveRunnables().includes( branchInfo.repo ) ) {
+      if ( ( await getAsyncActiveRunnables() ).includes( branchInfo.repo ) ) {
         const runnableDependenciesMap: Record<Repo, Repo[]> = JSON.parse( await execute(
           tsxCommand,
           [ 'js/scripts/print-multiple-dependencies.ts', branchInfo.repo ],
@@ -244,9 +241,9 @@ export const updateModel = async ( model: Model ): Promise<void> => {
   return updateModelLimit( async () => {
     logger.info( 'updating model' );
 
-    const activeRepos = getActiveRepos();
-    const activeRunnables = getActiveRunnables();
-    const sceneryStackRepos = getActiveSceneryStackRepos();
+    const activeRepos = await getAsyncActiveRepos();
+    const activeRunnables = await getAsyncActiveRunnables();
+    const sceneryStackRepos = await getAsyncActiveSceneryStackRepos();
 
     const repos = [ ...new Set( [
       ...activeRepos,

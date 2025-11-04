@@ -254,3 +254,17 @@ export const getLocalesForRepo = async ( repo: Repo ): Promise<string[]> => {
 
   return locales;
 };
+
+export const getAsyncRepoList = async ( name: string ): Promise<Repo[]> => {
+  const dataFile = path.join( ROOT_DIR, 'perennial', 'data', name );
+
+  const contents = ( await fsPromises.readFile( dataFile, 'utf8' ) ).trim();
+
+  // Trim will remove any spaces and carriage returns if they are present.
+  return contents.split( '\n' ).map( sim => sim.trim() );
+};
+
+export const getAsyncActiveRepos = async (): Promise<Repo[]> => getAsyncRepoList( 'active-repos' );
+export const getAsyncActiveRunnables = async (): Promise<Repo[]> => getAsyncRepoList( 'active-runnables' );
+export const getAsyncActiveSceneryStackRepos = async (): Promise<Repo[]> => getAsyncRepoList( 'active-scenerystack-repos' );
+export const getAsyncWrappers = async (): Promise<Repo[]> => getAsyncRepoList( 'wrappers' );

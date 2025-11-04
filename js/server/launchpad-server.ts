@@ -19,11 +19,10 @@ import basicAuth from 'basic-auth';
 import { config } from './config.js';
 import { model, saveModel } from './model.js';
 import { autoBuild, autoCheckoutReleaseBranches, autoUpdate, checkClean, logLevel, numAutoBuildThreads, port, ROOT_DIR, useGithubAPI } from './options.js';
-import { buildMain, buildReleaseBranch, getLatestCommits, getLatestSHA, getNPMHash, updateMain, updateReleaseBranchCheckout } from './util.js';
+import { buildMain, buildReleaseBranch, getAsyncWrappers, getLatestCommits, getLatestSHA, getNPMHash, updateMain, updateReleaseBranchCheckout } from './util.js';
 import { getQueryParameters, recomputeNodeModules, singlePassUpdate, updateModel, updateModelBranchInfo, updateNodeModules } from './updateModel.js';
 import sleep from '../../../perennial/js/common/sleep.js';
 import { logger } from './logging.js';
-import getRepoList from '../../../perennial/js/common/getRepoList.js';
 import { bundlePool, getStrongEtagPool, transpilePool } from './worker-pools.js';
 import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, removeLogCallback } from './log-watcher.js';
 
@@ -958,7 +957,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
     try {
       res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
       res.send( JSON.stringify( {
-        wrappers: getRepoList( 'wrappers' )
+        wrappers: await getAsyncWrappers()
       } ) );
     }
     catch( e ) {
