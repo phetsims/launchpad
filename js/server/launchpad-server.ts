@@ -13,8 +13,6 @@ import express, { NextFunction, Request, Response } from 'express';
 import http from 'node:http';
 import serveIndex from 'serve-index';
 import type { Branch, BranchInfo, LogEvent, ModelBranchInfo, Repo, RepoListEntry, SHA } from '../types/common-types.js';
-// eslint-disable-next-line phet/default-import-match-filename
-import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
 import basicAuth from 'basic-auth';
 import { config } from './config.js';
 import { model, saveModel } from './model.js';
@@ -25,8 +23,6 @@ import sleep from '../../../perennial/js/common/sleep.js';
 import { logger } from './logging.js';
 import { bundlePool, getStrongEtagPool, transpilePool } from './worker-pools.js';
 import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, removeLogCallback } from './log-watcher.js';
-
-const ReleaseBranch = ReleaseBranchImport.default;
 
 ( async () => {
   /*
@@ -53,6 +49,7 @@ const ReleaseBranch = ReleaseBranchImport.default;
    *  - LOG usability (right now seems tricky) - at least test main server-side)
    *  - Modulify - LIVE MODULIFY preferred, but can auto-modulify otherwise
    *    - Potentially subdirectory for "auto-modulified" versions? (perhaps have a "raw" subdirectory that provides only raw files)
+   *    - Cache file contents potentially in memory, including "modulified" versions? (store timestamps for all dependencies?)
    *  - Test on Windows
    *  - Package Lock handling
    *  - Clearer copy-to-clipboard (or just... make links) - copy icon or buttons?
