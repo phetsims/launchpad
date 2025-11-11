@@ -37,6 +37,7 @@ import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, removeLogCallbac
    *  - Modulify - LIVE MODULIFY preferred, but can auto-modulify otherwise
    *    - ADD IN A COMMENT HEADER noting the live-modulification
    *    ----- HOW DOES CACHING work with live modulify? ---- bad interactions unless ... yeah
+   *      -- Bundle and Transpile BOTH NEED independent support here (and JSON files are missing right now too)
    *      -- WE NEED to add a URL base for live-modulify
    *        - raw/ --- no changes
    *        - / --- transpiled but not live-modulified --- CACHEABLE because changes are 1-to-1
