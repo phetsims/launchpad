@@ -34,6 +34,20 @@ import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, removeLogCallbac
    *  - Spam random things with no matches in search bar ... caused modes to disappear once
    *
    * TO DO features:
+   *  - Modulify - LIVE MODULIFY preferred, but can auto-modulify otherwise
+   *    - ADD IN A COMMENT HEADER noting the live-modulification
+   *    ----- HOW DOES CACHING work with live modulify? ---- bad interactions unless ... yeah
+   *      -- WE NEED to add a URL base for live-modulify
+   *        - raw/ --- no changes
+   *        - / --- transpiled but not live-modulified --- CACHEABLE because changes are 1-to-1
+   *        - live/ --- live-modulified ---- NO CACHE unless the file is not modulified (so... sometimes cache)
+   *    - INSPECT to see if live-modulified content is DIFFERENT than disk content(!!!!)
+   *    - Potentially subdirectory for "auto-modulified" versions? (perhaps have a "raw" subdirectory that provides only raw files)
+   *    - Cache file contents potentially in memory, including "modulified" versions? (store timestamps for all dependencies?)
+   *  - PERFORMANCE: we can timestamp ALL of the files used for a bundle/transpile? (also include SHAs)
+   *    - Then we can direct-serve things again from our internal cache
+   *    - How fast will it be to STAT a bunch of files? Probably fairly fast?
+   *    - CURRENTLY OUR BUNDLING is kind of slow, 300ms ish on laptop
    *  - Mobile viewport and usability!
    *  - Query Parameters:
    *    - Support release branches (old styles of query parameters)
@@ -47,9 +61,6 @@ import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, removeLogCallbac
    *  - TOASTS for when repos are updated (perhaps show commit info too) --- i.e. popups that show live updates
    *    - Perhaps show a list of recently discovered updates --- server-side query list?
    *  - LOG usability (right now seems tricky) - at least test main server-side)
-   *  - Modulify - LIVE MODULIFY preferred, but can auto-modulify otherwise
-   *    - Potentially subdirectory for "auto-modulified" versions? (perhaps have a "raw" subdirectory that provides only raw files)
-   *    - Cache file contents potentially in memory, including "modulified" versions? (store timestamps for all dependencies?)
    *  - Test on Windows
    *  - Package Lock handling
    *  - Clearer copy-to-clipboard (or just... make links) - copy icon or buttons?

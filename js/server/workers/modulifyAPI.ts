@@ -34,7 +34,7 @@ export type ModulifyResponse = {
   fileContents: string;
 } );
 
-export type ResolveRejectPackage = {
+export type Inflight = {
   resolve: ( response: ModulifyResponse ) => void;
   reject: ( response: Error ) => void;
 
@@ -53,35 +53,51 @@ function spawnProcess(): ChildProcess {
   } );
 }
 
-const modulifyProcess = spawnProcess();
+// TODO: switch to "multiple" workers? --- or not
+let modulifyProcess = spawnProcess();
 
 let nextId = 1;
 
 // Simple in-flight map to correlate requests
-const packageMap = new Map<number, ResolveRejectPackage>();
+const inflightMap = new Map<number, Inflight>();
+
+export const reloadModulify = (): void => {
+  const oldModulifyProcess = modulifyProcess;
+
+  const interval = setInterval( () => {
+    if ( inflightMap.size === 0 ) {
+      oldModulifyProcess.kill();
+
+      clearInterval( interval );
+    }
+  }, 1000 );
+
+  modulifyProcess = spawnProcess();
+};
 
 modulifyProcess.on( 'message', ( response: ModulifyResponse | ErrorResponse ) => {
-  const p = packageMap.get( response.id );
+  const inflight = inflightMap.get( response.id );
 
-  if ( p ) {
-    packageMap.delete( response.id );
-    clearTimeout( p.timer );
+  if ( inflight ) {
+    inflightMap.delete( response.id );
+    clearTimeout( inflight.timer );
 
     if ( response.type === 'error' ) {
-      p.reject( new Error( response.message ) );
+      console.error( response.message );
+      inflight.reject( new Error( response.message ) );
     }
     else {
-      p.resolve( response );
+      inflight.resolve( response );
     }
   }
 } );
 
 modulifyProcess.on( 'exit', ( code, signal ) => {
-  for ( const [ , p ] of packageMap ) {
-    clearTimeout( p.timer );
-    p.reject( new Error( `worker exited (${code ?? signal})` ) );
+  for ( const [ , inflight ] of inflightMap ) {
+    clearTimeout( inflight.timer );
+    inflight.reject( new Error( `worker exited (${code ?? signal})` ) );
   }
-  packageMap.clear();
+  inflightMap.clear();
 } );
 
 export const getModulifiedFile = async ( file: string ): Promise<ModulifyResponse> => {
@@ -89,12 +105,12 @@ export const getModulifiedFile = async ( file: string ): Promise<ModulifyRespons
 
   return new Promise( ( resolve, reject ) => {
     const timer = setTimeout( () => {
-      if ( packageMap.delete( id ) ) {
+      if ( inflightMap.delete( id ) ) {
         reject( new Error( `modulify timeout for ${file}` ) );
       }
     }, TIMEOUT_MS );
 
-    packageMap.set( id, {
+    inflightMap.set( id, {
       resolve: resolve,
       reject: reject,
       timer: timer

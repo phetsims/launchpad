@@ -6,49 +6,93 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
+import Piscina from 'piscina';
 import fsPromises from 'fs/promises'; // eslint-disable-line phet/default-import-match-filename
 import esbuild from 'esbuild';
 import os from 'os';
+import path from 'path';
+import { getModulifiedFile } from './modulifyAPI.js';
 
-// --- esbuild Plugins (Hacks) ---
-const simLauncherRewrite: esbuild.Plugin = {
+const ROOT_DIR: string = Piscina.workerData.ROOT_DIR;
+
+const extensionToLoader: Partial<Record<string, string>> = {
+  '.ts': 'ts',
+  '.tsx': 'tsx',
+  '.js': 'js',
+  '.jsx': 'jsx',
+  '.json': 'json',
+  '.mjs': 'js',
+  '.cjs': 'js',
+  '.css': 'css',
+  '.txt': 'text'
+};
+
+const esbuildLoadPlugin: esbuild.Plugin = {
   name: 'simLauncher-rewrite',
   setup( build ) {
-    build.onLoad( { filter: /simLauncher.ts$/ }, async ( { path } ) => {
-      let text = await fsPromises.readFile( path, 'utf8' );
-      text = text.replace( '\'js\'', '\'ts\'' );
-      return { contents: text, loader: 'ts' };
-    } );
-  }
-};
+    build.onLoad( { filter: /.*/ }, async onLoadArgs => {
+      const absolutePath = onLoadArgs.path;
+      const relativePath = path.relative( ROOT_DIR, absolutePath );
 
-const himalayaRewrite: esbuild.Plugin = {
-  name: 'himalaya-rewrite',
-  setup( build ) {
-    build.onLoad( { filter: /himalaya-1.1.0.js$/ }, async ( { path } ) => {
-      const originalText = await fsPromises.readFile( path, 'utf8' );
-      const text = originalText.replace(
-        '(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.himalaya = f()}})',
-        '( function( f ) {self.himalaya = f();})'
-      );
-      if ( text === originalText ) {
-        throw new Error( 'himalaya rewrite failed?' );
+      const contentPromise = fsPromises.readFile( absolutePath, 'utf8' );
+
+      if ( relativePath === 'joist/js/simLauncher.ts' ) {
+        // console.log( 'custom', relativePath );
+        return {
+          contents: ( await contentPromise ).replace( '\'js\'', '\'ts\'' ),
+          loader: 'ts'
+        };
       }
-      return { contents: text, loader: 'js' };
-    } );
-  }
-};
+      else if ( relativePath.endsWith( 'himalaya-1.1.0.js' ) ) {
+        const originalText = await contentPromise;
+        const text = originalText.replace(
+          '(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.himalaya = f()}})',
+          '( function( f ) {self.himalaya = f();})'
+        );
+        if ( text === originalText ) {
+          throw new Error( 'himalaya rewrite failed?' );
+        }
+        // console.log( 'custom', relativePath );
+        return { contents: text, loader: 'js' };
+      }
+      else if ( relativePath.endsWith( 'peggy-3.0.2.js' ) ) {
+        let text = await contentPromise;
+        text = text.replace(
+          'function(e,u){"object"==typeof exports&&"undefined"!=typeof module?module.exports=u():"function"==typeof define&&define.amd?define(u):(e="undefined"!=typeof globalThis?globalThis:e||self).peggy=u()}'.replaceAll( '\n', os.EOL ),
+          '( function( e,u ) {self.peggy = u();})'
+        );
+        // console.log( 'custom', relativePath );
+        return { contents: text, loader: 'js' };
+      }
+      else {
+        const modulifyResponse = await getModulifiedFile( relativePath );
 
-const peggyRewrite: esbuild.Plugin = {
-  name: 'peggy-rewrite',
-  setup( build ) {
-    build.onLoad( { filter: /peggy-3.0.2.js$/ }, async ( { path } ) => {
-      let text = await fsPromises.readFile( path, 'utf8' );
-      text = text.replace(
-        'function(e,u){"object"==typeof exports&&"undefined"!=typeof module?module.exports=u():"function"==typeof define&&define.amd?define(u):(e="undefined"!=typeof globalThis?globalThis:e||self).peggy=u()}'.replaceAll( '\n', os.EOL ),
-        '( function( e,u ) {self.peggy = u();})'
-      );
-      return { contents: text, loader: 'js' };
+        const extension = path.extname( relativePath );
+        const loader = extensionToLoader[ extension ];
+
+        if ( modulifyResponse.modulified ) {
+          console.log( 'modulified', relativePath );
+
+          return {
+            contents: modulifyResponse.fileContents,
+            loader: loader as esbuild.Loader
+          };
+        }
+        else {
+          if ( loader ) {
+            // console.log( 'loaded', relativePath );
+            return {
+              contents: await contentPromise,
+              loader: loader as esbuild.Loader
+            };
+          }
+          else {
+            // console.log( 'passthrough', relativePath );
+            // pass through
+            return null;
+          }
+        }
+      }
     } );
   }
 };
@@ -64,7 +108,7 @@ export const bundleFile = async ( rootDir: string, filePath: string ): Promise<s
     minifySyntax: true,
     write: false, // We handle writing/sending the response
     sourcemap: 'inline', // Keep source maps inline for dev
-    plugins: [ simLauncherRewrite, himalayaRewrite, peggyRewrite ],
+    plugins: [ esbuildLoadPlugin ],
     absWorkingDir: rootDir // Needed to resolve files relative to the entry point's directory
   } );
   const output = result.outputFiles[ 0 ];
