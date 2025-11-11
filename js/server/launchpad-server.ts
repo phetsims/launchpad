@@ -34,11 +34,21 @@ import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, removeLogCallbac
    *  - Spam random things with no matches in search bar ... caused modes to disappear once
    *
    * TO DO features:
-   *  - Modulify - LIVE MODULIFY preferred, but can auto-modulify otherwise
+   *  - Modulify
+   *    - Parallel modulification - Promise.all in modulify bits to speed them up?
+   *    - Invalidation once chipper/perennial changes (relaunch modulify servers)
+   *    - (( load file / modulify file => transpile / from bundle => cache result 304? ))
+   *    - If no-cache headers (check Chrome), force a recompute (for safety)
+   *    - ?? do we invalidate caches on chipper/perennial changes? (it COULD change which files would be modulified)
+   *      - We SHOULD invalidate caches based on modulification when chipper/perennial changes
    *    - ADD IN A COMMENT HEADER noting the live-modulification
+   *    - NOTE CHECK: strings are requested from repo/repo-strings_en.json AND babel/_.../repo_all.json, ensure both are patched
+   *    - More aggressive caching for "if files aren't changing between shas" - especially if we can skip re-bundling
+   *      - Ignore on local cases (where files MIGHT be changing regardless of shas)
+   *      - HAVE A FLAG for "will local files change"
    *    ----- HOW DOES CACHING work with live modulify? ---- bad interactions unless ... yeah
    *      -- Bundle and Transpile BOTH NEED independent support here (and JSON files are missing right now too)
-   *      -- WE NEED to add a URL base for live-modulify
+   *      -- WE NEED to add a URL base for live-modulify ---- SETTING in launchpad to change these
    *        - raw/ --- no changes
    *        - / --- transpiled but not live-modulified --- CACHEABLE because changes are 1-to-1
    *        - live/ --- live-modulified ---- NO CACHE unless the file is not modulified (so... sometimes cache)
@@ -50,6 +60,7 @@ import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, removeLogCallbac
    *    - How fast will it be to STAT a bunch of files? Probably fairly fast?
    *    - CURRENTLY OUR BUNDLING is kind of slow, 300ms ish on laptop
    *  - Mobile viewport and usability!
+   *  - Ensure builds are timestamped by the "start" of the build (and sha'ed for the start?)
    *  - Query Parameters:
    *    - Support release branches (old styles of query parameters)
    *    - Add "wrapper" query parameters, and things for e.g. aqua
