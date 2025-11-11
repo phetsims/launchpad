@@ -21,8 +21,15 @@ import { buildMain, buildReleaseBranch, getAsyncWrappers, getLatestCommits, getL
 import { getQueryParameters, recomputeNodeModules, singlePassUpdate, updateModel, updateModelBranchInfo, updateNodeModules } from './updateModel.js';
 import sleep from '../../../perennial/js/common/sleep.js';
 import { logger } from './logging.js';
-import { bundlePool, getStrongEtagPool, transpilePool } from './worker-pools.js';
+import { bundlePool, getStrongEtagPool, modulifyPool, transpilePool } from './worker-pools.js';
 import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, removeLogCallback } from './log-watcher.js';
+
+// Custom additions to Express Request type
+declare module 'express-serve-static-core' {
+  interface Request { // eslint-disable-line @typescript-eslint/consistent-type-definitions
+    isLive?: boolean;
+  }
+}
 
 ( async () => {
   /*
@@ -35,6 +42,7 @@ import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, removeLogCallbac
    *
    * TO DO features:
    *  - Modulify
+   *    --- PERFORMANCE!
    *    - Parallel modulification - Promise.all in modulify bits to speed them up?
    *    - Invalidation once chipper/perennial changes (relaunch modulify servers)
    *    - (( load file / modulify file => transpile / from bundle => cache result 304? ))
@@ -130,10 +138,10 @@ import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, removeLogCallbac
   logger.info( ` - useGithubAPI: ${useGithubAPI}` );
 
   // These will get stat'ed all at once
-  const PREFERRED_EXTENSIONS = [ 'js', 'ts' ];
+  const PREFERRED_JS_EXTENSIONS = [ 'js', 'ts' ];
 
   // These will only be stat'ed if the preferred ones don't exist
-  const EXTRA_EXTENSIONS = [ 'tsx', 'jsx', 'mts' ];
+  const EXTRA_JS_EXTENSIONS = [ 'tsx', 'jsx', 'mts' ];
 
   // TODO: don't allow this for production https://github.com/phetsims/phettest/issues/20
   const INCLUDE_CORS_ALL_ORIGINS = true;
@@ -528,19 +536,26 @@ import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, removeLogCallbac
     return result;
   };
 
-  const getStatWithExtension = async ( filePath: string ): Promise<{ stat: fs.Stats; extension: string } | null> => {
-    const preferredStatMap = await conditionalStatExtensionMap( filePath, PREFERRED_EXTENSIONS );
+  const getStatWithExtension = async (
+    filePath: string,
+    extensionRequested: string
+  ): Promise<{ stat: fs.Stats; extension: string } | null> => {
+    const preferredExtensions = extensionRequested === '.js' ? PREFERRED_JS_EXTENSIONS : [ 'json' ];
 
-    for ( const extension of PREFERRED_EXTENSIONS ) {
+    const preferredStatMap = await conditionalStatExtensionMap( filePath, preferredExtensions );
+
+    for ( const extension of preferredExtensions ) {
       const stat = preferredStatMap[ extension ];
       if ( stat ) {
         return { stat: stat, extension: extension };
       }
     }
 
-    const extraStatMap = await conditionalStatExtensionMap( filePath, EXTRA_EXTENSIONS );
+    const extraExtensions = extensionRequested === '.js' ? EXTRA_JS_EXTENSIONS : [];
 
-    for ( const extension of EXTRA_EXTENSIONS ) {
+    const extraStatMap = await conditionalStatExtensionMap( filePath, extraExtensions );
+
+    for ( const extension of extraExtensions ) {
       const stat = extraStatMap[ extension ];
       if ( stat ) {
         return { stat: stat, extension: extension };
@@ -1017,41 +1032,78 @@ import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, removeLogCallbac
     }
   } );
 
-  app.get( /^\/(.+)\.js$/, async ( req: Request, res: Response, next: NextFunction ) => {
-    try {
-      const key = req.params[ 0 ].replace( 'chipper/dist/js/', '' ).replace( /^\/+/, '' );
+  // strip '/live/ prefix, set req.isLive
+  app.use( ( req: Request, res: Response, next: NextFunction ) => {
+    if ( req.url.startsWith( '/live' ) ) {
+      req.isLive = true;
+      req.url = req.url.slice( '/live'.length ) || '/';
+    }
+    else {
+      req.isLive = false;
+    }
+    next();
+  } );
 
-      const statWithExtension = await getStatWithExtension( key );
+  app.get( /^\/(.+)(\.js|\.json)$/, async ( req: Request, res: Response, next: NextFunction ) => {
+    try {
+      const requestPath = req.params[ 0 ]
+        .replace( 'chipper/dist/js/', '' )
+        .replace( /^\/+/, '' );
+      const extensionRequested = req.params[ 1 ];
+      const isLive = req.isLive;
+      const cacheKey = ( isLive ? 'live:' : 'static:' ) + requestPath + extensionRequested;
+
+      // Checks whether the file exists (and info about it)
+      const statWithExtension = await getStatWithExtension( requestPath, extensionRequested );
 
       // NOTE: For security, getStatWithExtension will essentially ensure that the file is within ROOT_DIR,
       // and exists (so that we'll be serving an actual file)
       if ( statWithExtension ) {
         const stat = statWithExtension.stat;
         const extension = statWithExtension.extension;
-        const pathWithExtension = path.join( ROOT_DIR, key + '.' + extension );
+        const relativePath = requestPath + '.' + extension;
+        const pathWithExtension = path.join( ROOT_DIR, relativePath );
         const isJS = extension === 'js';
+        const isJSON = extension === 'json';
+
+        const modulifiedContent: string | null = isLive ? await modulifyPool.run( relativePath ) : null;
 
         // phet-io-wrappers-main uses import.meta.url, which MESSES with bundling bad (and gives the wrong results)
-        const isEntryPoint = ( key.endsWith( '-main' ) && !key.includes( 'phet-io-wrappers-main' ) ) || key.endsWith( '-tests' );
+        const isEntryPoint = (
+          requestPath.endsWith( '-main' ) &&
+          !requestPath.includes( 'phet-io-wrappers-main' )
+        ) || requestPath.endsWith( '-tests' );
 
-        const cacheEntry = jsCache.get( key );
+        const cacheEntry = jsCache.get( cacheKey );
 
         const singleFileEtag = getWeakEtag( stat.mtimeMs, stat.size );
 
-        if ( !isEntryPoint ) {
+        const isSimpleFile = modulifiedContent === null && !isEntryPoint;
+
+        if ( isSimpleFile ) {
           res.setHeader( 'ETag', singleFileEtag );
         }
-        res.setHeader( 'Last-Modified', new Date( stat.mtimeMs ).toUTCString() );
-        res.setHeader( 'Content-Type', 'application/javascript; charset=utf-8' );
+
+        if ( modulifiedContent === null ) {
+          res.setHeader( 'Last-Modified', new Date( stat.mtimeMs ).toUTCString() );
+        }
+
+        if ( isJSON ) {
+          res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
+        }
+        else {
+          res.setHeader( 'Content-Type', 'application/javascript; charset=utf-8' );
+        }
+
         // NOTE: cache control header set way earlier
 
         // Give a quick 304 if possible
-        if ( !isEntryPoint && req.headers[ 'if-none-match' ] === singleFileEtag ) {
+        if ( isSimpleFile && req.headers[ 'if-none-match' ] === singleFileEtag ) {
           res.status( 304 ).end();
         }
         // Or a cache hit if we've already transpiled it
         else if (
-          !isEntryPoint &&
+          isSimpleFile &&
           cacheEntry &&
           cacheEntry.mtime === stat.mtimeMs &&
           cacheEntry.size === stat.size
@@ -1059,14 +1111,32 @@ import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, removeLogCallbac
           res.send( cacheEntry.contents );
         }
         else if ( !isEntryPoint ) {
-          const finalSource = isJS ? await fsPromises.readFile( pathWithExtension, 'utf8' ) : await transpilePool.run( pathWithExtension );
+          let finalSource: string;
 
-          jsCache.set( key, { mtime: stat.mtimeMs, size: stat.size, etag: singleFileEtag, contents: finalSource } );
+          if ( modulifiedContent ) {
+            if ( isJSON || isJS ) {
+              finalSource = modulifiedContent;
+            }
+            else {
+              finalSource = await transpilePool.run( { filePath: pathWithExtension, contents: modulifiedContent } );
+            }
+          }
+          else {
+            if ( isJSON || isJS ) {
+              finalSource = await fsPromises.readFile( pathWithExtension, 'utf8' );
+            }
+            else {
+              finalSource = await transpilePool.run( pathWithExtension );
+            }
+
+            jsCache.set( cacheKey, { mtime: stat.mtimeMs, size: stat.size, etag: singleFileEtag, contents: finalSource } );
+          }
 
           res.send( finalSource );
         }
         else {
-          const finalSource = await bundlePool.run( pathWithExtension );
+          // We have an entry point!
+          const finalSource = await bundlePool.run( { filePath: pathWithExtension, modulify: isLive } );
 
           const etag = await getStrongEtagPool.run( finalSource );
 

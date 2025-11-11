@@ -13,10 +13,12 @@ import { logger } from '../../logging.js';
 
 logger.info( 'Starting transpile worker' );
 
-export default async function transpile( filePath: string ): Promise<string> {
+export default async function transpile( source: string | { filePath: string; contents: string } ): Promise<string> {
   const startTime = Date.now();
 
-  const originalSource = await fsPromises.readFile( filePath, 'utf8' );
+  const filePath = typeof source === 'string' ? source : source.filePath;
+  const originalSource = typeof source === 'string' ? ( await fsPromises.readFile( source, 'utf8' ) ) : source.filePath;
+
   const result = await transpileTS( originalSource, filePath );
 
   logger.info( `Transpiled ${filePath} in ${Date.now() - startTime} ms, ${result.length} bytes` );

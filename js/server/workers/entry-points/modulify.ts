@@ -1,14 +1,14 @@
 // Copyright 2025, University of Colorado Boulder
 
 /**
- * Worker for bundling files using esbuild.
+ * Worker for modulifying files
  *
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
 import Piscina from 'piscina';
-import { bundleFile } from '../bundling.js';
 import { logger } from '../../logging.js';
+import { getModulifiedFile } from '../modulifyAPI.js';
 
 const ROOT_DIR: string = Piscina.workerData.ROOT_DIR;
 
@@ -18,12 +18,12 @@ if ( !ROOT_DIR ) {
   throw new Error( 'ROOT_DIR is not defined in workerData' );
 }
 
-export default async function bundle( data: { filePath: string; modulify: boolean } ): Promise<string> {
+export default async function modulify( relativePath: string ): Promise<string | null> {
   const startTime = Date.now();
 
-  const result = await bundleFile( ROOT_DIR, data.filePath, data.modulify );
+  const result = await getModulifiedFile( relativePath );
 
-  logger.info( `Bundled${data.modulify ? ' and modulified' : ''} ${data.filePath} in ${Date.now() - startTime} ms, ${result.length} bytes` );
+  logger.verbose( `Modulified ${relativePath} in ${Date.now() - startTime} ms, ${result.modulified ? result.fileContents.length : 0} bytes` );
 
-  return result;
+  return result.modulified ? result.fileContents : null;
 }

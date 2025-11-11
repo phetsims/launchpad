@@ -27,78 +27,87 @@ const extensionToLoader: Partial<Record<string, string>> = {
   '.txt': 'text'
 };
 
-const esbuildLoadPlugin: esbuild.Plugin = {
-  name: 'simLauncher-rewrite',
-  setup( build ) {
-    build.onLoad( { filter: /.*/ }, async onLoadArgs => {
-      const absolutePath = onLoadArgs.path;
-      const relativePath = path.relative( ROOT_DIR, absolutePath );
+const getEsbuildLoadPlugin = ( modulify: boolean ): esbuild.Plugin => {
+  return {
+    name: 'simLauncher-rewrite',
+    setup( build ) {
+      build.onLoad( { filter: /.*/ }, async onLoadArgs => {
+        const absolutePath = onLoadArgs.path;
+        const relativePath = path.relative( ROOT_DIR, absolutePath );
 
-      const contentPromise = fsPromises.readFile( absolutePath, 'utf8' );
+        const contentPromise = fsPromises.readFile( absolutePath, 'utf8' );
 
-      if ( relativePath === 'joist/js/simLauncher.ts' ) {
-        // console.log( 'custom', relativePath );
-        return {
-          contents: ( await contentPromise ).replace( '\'js\'', '\'ts\'' ),
-          loader: 'ts'
-        };
-      }
-      else if ( relativePath.endsWith( 'himalaya-1.1.0.js' ) ) {
-        const originalText = await contentPromise;
-        const text = originalText.replace(
-          '(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.himalaya = f()}})',
-          '( function( f ) {self.himalaya = f();})'
-        );
-        if ( text === originalText ) {
-          throw new Error( 'himalaya rewrite failed?' );
-        }
-        // console.log( 'custom', relativePath );
-        return { contents: text, loader: 'js' };
-      }
-      else if ( relativePath.endsWith( 'peggy-3.0.2.js' ) ) {
-        let text = await contentPromise;
-        text = text.replace(
-          'function(e,u){"object"==typeof exports&&"undefined"!=typeof module?module.exports=u():"function"==typeof define&&define.amd?define(u):(e="undefined"!=typeof globalThis?globalThis:e||self).peggy=u()}'.replaceAll( '\n', os.EOL ),
-          '( function( e,u ) {self.peggy = u();})'
-        );
-        // console.log( 'custom', relativePath );
-        return { contents: text, loader: 'js' };
-      }
-      else {
-        const modulifyResponse = await getModulifiedFile( relativePath );
-
-        const extension = path.extname( relativePath );
-        const loader = extensionToLoader[ extension ];
-
-        if ( modulifyResponse.modulified ) {
-          console.log( 'modulified', relativePath );
-
+        if ( relativePath === 'joist/js/simLauncher.ts' ) {
+          // console.log( 'custom', relativePath );
           return {
-            contents: modulifyResponse.fileContents,
-            loader: loader as esbuild.Loader
+            contents: ( await contentPromise ).replace( '\'js\'', '\'ts\'' ),
+            loader: 'ts'
           };
         }
+        else if ( relativePath.endsWith( 'himalaya-1.1.0.js' ) ) {
+          const originalText = await contentPromise;
+          const text = originalText.replace(
+            '(function(f){if(typeof exports==="object"&&typeof module!=="undefined"){module.exports=f()}else if(typeof define==="function"&&define.amd){define([],f)}else{var g;if(typeof window!=="undefined"){g=window}else if(typeof global!=="undefined"){g=global}else if(typeof self!=="undefined"){g=self}else{g=this}g.himalaya = f()}})',
+            '( function( f ) {self.himalaya = f();})'
+          );
+          if ( text === originalText ) {
+            throw new Error( 'himalaya rewrite failed?' );
+          }
+          // console.log( 'custom', relativePath );
+          return { contents: text, loader: 'js' };
+        }
+        else if ( relativePath.endsWith( 'peggy-3.0.2.js' ) ) {
+          let text = await contentPromise;
+          text = text.replace(
+            'function(e,u){"object"==typeof exports&&"undefined"!=typeof module?module.exports=u():"function"==typeof define&&define.amd?define(u):(e="undefined"!=typeof globalThis?globalThis:e||self).peggy=u()}'.replaceAll( '\n', os.EOL ),
+            '( function( e,u ) {self.peggy = u();})'
+          );
+          // console.log( 'custom', relativePath );
+          return { contents: text, loader: 'js' };
+        }
         else {
-          if ( loader ) {
-            // console.log( 'loaded', relativePath );
+          const modulifyResponse = modulify ? await getModulifiedFile( relativePath ) : null;
+
+          const extension = path.extname( relativePath );
+          const loader = extensionToLoader[ extension ];
+
+          if ( modulifyResponse && modulifyResponse.modulified ) {
+            console.log( 'modulified', relativePath );
+
             return {
-              contents: await contentPromise,
+              contents: modulifyResponse.fileContents,
               loader: loader as esbuild.Loader
             };
           }
           else {
-            // console.log( 'passthrough', relativePath );
-            // pass through
-            return null;
+            if ( loader ) {
+              // console.log( 'loaded', relativePath );
+              return {
+                contents: await contentPromise,
+                loader: loader as esbuild.Loader
+              };
+            }
+            else {
+              // console.log( 'passthrough', relativePath );
+              // pass through
+              return null;
+            }
           }
         }
-      }
-    } );
-  }
+      } );
+    }
+  };
 };
 
+const nonModulifyPlugin = getEsbuildLoadPlugin( false );
+const modulifyPlugin = getEsbuildLoadPlugin( true );
+
 // Bundles a TS (or JS) entry point using esbuild, throws an error on failure.
-export const bundleFile = async ( rootDir: string, filePath: string ): Promise<string> => {
+export const bundleFile = async (
+  rootDir: string,
+  filePath: string,
+  modulify: boolean
+): Promise<string> => {
   const result = await esbuild.build( {
     entryPoints: [ filePath ],
     bundle: true,
@@ -108,7 +117,7 @@ export const bundleFile = async ( rootDir: string, filePath: string ): Promise<s
     minifySyntax: true,
     write: false, // We handle writing/sending the response
     sourcemap: 'inline', // Keep source maps inline for dev
-    plugins: [ esbuildLoadPlugin ],
+    plugins: [ modulify ? modulifyPlugin : nonModulifyPlugin ],
     absWorkingDir: rootDir // Needed to resolve files relative to the entry point's directory
   } );
   const output = result.outputFiles[ 0 ];

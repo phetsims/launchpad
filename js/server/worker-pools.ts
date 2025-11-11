@@ -11,7 +11,7 @@ import { ROOT_DIR } from './options.js';
 import { logger } from './logging.js';
 import { QueryParameter, Repo } from '../types/common-types.js';
 
-export const bundlePool = new Piscina<string, string>( {
+export const bundlePool = new Piscina<{ filePath: string; modulify: boolean }, string>( {
   filename: new URL( './workers/entry-points/bundle.js', import.meta.url ).href,
   minThreads: 1,
   maxThreads: 8,
@@ -20,8 +20,17 @@ export const bundlePool = new Piscina<string, string>( {
     ROOT_DIR: ROOT_DIR
   }
 } );
-export const transpilePool = new Piscina<string, string>( {
+export const transpilePool = new Piscina<string | { filePath: string; contents: string }, string>( {
   filename: new URL( './workers/entry-points/transpile.js', import.meta.url ).href,
+  minThreads: 1,
+  maxThreads: 8,
+  idleTimeout: 60 * 60 * 1000,
+  workerData: {
+    ROOT_DIR: ROOT_DIR
+  }
+} );
+export const modulifyPool = new Piscina<string, string | null>( {
+  filename: new URL( './workers/entry-points/modulify.js', import.meta.url ).href,
   minThreads: 1,
   maxThreads: 8,
   idleTimeout: 60 * 60 * 1000,
