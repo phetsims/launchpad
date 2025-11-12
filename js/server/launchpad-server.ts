@@ -40,6 +40,30 @@ declare module 'express-serve-static-core' {
    *  - Log button crash!!
    *  - Spam random things with no matches in search bar ... caused modes to disappear once
    *
+   *
+   * CACHES --- in main thread only
+   *   Modulify cache:
+   *     - List files that were used as sources (including... directories?) --- can we get directory listing changes?
+   *     - Record IN-MEMORY chipper/perennial-alias SHAs, and ideally REPO shas too (perhaps babel?)
+   *       - Record a fill map of SHAs at the start of modulifying?
+   *     - Record mtimes/sizes of all files used during modulification???
+   *       -- WE CAN do this "after" modulification, just reject caching anything that changed within e.g. 30seconds
+   *   -- WAIT, how would our cache be main-thread only if we need it from the esbuild-bundle workers?
+   *     - Need to allow messages to main thread to "pick up" from cache?
+   *       -- Will this significantly increase latency?
+   *     - Could use a FILE CACHE -- though how to store the metadata?
+   *       THIS SEEMS SIMPLER
+   *       - Store metadata in separate file (JSON) --- includes all mtimes/sizes/SHAs
+   *   - Each chipper modulify worker server should report its SHA (and perennial-alias SHA)?
+   *   - Each chipper modulify worker server should report USED FILE PATHS for modulification?
+   *
+   *   - Ability to disable modulification cache --- e.g. "I'm going to modify chipper/perennial"???
+   *     - How do we handle that? --- just have the user restart the server? --- or provide a custom button to
+   *       trigger a restart like chipper/perennial-alias updated?
+   *
+   *   -- for cache, files might not exist (can record that)
+   *
+   *
    * TO DO features:
    *  - Modulify
    *    --- PERFORMANCE!
@@ -1066,7 +1090,11 @@ declare module 'express-serve-static-core' {
         const isJS = extension === 'js';
         const isJSON = extension === 'json';
 
-        const modulifiedContent: string | null = isLive ? await modulifyPool.run( relativePath ) : null;
+        const modulifiedContent: string | null = isLive ? await modulifyPool.run( {
+          relativePath: relativePath,
+          chipperSHA: model.repos.chipper.branches.main.sha!,
+          perennialSHA: model.repos[ 'perennial-alias' ].branches.main.sha!
+        } ) : null;
 
         // phet-io-wrappers-main uses import.meta.url, which MESSES with bundling bad (and gives the wrong results)
         const isEntryPoint = (

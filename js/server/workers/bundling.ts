@@ -66,13 +66,19 @@ const getEsbuildLoadPlugin = ( modulify: boolean ): esbuild.Plugin => {
           return { contents: text, loader: 'js' };
         }
         else {
-          const modulifyResponse = modulify ? await getModulifiedFile( relativePath ) : null;
+          const modulifyResponse = modulify ? await getModulifiedFile(
+            relativePath,
+
+            // These will be lazily filled in if necessary
+            null,
+            null
+          ) : null;
 
           const extension = path.extname( relativePath );
           const loader = extensionToLoader[ extension ];
 
           if ( modulifyResponse && modulifyResponse.modulified ) {
-            console.log( 'modulified', relativePath );
+            // console.log( 'modulified', relativePath );
 
             return {
               contents: modulifyResponse.fileContents,

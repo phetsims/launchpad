@@ -9,5 +9,8 @@ node_modules/
 .eslintcache
 .model.json
 
+# we'll store temporary files here
+cache
+
 # credentials and such
 config.json

@@ -6,11 +6,19 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
+import fs from 'fs';
+// eslint-disable-next-line phet/default-import-match-filename
+import fsPromises from 'fs/promises';
+import * as ig from 'isomorphic-git';
+import Piscina from 'piscina';
 import { fork, ChildProcess } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { SHA } from '../../types/common-types.js';
+import { logger } from '../logging.js';
 
 const TIMEOUT_MS = 30000;
+const ROOT_DIR: string = Piscina.workerData.ROOT_DIR;
 
 export type ModulifyRequest = {
   type: 'modulifyRequest';
@@ -32,7 +40,19 @@ export type ModulifyResponse = {
 } | {
   modulified: true;
   fileContents: string;
+  chipperSHA: string;
+  perennialSHA: string;
+  usedRelativeFiles: string[];
 } );
+
+export type ModulifyMetadata = {
+  file: string;
+  chipperSHA: string;
+  perennialSHA: string;
+
+  // usedRelativeFile => { mtime, size } | null (null if file didn't exist)
+  statMap: Record<string, { mtime: number; size: number } | null>;
+};
 
 export type Inflight = {
   resolve: ( response: ModulifyResponse ) => void;
@@ -100,7 +120,7 @@ modulifyProcess.on( 'exit', ( code, signal ) => {
   inflightMap.clear();
 } );
 
-export const getModulifiedFile = async ( file: string ): Promise<ModulifyResponse> => {
+export const retrieveModulifiedFile = async ( file: string ): Promise<ModulifyResponse> => {
   const id = nextId++;
 
   return new Promise( ( resolve, reject ) => {
@@ -123,5 +143,136 @@ export const getModulifiedFile = async ( file: string ): Promise<ModulifyRespons
     };
 
     modulifyProcess.send( request );
-  });
+  } );
+};
+
+const CACHE_DIR = path.resolve( ROOT_DIR, 'launchpad', 'cache', 'modulify-cache' );
+
+const getStatMap = async ( usedRelativeFiles: string[] ): Promise<ModulifyMetadata['statMap']> => {
+  const statMap: ModulifyMetadata['statMap'] = {};
+
+  await Promise.all( usedRelativeFiles.map( async relativeFile => {
+    const fullPath = path.resolve( ROOT_DIR, relativeFile );
+
+    try {
+      const stat = await fsPromises.stat( fullPath );
+
+      statMap[ relativeFile ] = {
+        mtime: stat.mtimeMs,
+        size: stat.size
+      };
+    }
+    catch( e ) {
+      statMap[ relativeFile ] = null;
+    }
+  } ) );
+
+  return statMap;
+};
+
+export const getModulifiedFile = async (
+  file: string,
+  chipperSHA: SHA | null,
+  perennialSHA: SHA | null
+): Promise<ModulifyResponse> => {
+  const metadataCacheFile = path.resolve( CACHE_DIR, file + '_metadata.json' );
+  const cachedContentFile = path.resolve( CACHE_DIR, file );
+
+  const updateSHAs = async () => {
+    if ( chipperSHA === null ) {
+      // eslint-disable-next-line require-atomic-updates
+      chipperSHA = await ig.resolveRef( {
+        fs: fs,
+        dir: path.resolve( ROOT_DIR, 'chipper' ),
+        ref: 'HEAD'
+      } );
+    }
+
+    if ( perennialSHA === null ) {
+      // eslint-disable-next-line require-atomic-updates
+      perennialSHA = await ig.resolveRef( {
+        fs: fs,
+        dir: path.resolve( ROOT_DIR, 'perennial-alias' ),
+        ref: 'HEAD'
+      } );
+    }
+  };
+
+  try {
+
+    if ( fs.existsSync( metadataCacheFile ) ) {
+      await updateSHAs();
+
+      const metadataContent: ModulifyMetadata = JSON.parse( await fsPromises.readFile( metadataCacheFile, 'utf8' ) );
+
+      const usedRelativeFiles = Object.keys( metadataContent.statMap );
+
+      let matches = true;
+      if ( metadataContent.chipperSHA === chipperSHA && metadataContent.perennialSHA === perennialSHA ) {
+        const statMap = await getStatMap( usedRelativeFiles );
+
+        for ( const relativeFile of usedRelativeFiles ) {
+          const previousStat = metadataContent.statMap[ relativeFile ];
+          const currentStat = statMap[ relativeFile ];
+          if ( previousStat === null && currentStat === null ) {
+            // both didn't exist, continue
+          }
+          else if ( previousStat === null || currentStat === null ) {
+            matches = false;
+          }
+          else if ( previousStat.mtime !== currentStat.mtime || previousStat.size !== currentStat.size ) {
+            matches = false;
+          }
+        }
+      }
+      else {
+        matches = false;
+      }
+
+      logger.verbose( 'Modulify cache ' + ( matches ? 'hit' : 'miss' ) + ` for ${file}` );
+
+      if ( matches ) {
+        const fileContents = await fsPromises.readFile( cachedContentFile, 'utf8' );
+
+        await updateSHAs();
+
+        return {
+          type: 'modulifyResponse',
+          id: 0, // id is not relevant here
+          modulified: true,
+          fileContents: fileContents,
+          chipperSHA: chipperSHA!,
+          perennialSHA: perennialSHA!,
+          usedRelativeFiles: usedRelativeFiles
+        };
+      }
+    }
+  }
+  catch( e ) {
+    logger.error( `Error checking modulify cache for ${file}: ${e}` );
+  }
+
+  const modulifyResponse = await retrieveModulifiedFile( file );
+
+  // Add actual modulified files to the cache (CONSIDER non-modulified files?)
+  ( async () => {
+    if ( modulifyResponse.modulified ) {
+      await updateSHAs();
+
+      const metadata: ModulifyMetadata = {
+        file: file,
+        chipperSHA: chipperSHA!,
+        perennialSHA: perennialSHA!,
+        statMap: await getStatMap( modulifyResponse.modulified ? modulifyResponse.usedRelativeFiles : [] )
+      };
+
+      await fsPromises.mkdir( path.dirname( metadataCacheFile ), { recursive: true } );
+      await fsPromises.writeFile( metadataCacheFile, JSON.stringify( metadata ), 'utf8' );
+      await fsPromises.writeFile( cachedContentFile, modulifyResponse.fileContents, 'utf8' );
+    }
+  } )().catch( e => {
+    logger.error( `Error caching modulified file for ${file}: ${e}` );
+  } );
+
+  return modulifyResponse;
 };

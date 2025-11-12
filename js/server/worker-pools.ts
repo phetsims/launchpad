@@ -9,7 +9,7 @@
 import Piscina from 'piscina';
 import { ROOT_DIR } from './options.js';
 import { logger } from './logging.js';
-import { QueryParameter, Repo } from '../types/common-types.js';
+import { QueryParameter, Repo, SHA } from '../types/common-types.js';
 
 export const bundlePool = new Piscina<{ filePath: string; modulify: boolean }, string>( {
   filename: new URL( './workers/entry-points/bundle.js', import.meta.url ).href,
@@ -29,7 +29,7 @@ export const transpilePool = new Piscina<string | { filePath: string; contents: 
     ROOT_DIR: ROOT_DIR
   }
 } );
-export const modulifyPool = new Piscina<string, string | null>( {
+export const modulifyPool = new Piscina<{ relativePath: string; chipperSHA: SHA; perennialSHA: SHA }, string | null>( {
   filename: new URL( './workers/entry-points/modulify.js', import.meta.url ).href,
   minThreads: 1,
   maxThreads: 8,
