@@ -6,13 +6,10 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import Piscina from 'piscina';
 import { logger } from '../../logging.js';
 import { getModulifiedFile } from '../modulifyAPI.js';
 import { SHA } from '../../../types/common-types.js';
-import { cacheModulification } from '../../options.js';
-
-const ROOT_DIR: string = Piscina.workerData.ROOT_DIR;
+import { cacheModulification, ROOT_DIR } from '../../options.js';
 
 logger.info( `Starting modulify worker, ROOT_DIR: ${ROOT_DIR}, cacheModulification: ${cacheModulification}` );
 

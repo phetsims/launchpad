@@ -6,12 +6,10 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import Piscina from 'piscina';
 import { logger } from '../../logging.js';
 import { QueryParameter, Repo } from '../../../types/common-types.js';
 import { extractQueryParameters } from '../extractQueryParameters.js';
-
-const ROOT_DIR = Piscina.workerData.ROOT_DIR;
+import { ROOT_DIR } from '../../options.js';
 
 logger.info( `Starting extract-query-parameter worker, ROOT_DIR: ${ROOT_DIR}` );
 

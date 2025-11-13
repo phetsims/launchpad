@@ -54,7 +54,7 @@ if ( typeof port !== 'number' || isNaN( port ) || port < 0 || port > 65535 ) {
   throw new Error( `Invalid port: ${port}` );
 }
 
-export const ROOT_DIR = options.rootDirectory;
+export const ROOT_DIR = workerData?.ROOT_DIR ?? options.rootDirectory;
 if ( typeof ROOT_DIR !== 'string' || !fs.existsSync( ROOT_DIR ) || !fs.statSync( ROOT_DIR ).isDirectory() ) {
   throw new Error( `Invalid rootDirectory: ${ROOT_DIR}` );
 }

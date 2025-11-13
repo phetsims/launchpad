@@ -6,14 +6,12 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import Piscina from 'piscina';
 import fsPromises from 'fs/promises'; // eslint-disable-line phet/default-import-match-filename
 import esbuild from 'esbuild';
 import os from 'os';
 import path from 'path';
 import { getModulifiedFile } from './modulifyAPI.js';
-
-const ROOT_DIR: string = Piscina.workerData.ROOT_DIR;
+import { ROOT_DIR } from '../options.js';
 
 const extensionToLoader: Partial<Record<string, string>> = {
   '.ts': 'ts',

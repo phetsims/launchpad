@@ -10,17 +10,15 @@ import fs from 'fs';
 // eslint-disable-next-line phet/default-import-match-filename
 import fsPromises from 'fs/promises';
 import * as ig from 'isomorphic-git';
-import Piscina from 'piscina';
 import { ChildProcess, fork } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SHA } from '../../types/common-types.js';
 import { logger } from '../logging.js';
 import { isModulifyUpToDate } from './modulifyGlobalReset.js';
-import { cacheModulification } from '../options.js';
+import { cacheModulification, ROOT_DIR } from '../options.js';
 
 const TIMEOUT_MS = 30000;
-const ROOT_DIR: string = Piscina.workerData.ROOT_DIR;
 
 export type ModulifyRequest = {
   type: 'modulifyRequest';

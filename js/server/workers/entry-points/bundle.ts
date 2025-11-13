@@ -6,11 +6,9 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import Piscina from 'piscina';
 import { bundleFile } from '../bundling.js';
 import { logger } from '../../logging.js';
-
-const ROOT_DIR: string = Piscina.workerData.ROOT_DIR;
+import { ROOT_DIR } from '../../options.js';
 
 logger.info( `Starting bundle worker, ROOT_DIR: ${ROOT_DIR}` );
 
