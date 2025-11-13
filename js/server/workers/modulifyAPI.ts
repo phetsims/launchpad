@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { SHA } from '../../types/common-types.js';
 import { logger } from '../logging.js';
 import { isModulifyUpToDate } from './modulifyGlobalReset.js';
+import { cacheModulification } from '../options.js';
 
 const TIMEOUT_MS = 30000;
 const ROOT_DIR: string = Piscina.workerData.ROOT_DIR;
@@ -210,7 +211,7 @@ export const getModulifiedFile = async (
 
   try {
 
-    if ( fs.existsSync( metadataCacheFile ) ) {
+    if ( cacheModulification && fs.existsSync( metadataCacheFile ) ) {
       await updateSHAs();
 
       const metadataContent: ModulifyMetadata = JSON.parse( await fsPromises.readFile( metadataCacheFile, 'utf8' ) );
@@ -272,7 +273,7 @@ export const getModulifiedFile = async (
 
   // Add actual modulified files to the cache (CONSIDER non-modulified files?)
   ( async () => {
-    if ( modulifyResponse.modulified ) {
+    if ( cacheModulification && modulifyResponse.modulified ) {
       logger.info( `Caching modulified file for ${file} shas ${chipperSHA} ${perennialSHA}` );
 
       await updateSHAs();

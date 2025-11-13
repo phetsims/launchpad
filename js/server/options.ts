@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import fs from 'fs';
 import nopt from 'nopt';
+import { workerData } from 'worker_threads';
 
 const __filename = fileURLToPath( import.meta.url );
 const __dirname = dirname( __filename );
@@ -22,6 +23,7 @@ const noptOptions = nopt( {
   autoCheckoutReleaseBranches: Boolean,
   numAutoBuildThreads: Number,
   checkClean: Boolean,
+  cacheModulification: Boolean,
   logLevel: String,
   useGithubAPI: Boolean
 }, {}, process.argv, 2 );
@@ -38,6 +40,7 @@ export const options = {
   autoCheckoutReleaseBranches: getOptionIfProvided( 'autoCheckoutReleaseBranches', true ),
   numAutoBuildThreads: getOptionIfProvided( 'numAutoBuildThreads', 2 ),
   checkClean: getOptionIfProvided( 'checkClean', false ),
+  cacheModulification: getOptionIfProvided( 'cacheModulification', true ),
 
   // Logging level: silly, debug, verbose, info, warn, error
   logLevel: getOptionIfProvided( 'logLevel', 'verbose' ),
@@ -45,8 +48,6 @@ export const options = {
   // NOTE: this might run through rate limits very quickly if using the API, but it is faster for many things
   useGithubAPI: getOptionIfProvided( 'useGithubAPI', false )
 };
-
-console.log( 'port type', typeof options.port );
 
 export const port = parseInt( options.port, 10 );
 if ( typeof port !== 'number' || isNaN( port ) || port < 0 || port > 65535 ) {
@@ -81,6 +82,11 @@ if ( typeof numAutoBuildThreads !== 'number' || isNaN( numAutoBuildThreads ) || 
 export const checkClean = options.checkClean;
 if ( typeof checkClean !== 'boolean' ) {
   throw new Error( `Invalid checkClean: ${checkClean}` );
+}
+
+export const cacheModulification = workerData?.cacheModulification ?? options.cacheModulification;
+if ( typeof cacheModulification !== 'boolean' ) {
+  throw new Error( `Invalid cacheModulification: ${cacheModulification}` );
 }
 
 export const logLevel = options.logLevel;

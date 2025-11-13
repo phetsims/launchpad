@@ -16,7 +16,7 @@ import type { Branch, BranchInfo, LogEvent, ModelBranchInfo, Repo, RepoListEntry
 import basicAuth from 'basic-auth';
 import { config } from './config.js';
 import { model, saveModel } from './model.js';
-import { autoBuild, autoCheckoutReleaseBranches, autoUpdate, checkClean, logLevel, numAutoBuildThreads, port, ROOT_DIR, useGithubAPI } from './options.js';
+import { autoBuild, autoCheckoutReleaseBranches, autoUpdate, cacheModulification, checkClean, logLevel, numAutoBuildThreads, port, ROOT_DIR, useGithubAPI } from './options.js';
 import { buildMain, buildReleaseBranch, getAsyncWrappers, getLatestCommits, getLatestSHA, getNPMHash, updateMain, updateReleaseBranchCheckout } from './util.js';
 import { getQueryParameters, recomputeNodeModules, singlePassUpdate, updateModel, updateModelBranchInfo, updateNodeModules } from './updateModel.js';
 import sleep from '../../../perennial/js/common/sleep.js';
@@ -70,6 +70,7 @@ declare module 'express-serve-static-core' {
    *
    *
    * TO DO features:
+   *  --- passing logging messages up (if we are a worker and spawn workers)
    *  - Modulify
    *    - Parallel modulification - Promise.all in modulify bits to speed them up?
    *    - If no-cache headers (check Chrome), force a recompute (for safety)
@@ -144,6 +145,7 @@ declare module 'express-serve-static-core' {
   logger.info( ` - autoCheckoutReleaseBranches: ${autoCheckoutReleaseBranches}` );
   logger.info( ` - numAutoBuildThreads: ${numAutoBuildThreads}` );
   logger.info( ` - checkClean: ${checkClean}` );
+  logger.info( ` - cacheModulification: ${cacheModulification}` );
   logger.info( ` - logLevel: ${logLevel}` );
   logger.info( ` - useGithubAPI: ${useGithubAPI}` );
 

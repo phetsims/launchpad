@@ -7,7 +7,7 @@
  */
 
 import Piscina from 'piscina';
-import { ROOT_DIR } from './options.js';
+import { cacheModulification, ROOT_DIR } from './options.js';
 import { logger } from './logging.js';
 import { QueryParameter, Repo, SHA } from '../types/common-types.js';
 import { modulifySAB } from './workers/modulifyGlobalReset.js';
@@ -19,6 +19,7 @@ export const bundlePool = new Piscina<{ filePath: string; modulify: boolean }, s
   idleTimeout: 60 * 60 * 1000,
   workerData: {
     ROOT_DIR: ROOT_DIR,
+    cacheModulification: cacheModulification,
     modulifySAB: modulifySAB
   }
 } );
@@ -29,6 +30,7 @@ export const transpilePool = new Piscina<string | { filePath: string; contents: 
   idleTimeout: 60 * 60 * 1000,
   workerData: {
     ROOT_DIR: ROOT_DIR,
+    cacheModulification: cacheModulification,
     modulifySAB: modulifySAB
   }
 } );
@@ -39,6 +41,7 @@ export const modulifyPool = new Piscina<{ relativePath: string; chipperSHA: SHA;
   idleTimeout: 60 * 60 * 1000,
   workerData: {
     ROOT_DIR: ROOT_DIR,
+    cacheModulification: cacheModulification,
     modulifySAB: modulifySAB
   }
 } );
@@ -49,6 +52,7 @@ export const getStrongEtagPool = new Piscina<string, string>( {
   idleTimeout: 60 * 60 * 1000,
   workerData: {
     ROOT_DIR: ROOT_DIR,
+    cacheModulification: cacheModulification,
     modulifySAB: modulifySAB
   }
 } );
@@ -59,6 +63,7 @@ export const getExtractQueryParametersPool = new Piscina<{ repo: Repo; directory
   idleTimeout: 60 * 60 * 1000,
   workerData: {
     ROOT_DIR: ROOT_DIR,
+    cacheModulification: cacheModulification,
     modulifySAB: modulifySAB
   }
 } );
