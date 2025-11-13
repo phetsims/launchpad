@@ -45,39 +45,7 @@ declare module 'express-serve-static-core' {
    *  - Log button crash!!
    *  - Spam random things with no matches in search bar ... caused modes to disappear once
    *
-   *
-   * CACHES --- in main thread only
-   *   Modulify cache:
-   *     - List files that were used as sources (including... directories?) --- can we get directory listing changes?
-   *     - Record IN-MEMORY chipper/perennial-alias SHAs, and ideally REPO shas too (perhaps babel?)
-   *       - Record a fill map of SHAs at the start of modulifying?
-   *     - Record mtimes/sizes of all files used during modulification???
-   *       -- WE CAN do this "after" modulification, just reject caching anything that changed within e.g. 30seconds
-   *   -- WAIT, how would our cache be main-thread only if we need it from the esbuild-bundle workers?
-   *     - Need to allow messages to main thread to "pick up" from cache?
-   *       -- Will this significantly increase latency?
-   *     - Could use a FILE CACHE -- though how to store the metadata?
-   *       THIS SEEMS SIMPLER
-   *       - Store metadata in separate file (JSON) --- includes all mtimes/sizes/SHAs
-   *   - Each chipper modulify worker server should report its SHA (and perennial-alias SHA)?
-   *   - Each chipper modulify worker server should report USED FILE PATHS for modulification?
-   *
-   *   - Ability to disable modulification cache --- e.g. "I'm going to modify chipper/perennial"???
-   *     - How do we handle that? --- just have the user restart the server? --- or provide a custom button to
-   *       trigger a restart like chipper/perennial-alias updated?
-   *
-   *   -- for cache, files might not exist (can record that)
-   *
-   *
    * TO DO features:
-   *  --- passing logging messages up (if we are a worker and spawn workers)
-   *  - Modulify
-   *    - Parallel modulification - Promise.all in modulify bits to speed them up?
-   *    - If no-cache headers (check Chrome), force a recompute (for safety)
-   *    - NOTE CHECK: strings are requested from repo/repo-strings_en.json AND babel/_.../repo_all.json, ensure both are patched
-   *    - More aggressive caching for "if files aren't changing between shas" - especially if we can skip re-bundling
-   *      - Ignore on local cases (where files MIGHT be changing regardless of shas)
-   *      - HAVE A FLAG for "will local files change"
    *  - Mobile viewport and usability! -- we'll want it to work on mobile devices
    *  - Ensure builds are timestamped by the "start" of the build (and sha'ed for the start?)
    *  - Query Parameters:
