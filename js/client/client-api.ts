@@ -213,3 +213,11 @@ export const getQueryParameters = async ( repo: Repo, branch: Branch ): Promise<
     return true;
   } );
 };
+
+export const apiReloadModulify = async (): Promise<void> => {
+  const response = await fetch( 'api/reload-modulify', { method: 'POST' } );
+
+  if ( !response.ok ) {
+    throw new Error( `Failed to trigger reload-modulify: ${response.status} ${response.statusText}` );
+  }
+};

@@ -14,7 +14,17 @@ import nopt from 'nopt';
 const __filename = fileURLToPath( import.meta.url );
 const __dirname = dirname( __filename );
 
-const noptOptions = nopt( {}, {}, process.argv, 2 );
+const noptOptions = nopt( {
+  port: Number,
+  rootDirectory: String,
+  autoUpdate: Boolean,
+  autoBuild: Boolean,
+  autoCheckoutReleaseBranches: Boolean,
+  numAutoBuildThreads: Number,
+  checkClean: Boolean,
+  logLevel: String,
+  useGithubAPI: Boolean
+}, {}, process.argv, 2 );
 
 const getOptionIfProvided = <T>( keyName: string, defaultValue?: T ): T => {
   return noptOptions[ keyName ] !== undefined ? noptOptions[ keyName ] : defaultValue!;
@@ -35,6 +45,8 @@ export const options = {
   // NOTE: this might run through rate limits very quickly if using the API, but it is faster for many things
   useGithubAPI: getOptionIfProvided( 'useGithubAPI', false )
 };
+
+console.log( 'port type', typeof options.port );
 
 export const port = parseInt( options.port, 10 );
 if ( typeof port !== 'number' || isNaN( port ) || port < 0 || port > 65535 ) {

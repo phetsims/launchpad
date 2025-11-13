@@ -11,11 +11,12 @@ import fs from 'fs';
 import fsPromises from 'fs/promises';
 import * as ig from 'isomorphic-git';
 import Piscina from 'piscina';
-import { fork, ChildProcess } from 'node:child_process';
+import { ChildProcess, fork } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SHA } from '../../types/common-types.js';
 import { logger } from '../logging.js';
+import { isModulifyUpToDate } from './modulifyGlobalReset.js';
 
 const TIMEOUT_MS = 30000;
 const ROOT_DIR: string = Piscina.workerData.ROOT_DIR;
@@ -65,23 +66,53 @@ export type Inflight = {
 const __filename = fileURLToPath( import.meta.url );
 const __dirname = path.dirname( __filename );
 
-function spawnProcess(): ChildProcess {
-  const workerPath = path.resolve( __dirname, '../../../../chipper/js/grunt/modulify/modulifyForkServer.ts' );
-  return fork( workerPath, [], {
-    stdio: [ 'inherit', 'inherit', 'inherit', 'ipc' ],
-    execArgv: process.execArgv.length ? process.execArgv : [ '-r', 'tsx' ]
-  } );
-}
-
-// TODO: switch to "multiple" workers? --- or not
-let modulifyProcess = spawnProcess();
+let modulifyProcess!: ChildProcess;
 
 let nextId = 1;
 
 // Simple in-flight map to correlate requests
 const inflightMap = new Map<number, Inflight>();
 
+const spawnProcess = () => {
+  const workerPath = path.resolve( __dirname, '../../../../chipper/js/grunt/modulify/modulifyForkServer.ts' );
+
+  modulifyProcess = fork( workerPath, [], {
+    stdio: [ 'inherit', 'inherit', 'inherit', 'ipc' ],
+    execArgv: process.execArgv.length ? process.execArgv : [ '-r', 'tsx' ]
+  } );
+
+  modulifyProcess.on( 'message', ( response: ModulifyResponse | ErrorResponse ) => {
+    const inflight = inflightMap.get( response.id );
+
+    if ( inflight ) {
+      inflightMap.delete( response.id );
+      clearTimeout( inflight.timer );
+
+      if ( response.type === 'error' ) {
+        console.error( response.message );
+        inflight.reject( new Error( response.message ) );
+      }
+      else {
+        inflight.resolve( response );
+      }
+    }
+  } );
+
+  modulifyProcess.on( 'exit', ( code, signal ) => {
+    for ( const [ id, inflight ] of inflightMap ) {
+      clearTimeout( inflight.timer );
+      inflight.reject( new Error( `worker exited (${code ?? signal}) while processing ${id}` ) );
+    }
+    inflightMap.clear();
+  } );
+};
+
+// NOTE: could switch to multiple modulify processes if needed
+spawnProcess();
+
 export const reloadModulify = (): void => {
+  logger.info( 'Reloading modulify process' );
+
   const oldModulifyProcess = modulifyProcess;
 
   const interval = setInterval( () => {
@@ -92,33 +123,8 @@ export const reloadModulify = (): void => {
     }
   }, 1000 );
 
-  modulifyProcess = spawnProcess();
+  spawnProcess();
 };
-
-modulifyProcess.on( 'message', ( response: ModulifyResponse | ErrorResponse ) => {
-  const inflight = inflightMap.get( response.id );
-
-  if ( inflight ) {
-    inflightMap.delete( response.id );
-    clearTimeout( inflight.timer );
-
-    if ( response.type === 'error' ) {
-      console.error( response.message );
-      inflight.reject( new Error( response.message ) );
-    }
-    else {
-      inflight.resolve( response );
-    }
-  }
-} );
-
-modulifyProcess.on( 'exit', ( code, signal ) => {
-  for ( const [ , inflight ] of inflightMap ) {
-    clearTimeout( inflight.timer );
-    inflight.reject( new Error( `worker exited (${code ?? signal})` ) );
-  }
-  inflightMap.clear();
-} );
 
 export const retrieveModulifiedFile = async ( file: string ): Promise<ModulifyResponse> => {
   const id = nextId++;
@@ -177,6 +183,10 @@ export const getModulifiedFile = async (
 ): Promise<ModulifyResponse> => {
   const metadataCacheFile = path.resolve( CACHE_DIR, file + '_metadata.json' );
   const cachedContentFile = path.resolve( CACHE_DIR, file );
+
+  if ( !isModulifyUpToDate() ) {
+    reloadModulify();
+  }
 
   const updateSHAs = async () => {
     if ( chipperSHA === null ) {
@@ -257,6 +267,8 @@ export const getModulifiedFile = async (
   // Add actual modulified files to the cache (CONSIDER non-modulified files?)
   ( async () => {
     if ( modulifyResponse.modulified ) {
+      logger.info( `Caching modulified file for ${file} shas ${chipperSHA} ${perennialSHA}` );
+
       await updateSHAs();
 
       const metadata: ModulifyMetadata = {

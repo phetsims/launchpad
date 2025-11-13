@@ -16,7 +16,7 @@
 import { createLogger, format, transports } from 'winston';
 import { logLevel } from './options.js';
 import { default as perennialWinston } from '../../../perennial/js/npm-dependencies/winston.js';
-import { isMainThread, threadId, parentPort } from 'node:worker_threads';
+import { isMainThread, parentPort, threadId } from 'node:worker_threads';
 // NOTE: Don't import anything that isn't safe to import from worker threads!!!
 
 // If we are on the main thread, we'll return a normal logger (with timestamps)

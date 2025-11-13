@@ -10,6 +10,7 @@ import Piscina from 'piscina';
 import { ROOT_DIR } from './options.js';
 import { logger } from './logging.js';
 import { QueryParameter, Repo, SHA } from '../types/common-types.js';
+import { modulifySAB } from './workers/modulifyGlobalReset.js';
 
 export const bundlePool = new Piscina<{ filePath: string; modulify: boolean }, string>( {
   filename: new URL( './workers/entry-points/bundle.js', import.meta.url ).href,
@@ -17,7 +18,8 @@ export const bundlePool = new Piscina<{ filePath: string; modulify: boolean }, s
   maxThreads: 8,
   idleTimeout: 60 * 60 * 1000,
   workerData: {
-    ROOT_DIR: ROOT_DIR
+    ROOT_DIR: ROOT_DIR,
+    modulifySAB: modulifySAB
   }
 } );
 export const transpilePool = new Piscina<string | { filePath: string; contents: string }, string>( {
@@ -26,7 +28,8 @@ export const transpilePool = new Piscina<string | { filePath: string; contents: 
   maxThreads: 8,
   idleTimeout: 60 * 60 * 1000,
   workerData: {
-    ROOT_DIR: ROOT_DIR
+    ROOT_DIR: ROOT_DIR,
+    modulifySAB: modulifySAB
   }
 } );
 export const modulifyPool = new Piscina<{ relativePath: string; chipperSHA: SHA; perennialSHA: SHA }, string | null>( {
@@ -35,7 +38,8 @@ export const modulifyPool = new Piscina<{ relativePath: string; chipperSHA: SHA;
   maxThreads: 8,
   idleTimeout: 60 * 60 * 1000,
   workerData: {
-    ROOT_DIR: ROOT_DIR
+    ROOT_DIR: ROOT_DIR,
+    modulifySAB: modulifySAB
   }
 } );
 export const getStrongEtagPool = new Piscina<string, string>( {
@@ -44,7 +48,8 @@ export const getStrongEtagPool = new Piscina<string, string>( {
   maxThreads: 8,
   idleTimeout: 60 * 60 * 1000,
   workerData: {
-    ROOT_DIR: ROOT_DIR
+    ROOT_DIR: ROOT_DIR,
+    modulifySAB: modulifySAB
   }
 } );
 export const getExtractQueryParametersPool = new Piscina<{ repo: Repo; directory: string }, QueryParameter[]>( {
@@ -53,7 +58,8 @@ export const getExtractQueryParametersPool = new Piscina<{ repo: Repo; directory
   maxThreads: 8,
   idleTimeout: 60 * 60 * 1000,
   workerData: {
-    ROOT_DIR: ROOT_DIR
+    ROOT_DIR: ROOT_DIR,
+    modulifySAB: modulifySAB
   }
 } );
 

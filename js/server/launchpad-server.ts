@@ -25,6 +25,7 @@ import { bundlePool, getStrongEtagPool, modulifyPool, transpilePool } from './wo
 import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, removeLogCallback } from './log-watcher.js';
 // eslint-disable-next-line phet/default-import-match-filename
 import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
+import { reloadAllModulifyProcesses } from './workers/modulifyGlobalReset.js';
 
 const ReleaseBranch = ReleaseBranchImport.default;
 
@@ -71,11 +72,7 @@ declare module 'express-serve-static-core' {
    * TO DO features:
    *  - Modulify
    *    - Parallel modulification - Promise.all in modulify bits to speed them up?
-   *    - Invalidation once chipper/perennial changes (relaunch modulify servers)
-   *      -- !!!!!!!!!!
    *    - If no-cache headers (check Chrome), force a recompute (for safety)
-   *    - ?? do we invalidate caches on chipper/perennial changes? (it COULD change which files would be modulified)
-   *      - We SHOULD invalidate caches based on modulification when chipper/perennial changes
    *    - ADD IN A COMMENT HEADER noting the live-modulification
    *    - NOTE CHECK: strings are requested from repo/repo-strings_en.json AND babel/_.../repo_all.json, ensure both are patched
    *    - More aggressive caching for "if files aren't changing between shas" - especially if we can skip re-bundling
@@ -357,6 +354,13 @@ declare module 'express-serve-static-core' {
       ( async () => {
         await updateModel( model );
       } )().catch( e => logger.error( `async updateModel after perennial update error: ${e}` ) );
+    }
+
+    if ( repo === 'chipper' || repo === 'perennial-alias' ) {
+      ( async () => {
+        // Invalidate modulify caches
+        reloadAllModulifyProcesses();
+      } )().catch( e => logger.error( `async reloadModulify after chipper/perennial-alias update error: ${e}` ) );
     }
   };
 
@@ -1056,6 +1060,17 @@ declare module 'express-serve-static-core' {
       req.isLive = false;
     }
     next();
+  } );
+
+  // Allow a manual reloading of modulify processes
+  app.post( '/api/reload-modulify', async ( req: Request, res: Response, next: NextFunction ) => {
+    logger.info( 'Reloading all modulify processes per /api/reload-modulify request' );
+    reloadAllModulifyProcesses();
+
+    res.setHeader( 'Content-Type', 'application/json; charset=utf-8' );
+    res.send( JSON.stringify( {
+      type: 'reloading'
+    } ) );
   } );
 
   app.get( /^\/(.+)(\.js|\.json)$/, async ( req: Request, res: Response, next: NextFunction ) => {

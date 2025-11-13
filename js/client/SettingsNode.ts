@@ -16,6 +16,8 @@ import { launchTypeProperty, repoFilterTypeProperty, showAdvancedProperty } from
 import { ColorTheme, colorThemeProperty, uiHeaderFont } from './theme.js';
 import { RepoFilterType } from './RepoFilterType.js';
 import { UITextSwitch } from './UITextSwitch.js';
+import { UITextPushButton } from './UITextPushButton.js';
+import { apiReloadModulify } from './client-api.js';
 
 export class SettingsNode extends PopupNode {
   public constructor( viewContext: ViewContext ) {
@@ -47,6 +49,7 @@ export class SettingsNode extends PopupNode {
           new UIText( 'Settings', {
             font: uiHeaderFont
           } ),
+          new UIText( 'These settings will be saved for your browser on this device.' ),
           createInsetGroup( 'Launch In:', new UIAquaRadioButtonGroup( launchTypeProperty, [
             {
               value: LaunchType.SAME_TAB,
@@ -97,7 +100,15 @@ export class SettingsNode extends PopupNode {
             align: 'center',
             spacing: 5
           } ) ),
-          new UITextSwitch( showAdvancedProperty, 'Show Advanced Options' )
+          new UITextSwitch( showAdvancedProperty, 'Show Advanced Options' ),
+          new UITextPushButton( 'Force Server Modulify Reload', {
+            listener: () => {
+              apiReloadModulify().catch( error => {
+                console.error( 'Error requesting modulify reload:', error );
+              } );
+            },
+            visibleProperty: showAdvancedProperty
+          } )
         ]
       } ),
       viewContext
