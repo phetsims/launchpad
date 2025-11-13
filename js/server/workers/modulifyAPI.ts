@@ -272,9 +272,9 @@ export const getModulifiedFile = async (
   // Add actual modulified files to the cache (CONSIDER non-modulified files?)
   ( async () => {
     if ( cacheModulification && modulifyResponse.modulified ) {
-      logger.info( `Caching modulified file for ${file} shas ${chipperSHA} ${perennialSHA}` );
-
       await updateSHAs();
+
+      logger.info( `Caching modulified file for ${file} shas ${chipperSHA} ${perennialSHA}` );
 
       const metadata: ModulifyMetadata = {
         file: file,
