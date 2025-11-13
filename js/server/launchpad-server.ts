@@ -73,7 +73,6 @@ declare module 'express-serve-static-core' {
    *  - Modulify
    *    - Parallel modulification - Promise.all in modulify bits to speed them up?
    *    - If no-cache headers (check Chrome), force a recompute (for safety)
-   *    - ADD IN A COMMENT HEADER noting the live-modulification
    *    - NOTE CHECK: strings are requested from repo/repo-strings_en.json AND babel/_.../repo_all.json, ensure both are patched
    *    - More aggressive caching for "if files aren't changing between shas" - especially if we can skip re-bundling
    *      - Ignore on local cases (where files MIGHT be changing regardless of shas)

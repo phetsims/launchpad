@@ -128,7 +128,7 @@ export const bundleFile = async (
   } );
   const output = result.outputFiles[ 0 ];
 
-  return output.text;
+  return `// Bundled by launchpad at ${new Date().toISOString()} from ${filePath} with modulify: ${modulify}\n${output.text}`;
 };
 
 // Transpiles a single TS file in-memory, throws an error on failure.
@@ -143,5 +143,5 @@ export const transpileTS = async ( tsCode: string, filePath: string ): Promise<s
     target: 'esnext' // Use modern JS features
   } );
 
-  return result.code;
+  return `// Transpiled by launchpad at ${new Date().toISOString()} from ${filePath}\n${result.code}`;
 };
