@@ -7,12 +7,13 @@
  */
 
 import { BranchInfo, QueryParameter, RepoListEntry } from '../../types/common-types.js';
-import { VBox } from 'scenerystack/scenery';
+import { HBox, VBox } from 'scenerystack/scenery';
 import { ViewContext } from '../ViewContext.js';
-import { BooleanProperty } from 'scenerystack/axon';
-import { useBuiltProperty } from '../settings.js';
+import { BooleanProperty, DerivedProperty } from 'scenerystack/axon';
+import { useBuiltProperty, useLiveModulifyProperty } from '../settings.js';
 import { UITextSwitch } from '../UITextSwitch.js';
 import { QueryParametersNode } from './QueryParameterNode.js';
+import { TooltipListener } from '../TooltipListener.js';
 
 export class SimpleUnbuiltBuiltCustomizationNode extends VBox {
   private queryParametersNode: QueryParametersNode | null = null;
@@ -36,14 +37,32 @@ export class SimpleUnbuiltBuiltCustomizationNode extends VBox {
 
     const showBuiltProperty = hasBoth ? useBuiltProperty : new BooleanProperty( unbuiltURL === null );
 
-    const textSwitch = new UITextSwitch( showBuiltProperty, 'Use Built Version', {
+    const switchesBox = new HBox( {
+      spacing: 30
+    } );
+    this.addChild( switchesBox );
+
+    const useBuiltSwitch = new UITextSwitch( showBuiltProperty, 'Built Version', {
       onOffSwitchOptions: {
         enabled: hasBoth
       }
     } );
+    useBuiltSwitch.addInputListener( new TooltipListener( viewContext, 'Launches the built form of the sim' ) );
 
-    this.addDisposable( textSwitch );
-    this.addChild( textSwitch );
+    this.addDisposable( useBuiltSwitch );
+    switchesBox.addChild( useBuiltSwitch );
+
+    if ( unbuiltURL !== null && branchInfo.branch === 'main' ) {
+      const useLiveModulifyEnabledProperty = new DerivedProperty( [ showBuiltProperty ], showBuilt => !showBuilt );
+      const useLiveModulifySwitch = new UITextSwitch( useLiveModulifyProperty, 'Live Modulify', {
+        visibleProperty: useLiveModulifyEnabledProperty
+      } );
+      useLiveModulifySwitch.addInputListener( new TooltipListener( viewContext, 'Launches using latest strings/resources, instead of intermediate checked-in code' ) );
+
+      this.addDisposable( useLiveModulifyEnabledProperty );
+      this.addDisposable( useLiveModulifySwitch );
+      switchesBox.addChild( useLiveModulifySwitch );
+    }
 
     const showBuiltListener = ( built: boolean ) => {
       if ( this.queryParametersNode ) {
@@ -70,15 +89,20 @@ export class SimpleUnbuiltBuiltCustomizationNode extends VBox {
   }
 
   public getURL(): string {
+    const useLiveModulify = this.branchInfo.branch === 'main' && useLiveModulifyProperty.value;
+
+    const builtURL = this.builtURL;
+    const unbuiltURL = this.unbuiltURL ? `${useLiveModulify ? 'live/' : ''}${this.unbuiltURL}` : this.unbuiltURL;
+
     let baseURL: string;
-    if ( this.unbuiltURL && this.builtURL ) {
-      baseURL = useBuiltProperty.value ? this.builtURL : this.unbuiltURL;
+    if ( unbuiltURL && builtURL ) {
+      baseURL = useBuiltProperty.value ? builtURL : unbuiltURL;
     }
-    else if ( this.builtURL ) {
-      baseURL = this.builtURL;
+    else if ( builtURL ) {
+      baseURL = builtURL;
     }
-    else if ( this.unbuiltURL ) {
-      baseURL = this.unbuiltURL;
+    else if ( unbuiltURL ) {
+      baseURL = unbuiltURL;
     }
     else {
       throw new Error( 'No URL available' );
@@ -92,6 +116,7 @@ export class SimpleUnbuiltBuiltCustomizationNode extends VBox {
         return `${encodeURIComponent( key )}`; // key only (flag)
       }
       else {
+        // eslint-disable-next-line @typescript-eslint/no-base-to-string
         return `${encodeURIComponent( key )}=${encodeURIComponent( `${value}` )}`;
       }
     } );

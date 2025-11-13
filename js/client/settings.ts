@@ -17,6 +17,9 @@ export const showAdvancedProperty = new LocalStorageBooleanProperty( 'showAdvanc
 // This only controls unbuilt/built for places where there is a choice (it takes a default)
 export const useBuiltProperty = new LocalStorageBooleanProperty( 'useBuilt', false );
 
+// This controls unbuilt live modulification
+export const useLiveModulifyProperty = new LocalStorageBooleanProperty( 'useLiveModulify', false );
+
 export const favoriteQueryParametersProperty = new LocalStorageStringArrayProperty( 'favoriteQueryParameters', [
   'ea',
   'brand',

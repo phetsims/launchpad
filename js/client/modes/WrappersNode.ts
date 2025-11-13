@@ -70,7 +70,7 @@ export class WrappersNode extends VBox {
         return a.localeCompare( b );
       } );
 
-      const textSwitch = new UITextSwitch( this.showBuiltProperty, 'Use Built Version', {
+      const textSwitch = new UITextSwitch( this.showBuiltProperty, 'Built Version', {
         onOffSwitchOptions: {
           enabled: isBuilt
         }

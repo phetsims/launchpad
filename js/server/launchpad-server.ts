@@ -23,6 +23,10 @@ import sleep from '../../../perennial/js/common/sleep.js';
 import { logger } from './logging.js';
 import { bundlePool, getStrongEtagPool, modulifyPool, transpilePool } from './worker-pools.js';
 import { addLogCallback, lastErrorLogEvents, lastWarnLogEvents, removeLogCallback } from './log-watcher.js';
+// eslint-disable-next-line phet/default-import-match-filename
+import ReleaseBranchImport from '../../../perennial/js/common/ReleaseBranch.js';
+
+const ReleaseBranch = ReleaseBranchImport.default;
 
 // Custom additions to Express Request type
 declare module 'express-serve-static-core' {
@@ -66,10 +70,9 @@ declare module 'express-serve-static-core' {
    *
    * TO DO features:
    *  - Modulify
-   *    --- PERFORMANCE!
    *    - Parallel modulification - Promise.all in modulify bits to speed them up?
    *    - Invalidation once chipper/perennial changes (relaunch modulify servers)
-   *    - (( load file / modulify file => transpile / from bundle => cache result 304? ))
+   *      -- !!!!!!!!!!
    *    - If no-cache headers (check Chrome), force a recompute (for safety)
    *    - ?? do we invalidate caches on chipper/perennial changes? (it COULD change which files would be modulified)
    *      - We SHOULD invalidate caches based on modulification when chipper/perennial changes
@@ -78,20 +81,7 @@ declare module 'express-serve-static-core' {
    *    - More aggressive caching for "if files aren't changing between shas" - especially if we can skip re-bundling
    *      - Ignore on local cases (where files MIGHT be changing regardless of shas)
    *      - HAVE A FLAG for "will local files change"
-   *    ----- HOW DOES CACHING work with live modulify? ---- bad interactions unless ... yeah
-   *      -- Bundle and Transpile BOTH NEED independent support here (and JSON files are missing right now too)
-   *      -- WE NEED to add a URL base for live-modulify ---- SETTING in launchpad to change these
-   *        - raw/ --- no changes
-   *        - / --- transpiled but not live-modulified --- CACHEABLE because changes are 1-to-1
-   *        - live/ --- live-modulified ---- NO CACHE unless the file is not modulified (so... sometimes cache)
-   *    - INSPECT to see if live-modulified content is DIFFERENT than disk content(!!!!)
-   *    - Potentially subdirectory for "auto-modulified" versions? (perhaps have a "raw" subdirectory that provides only raw files)
-   *    - Cache file contents potentially in memory, including "modulified" versions? (store timestamps for all dependencies?)
-   *  - PERFORMANCE: we can timestamp ALL of the files used for a bundle/transpile? (also include SHAs)
-   *    - Then we can direct-serve things again from our internal cache
-   *    - How fast will it be to STAT a bunch of files? Probably fairly fast?
-   *    - CURRENTLY OUR BUNDLING is kind of slow, 300ms ish on laptop
-   *  - Mobile viewport and usability!
+   *  - Mobile viewport and usability! -- we'll want it to work on mobile devices
    *  - Ensure builds are timestamped by the "start" of the build (and sha'ed for the start?)
    *  - Query Parameters:
    *    - Support release branches (old styles of query parameters)
@@ -118,7 +108,6 @@ declare module 'express-serve-static-core' {
    *
    * TO DO performance:
    *  - Reduce file sizes --- they are pretty big, especially with the source map inline
-   *  - WORKERS
    *  - And make the main thread lighter (move work to workers, and try to reduce CPU)
    *  - Profile or check CPU usage for all API requests. But ESPECIALLY INTERNAL ACTIONS
    *  - Add nonce to client.js path?? Allows faster load of large launchpad download?
@@ -148,6 +137,7 @@ declare module 'express-serve-static-core' {
    *  - per-main-repo LOCKS for git mutating commands (includes getFileAtBranch... unfortunately)
    *  - A11y tab navigation proper aria roles, see https://www.w3.org/WAI/ARIA/apg/patterns/tabs/
    *  - A11y proper dialog focus management (don't focus things not in the dialog)
+   *  - raw/ directory serves the direct files/TypeScript without transpilation
    */
 
   logger.info( 'options:' );
