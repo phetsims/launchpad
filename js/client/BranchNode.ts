@@ -26,6 +26,7 @@ import { showAdvancedProperty } from './settings.js';
 import { CustomizationNode } from './modes/mode-types.js';
 import { launchTriggerEmitter } from './launchTriggerEmitter.js';
 import { TooltipListener } from './TooltipListener.js';
+import { isBuildOutOfDate } from './isBuildOutOfDate.js';
 
 let isStartup = true;
 
@@ -349,24 +350,7 @@ export class BranchNode extends VBox {
 
     // Build status and button
     if ( repoListEntry.isRunnable && branchInfo.isCheckedOut ) {
-      let isBuildableWithNewSHAs: boolean;
-      if ( !branchInfo.lastBuiltTime ) {
-        isBuildableWithNewSHAs = true;
-      }
-      else if ( branchInfo.branch === 'main' ) {
-        isBuildableWithNewSHAs = !branchInfo.dependencyRepos.every( dependencyRepo => {
-          if ( !( dependencyRepo in branchInfo.dependencySHAMap ) ) {
-            return false;
-          }
-          const localSHA = branchInfo.dependencySHAMap[ dependencyRepo ];
-          const latestBuildSHA = branchInfo.lastBuildSHAs[ dependencyRepo ];
-
-          return localSHA === latestBuildSHA;
-        } );
-      }
-      else {
-        isBuildableWithNewSHAs = branchInfo.sha !== branchInfo.lastBuildSHAs[ branchInfo.repo ];
-      }
+      const isBuildableWithNewSHAs = isBuildOutOfDate( branchInfo );
 
       const buildStatusText = new UIText( branchInfo.lastBuiltTime === null ? 'No build available' : (
         isBuildableWithNewSHAs ? `Out Of Date Build: ${moment( branchInfo.lastBuiltTime ).calendar()}` : `Built: ${moment( branchInfo.lastBuiltTime ).calendar()}`

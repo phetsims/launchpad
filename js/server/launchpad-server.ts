@@ -46,7 +46,6 @@ declare module 'express-serve-static-core' {
    *  - Spam random things with no matches in search bar ... caused modes to disappear once
    *
    * TO DO features:
-   *  - Ensure builds are timestamped by the "start" of the build (and sha'ed for the start?)
    *  - Query Parameters:
    *    - Support release branches (old styles of query parameters)
    *    - Add "wrapper" query parameters, and things for e.g. aqua
@@ -54,8 +53,6 @@ declare module 'express-serve-static-core' {
    *  - Top-level search:
    *    - Multi-target search (for repos, modes, branches, etc. all at once?) -- brainstorm
    *    - Search that can find modes (see if we can match two levels with the search) -- for modes that exist in one repo
-   *  - Show the "need to rebuild" warning in getModes when build mode is selected
-   *    - Brainstorm whether this is the only place the build button lives
    *  - TOASTS for when repos are updated (perhaps show commit info too) --- i.e. popups that show live updates
    *    - Perhaps show a list of recently discovered updates --- server-side query list?
    *  - LOG usability (right now seems tricky) - at least test main server-side)

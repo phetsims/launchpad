@@ -111,6 +111,10 @@ export const linkColorProperty = new LightDarkColorProperty(
   '#00f',
   '#6cf'
 );
+export const warningColorProperty = new LightDarkColorProperty(
+  'red',
+  'red'
+);
 
 export const autocompleteMatchColorProperty = new LightDarkColorProperty(
   '#02a',

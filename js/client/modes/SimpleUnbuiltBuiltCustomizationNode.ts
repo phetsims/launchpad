@@ -14,6 +14,9 @@ import { useBuiltProperty, useLiveModulifyProperty } from '../settings.js';
 import { UITextSwitch } from '../UITextSwitch.js';
 import { QueryParametersNode } from './QueryParameterNode.js';
 import { TooltipListener } from '../TooltipListener.js';
+import { isBuildOutOfDate } from '../isBuildOutOfDate.js';
+import { warningColorProperty } from '../theme.js';
+import { UIText } from '../UIText.js';
 
 export class SimpleUnbuiltBuiltCustomizationNode extends VBox {
   private queryParametersNode: QueryParametersNode | null = null;
@@ -62,6 +65,16 @@ export class SimpleUnbuiltBuiltCustomizationNode extends VBox {
       this.addDisposable( useLiveModulifyEnabledProperty );
       this.addDisposable( useLiveModulifySwitch );
       switchesBox.addChild( useLiveModulifySwitch );
+    }
+
+    if ( branchInfo.lastBuiltTime && isBuildOutOfDate( branchInfo ) && builtURL ) {
+      const outOfDateText = new UIText( 'WARNING: Build is out of date', {
+        fill: warningColorProperty,
+        visibleProperty: showBuiltProperty
+      } );
+
+      this.addDisposable( outOfDateText );
+      this.addChild( outOfDateText );
     }
 
     const showBuiltListener = ( built: boolean ) => {
