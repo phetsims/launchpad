@@ -6,7 +6,7 @@
  * @author Jonathan Olson <jonathan.olson@colorado.edu>
  */
 
-import { BranchInfo, QueryParameter, RepoListEntry } from '../../types/common-types.js';
+import { QueryParameter } from '../../types/common-types.js';
 import { UIRichText } from '../UIRichText.js';
 import { UISwitch } from '../UISwitch.js';
 import { UIAquaRadioButtonGroup } from '../UIAquaRadioButtonGroup.js';
@@ -15,7 +15,7 @@ import { autocompleteMatchColorProperty, queryParameterDocFont, uiButtonForegrou
 import { UIAccordionBox } from '../UIAccordionBox.js';
 import { ViewContext } from '../ViewContext.js';
 import { WaitingNode } from '../WaitingNode.js';
-import { Color, DOM, HBox, Path, VBox } from 'scenerystack/scenery';
+import { Color, HBox, Path, VBox } from 'scenerystack/scenery';
 import { BooleanProperty, DerivedProperty, Multilink, Property, StringProperty } from 'scenerystack/axon';
 import { getInputCSSProperty } from '../css.js';
 import { SearchBoxNode } from '../SearchBoxNode.js';

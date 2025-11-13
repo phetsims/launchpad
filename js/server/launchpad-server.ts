@@ -46,7 +46,6 @@ declare module 'express-serve-static-core' {
    *  - Spam random things with no matches in search bar ... caused modes to disappear once
    *
    * TO DO features:
-   *  - Mobile viewport and usability! -- we'll want it to work on mobile devices
    *  - Ensure builds are timestamped by the "start" of the build (and sha'ed for the start?)
    *  - Query Parameters:
    *    - Support release branches (old styles of query parameters)
@@ -90,6 +89,7 @@ declare module 'express-serve-static-core' {
    *  - GitHub webhooks - could set organization-wide hooks, and have launchpad listen for updates
    *
    * Deferred features:
+   *  - Improved mobile layout and usability
    *  - Non-PhET-member handling (private repos shouldn't be pulled, etc.)
    *  - More customization on what features to show/hide
    *  - Preview of URL that will be launched

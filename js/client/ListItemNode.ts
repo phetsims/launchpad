@@ -7,7 +7,7 @@
  */
 
 import { DerivedProperty, TProperty } from 'scenerystack/axon';
-import { Color, FireListener, Node, Rectangle, SceneryEvent, Voicing } from 'scenerystack/scenery';
+import { Color, FireListener, Node, Rectangle, SceneryEvent } from 'scenerystack/scenery';
 import { ViewContext } from './ViewContext.js';
 import { TooltipListener } from './TooltipListener.js';
 import { autocompleteMatchColorProperty, listEvenColorProperty, listHoverColorProperty, listOddColorProperty, listSelectedColorProperty } from './theme.js';

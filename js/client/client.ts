@@ -10,9 +10,9 @@
 import './clientQueryParameters.js';
 
 import { Property, stepTimer } from 'scenerystack/axon';
-import { Bounds2 } from 'scenerystack/dot';
+import { Bounds2, Matrix3 } from 'scenerystack/dot';
 import { platform } from 'scenerystack/phet-core';
-import { AlignBox, AlignGroup, Display, HBox, Image, Node, Path, pdomFocusProperty, Rectangle, VBox } from 'scenerystack/scenery';
+import { AlignBox, AlignGroup, Display, HBox, Image, Node, Path, pdomFocusProperty, VBox } from 'scenerystack/scenery';
 import { SearchBoxNode } from './SearchBoxNode.js';
 import type { RepoList } from '../types/common-types.js';
 import { apiGetRepoList } from './client-api.js';
@@ -50,13 +50,9 @@ selectedRepoProperty.lazyLink( repo => {
   throw e;
 } );
 
-// Tracks the bounds of the window (can listen with layoutBoundsProperty.link)
-export const layoutBoundsProperty = new Property(
-  new Bounds2( 0, 0, window.innerWidth, window.innerHeight )
-);
-
 // The root node of the scene graph (all Scenery content will be placed in here)
-const rootNode = new Node();
+const rootScaleNode = new Node();
+const rootNode = new Node( { children: [ rootScaleNode ] } );
 
 const display = new Display( rootNode, {
   backgroundColor: '#eee',
@@ -69,6 +65,11 @@ const display = new Display( rootNode, {
   listenToOnlyElement: true,
   passiveEvents: true
 } );
+
+// Tracks the bounds of the window (can listen with layoutBoundsProperty.link)
+export const layoutBoundsProperty = new Property(
+  new Bounds2( 0, 0, window.innerWidth, window.innerHeight )
+);
 
 uiBackgroundColorProperty.link( backgroundColor => {
   display.backgroundColor = backgroundColor;
@@ -252,7 +253,7 @@ alignBox.localBoundsProperty.link( () => {
   alignBox.top = 0;
 } );
 
-rootNode.children = [
+rootScaleNode.children = [
   alignBox,
   glassPane
 ];
@@ -262,9 +263,15 @@ let resizePending = true;
 const resize = () => {
   resizePending = false;
 
-  const layoutBounds = new Bounds2( 0, 0, window.innerWidth, window.innerHeight );
-  display.width = layoutBounds.width;
+  const minWidth = 1100;
+  const scale = Math.min( 1, window.innerWidth / minWidth );
+
+  const layoutBounds = new Bounds2( 0, 0, window.innerWidth / scale, window.innerHeight / scale );
+  display.width = window.innerWidth;
   layoutBoundsProperty.value = layoutBounds;
+  if ( isFinite( scale ) && scale > 0 ) {
+    rootScaleNode.matrix = Matrix3.scale( scale );
+  }
 
   if ( platform.mobileSafari ) {
     window.scrollTo( 0, 0 );
