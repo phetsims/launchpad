@@ -1,68 +1,24 @@
-## PhET Launchpad
+# ⚠️ This Repository Is No Longer Maintained
 
-Launchpad is a web app that allows team members to run PhET simulations (and other tools) on an internal server without 
-having to check out code.
+This repository is **out of date and no longer actively maintained.**
 
-This is currently available at https://bayes.colorado.edu/launchpad/
+As part of our ongoing effort to better sustain the PhET project, we have restructured our library and consolidated our individual repositories into a single **monorepo**.
 
-It is also possible to run this locally, to launch simulations on your own machine and working copy.
+## Current status
 
-### Bayes Launchpad
+As part of this restructuring, we are currently reviewing what to make publicly available. The monorepo is **not publicly available at this time**, and we appreciate your patience while we work through this to keep the PhET project sustainable.
 
-Launchpad is installed under /data/share/phet/launchpad/ and should be modified with the `phet-admin` user (`sudo -i -u phet-admin`).
+In the meantime, please note that the code here is outdated. Issues and pull requests opened against this repository may not receive a response.
 
-/etc/httpd/conf.d/bayes.colorado.edu.conf contains the Apache configuration to forward requests to the launchpad service.
-It will forward all traffic from /launchpad/* to the launchpad node process (and will strip off the '/launchpad' prefix).
+## Why the change?
 
-#### Updating Launchpad
+Moving to a monorepo allows us to:
 
-To update launchpad to the latest main branch code, run the following commands on bayes (under the phet-admin user):
+- Coordinate changes across the library more easily
+- Simplify dependency management and versioning
+- Reduce maintenance overhead so we can focus on the project itself
+- Provide a more consistent experience for contributors and users
 
-```sh
-cd /data/share/phet/launchpad/launchpad
-git pull
-npm install
-```
+## Thank you
 
-Then to update the client-side code (it will be delivered out of the /data/share/phet/launchpad/launchpad/dist/ directory):
-```sh
-npm run build-client-prod
-```
-
-Finally, if there were changes to the server code, restart the launchpad service:
-```sh
-pm2 restart launchpad
-```
-
-#### Viewing Launchpad Logs
-
-```sh
-pm2 logs launchpad
-```
-
-### Local Launchpad
-
-To run launchpad locally (with other phet repos checked out), do the following:
-
-First get node modules installed:
-```sh
-cd launchpad
-npm install
-```
-
-Build the client code (into the dist/ directory, that will be served by the launchpad server):
-```sh
-npm run build-client-dev
-```
-(note that the build-client-dev step can be run while the server is running, and will be immediately available upon browser refresh).
-
-Then start the server:
-```sh
-npm run local-server
-```
-
-This will run the server without the auto-update, auto-build, and auto-release-branch-checkout features that are used on bayes.
-
-It will then be viewable on http://localhost:45372/
-
-To customize the port (e.g. to set it for port 80), inspect the package.json for the local-server command and copy it to customize.
+Thank you for your patience while we restructure our library to better sustain the PhET project. We appreciate your continued interest and support. You can access all of our free sims on our website: https://phet.colorado.edu/
